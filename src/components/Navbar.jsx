@@ -9,12 +9,12 @@ import { exportData } from '@/store/db'
 import { toast } from '@/components/ui'
 
 const NAV_ITEMS = [
-  { id: 'dashboard',  label: 'Dashboard',   icon: LayoutDashboard },
-  { id: 'attendance', label: 'Điểm Danh',   icon: CalendarCheck  },
-  { id: 'fees',       label: 'Học Phí',     icon: BookOpen       },
-  { id: 'reviews',    label: 'Nhận Xét',    icon: GraduationCap  },
-  { id: 'schedule',   label: 'Lịch Dạy',   icon: Calendar       },
-  { id: 'students',   label: 'Học Sinh',    icon: Users          },
+  { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'attendance', label: 'Điểm Danh', icon: CalendarCheck },
+  { id: 'fees', label: 'Học Phí', icon: BookOpen },
+  { id: 'reviews', label: 'Nhận Xét', icon: GraduationCap },
+  { id: 'schedule', label: 'Lịch Dạy', icon: Calendar },
+  { id: 'students', label: 'Học Sinh', icon: Users },
 ]
 
 export const Navbar = ({ activePage, onNavigate, centerName }) => {
@@ -28,16 +28,16 @@ export const Navbar = ({ activePage, onNavigate, centerName }) => {
   return (
     <>
       {/* ─── Desktop sidebar ─── */}
-      <aside className="hidden lg:flex flex-col w-56 shrink-0 bg-navy-900 min-h-screen sticky top-0">
+      <aside className="hidden lg:flex flex-col w-1/5 shrink-0 bg-navy-900 h-screen sticky top-0 overflow-y-auto">
         {/* Logo */}
-        <div className="px-5 py-6 border-b border-navy-800">
-          <div className="flex items-center gap-2.5">
-            <div className="w-8 h-8 rounded-xl bg-white/10 flex items-center justify-center text-white font-display text-lg">
-              P
+        <div className="px-6 py-8">
+          <div className="flex items-center gap-2">
+            <div className="w-12 h-12 rounded-full bg-blue-500/15 flex items-center justify-center text-blue-400 shrink-0">
+              <GraduationCap size={20} strokeWidth={2} />
             </div>
-            <div>
-              <div className="text-white font-semibold text-sm leading-tight">Phiếu Học Phí</div>
-              <div className="text-navy-300 text-xs truncate max-w-[120px]">{centerName || 'Trung Tâm'}</div>
+            <div className="flex flex-col font-display text-white font-bold text-xl leading-[1.1] tracking-tight">
+              <span>Anh Ngữ</span>
+              <span>Ms.Phương</span>
             </div>
           </div>
         </div>
@@ -87,9 +87,14 @@ export const Navbar = ({ activePage, onNavigate, centerName }) => {
 
       {/* ─── Mobile top bar ─── */}
       <header className="lg:hidden bg-navy-900 text-white px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-navy">
-        <div className="flex items-center gap-2.5">
-          <div className="w-7 h-7 rounded-lg bg-white/15 flex items-center justify-center font-display text-base">P</div>
-          <span className="font-semibold text-sm">Phiếu Học Phí</span>
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 rounded-full bg-blue-500/15 flex items-center justify-center text-blue-400 shrink-0">
+            <GraduationCap size={20} strokeWidth={2} />
+          </div>
+          <div className="flex flex-col font-display text-white font-bold text-base leading-[1.1] tracking-tight">
+            <span>Anh Ngữ</span>
+            <span>Ms.Phương</span>
+          </div>
         </div>
         <button onClick={() => setMenuOpen(!menuOpen)} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors">
           {menuOpen ? <X size={20} /> : <Menu size={20} />}
@@ -105,7 +110,7 @@ export const Navbar = ({ activePage, onNavigate, centerName }) => {
             onClick={e => e.stopPropagation()}
           >
             <div className="px-5 py-6 border-b border-navy-800 flex items-center justify-between">
-              <span className="text-white font-semibold">{centerName || 'Trung Tâm'}</span>
+              <span className="text-white font-semibold">{centerName || 'Anh Ngữ Ms.Phương'}</span>
               <button onClick={() => setMenuOpen(false)} className="text-navy-400 hover:text-white p-1">
                 <X size={18} />
               </button>

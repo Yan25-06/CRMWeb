@@ -148,7 +148,7 @@ export const upsertReview = (data) => {
 // ─── Settings ────────────────────────────────────────────
 export const getSettings = () => get(KEYS.SETTINGS, {
   teacherName: '',
-  centerName: 'Trung Tâm',
+  centerName: 'Anh Ngữ Ms.Phương',
   defaultFeePerSession: 0,
   currency: 'đ',
 })

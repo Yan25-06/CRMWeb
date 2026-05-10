@@ -59,7 +59,7 @@ export const SettingsPage = () => {
           label="Tên Trung Tâm"
           value={settings.centerName || ''}
           onChange={e => setSettings(s => ({ ...s, centerName: e.target.value }))}
-          placeholder="VD: Trung Tâm Anh Văn ABC"
+          placeholder="VD: Anh Ngữ Ms.Phương"
         />
         <Input
           label="Tên Giáo Viên"

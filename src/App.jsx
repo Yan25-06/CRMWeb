@@ -53,7 +53,7 @@ export default function App() {
   }
 
   return (
-    <div className="flex min-h-screen bg-surface-secondary">
+    <div className="flex h-screen overflow-hidden bg-surface-secondary">
       {/* Sidebar */}
       <Navbar
         activePage={page}
@@ -62,7 +62,7 @@ export default function App() {
       />
 
       {/* Main content */}
-      <main className="flex-1 flex flex-col min-w-0">
+      <main className="flex-1 flex flex-col min-w-0 overflow-y-auto">
         {/* Top bar with month picker */}
         <div className="bg-white border-b border-navy-100 px-6 py-3 flex items-center justify-between sticky top-0 lg:top-0 z-20 shadow-navy-sm">
           <div className="flex items-center gap-3">
