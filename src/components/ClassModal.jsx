@@ -1,0 +1,156 @@
+import { useState, useEffect } from 'react'
+import { Modal, Input, Button, toast } from '@/components/ui'
+
+export const ClassModal = ({ open, onClose, classItem = null, onSave }) => {
+  const [formData, setFormData] = useState({
+    name: '',
+    level: '',
+    maxStudents: 0,
+    courseType: 'Giao Tiếp',
+    scheduleDays: '',
+    scheduleTime: '',
+    startDate: '',
+  })
+  const [errors, setErrors] = useState({})
+
+  useEffect(() => {
+    if (open) {
+      if (classItem) {
+        setFormData({
+          name: classItem.name || '',
+          level: classItem.level || '',
+          maxStudents: classItem.maxStudents || 0,
+          courseType: classItem.courseType || 'Giao Tiếp',
+          scheduleDays: classItem.scheduleDays || '',
+          scheduleTime: classItem.scheduleTime || '',
+          startDate: classItem.startDate || '',
+        })
+      } else {
+        setFormData({
+          name: '',
+          level: '',
+          maxStudents: 0,
+          courseType: 'Giao Tiếp',
+          scheduleDays: '',
+          scheduleTime: '',
+          startDate: '',
+        })
+      }
+      setErrors({})
+    }
+  }, [open, classItem])
+
+  const handleChange = (e) => {
+    const { name, value } = e.target
+    setFormData(prev => ({
+      ...prev,
+      [name]: name === 'maxStudents' ? Number(value) : value
+    }))
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: null }))
+    }
+  }
+
+  const handleSubmit = (e) => {
+    e.preventDefault()
+    
+    // Validation
+    const newErrors = {}
+    if (!formData.name.trim()) newErrors.name = 'Tên lớp là bắt buộc'
+
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors)
+      return
+    }
+
+    onSave({ ...formData, maxStudents: Number(formData.maxStudents) || 0 })
+    toast.success(classItem ? 'Đã cập nhật lớp học!' : 'Đã thêm lớp học!')
+    onClose()
+  }
+
+  return (
+    <Modal
+      open={open}
+      onClose={onClose}
+      title={classItem ? 'Sửa lớp học' : 'Thêm lớp học'}
+      footer={
+        <div className="flex gap-2 justify-end w-full">
+          <Button variant="ghost" onClick={onClose}>Hủy</Button>
+          <Button variant="primary" onClick={handleSubmit}>Lưu</Button>
+        </div>
+      }
+    >
+      <div className="flex flex-col gap-4">
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="Tên lớp"
+            name="name"
+            value={formData.name}
+            onChange={handleChange}
+            error={errors.name}
+            placeholder="VD: IELTS 02"
+          />
+          
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Phân loại (Tag)</label>
+            <select
+              name="courseType"
+              value={formData.courseType}
+              onChange={handleChange}
+              className="select"
+            >
+              <option value="IELTS">IELTS</option>
+              <option value="TOEIC">TOEIC</option>
+              <option value="Giao Tiếp">Giao Tiếp</option>
+              <option value="Trẻ Em">Trẻ Em</option>
+              <option value="Khác">Khác</option>
+            </select>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="Trình độ"
+            name="level"
+            value={formData.level}
+            onChange={handleChange}
+            placeholder="VD: 6.0+"
+          />
+          <Input
+            label="Sĩ số tối đa"
+            name="maxStudents"
+            type="number"
+            value={formData.maxStudents}
+            onChange={handleChange}
+            min="0"
+          />
+        </div>
+
+        <div className="grid grid-cols-2 gap-4">
+          <Input
+            label="Lịch học (Thứ)"
+            name="scheduleDays"
+            value={formData.scheduleDays}
+            onChange={handleChange}
+            placeholder="VD: Thứ 2-4-6"
+          />
+          <Input
+            label="Giờ học"
+            name="scheduleTime"
+            value={formData.scheduleTime}
+            onChange={handleChange}
+            placeholder="VD: 19:00-20:30"
+          />
+        </div>
+
+        <Input
+          label="Ngày khai giảng"
+          name="startDate"
+          type="date"
+          value={formData.startDate}
+          onChange={handleChange}
+        />
+      </div>
+    </Modal>
+  )
+}

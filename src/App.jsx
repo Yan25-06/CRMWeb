@@ -1,0 +1,138 @@
+import { useState, useEffect } from 'react'
+import { Navbar } from '@/components/Navbar'
+import { ToastContainer } from '@/components/ui'
+import { DashboardPage } from '@/pages/DashboardPage'
+import { SettingsPage } from '@/pages/SettingsPage'
+import {
+  AttendancePage, FeesPage, ReviewsPage,
+  SchedulePage
+} from '@/pages/PlaceholderPages'
+import { StudentsPage } from '@/pages/StudentsPage'
+import { getSettings, seedDemoData } from '@/store/db'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { clsx } from 'clsx'
+
+const MONTHS = ['Th.1','Th.2','Th.3','Th.4','Th.5','Th.6','Th.7','Th.8','Th.9','Th.10','Th.11','Th.12']
+
+export default function App() {
+  const now = new Date()
+  const [page, setPage]   = useState('dashboard')
+  const [year, setYear]   = useState(now.getFullYear())
+  const [month, setMonth] = useState(now.getMonth() + 1)
+  const [settings, setSettingsState] = useState(getSettings())
+
+  // Seed on first load
+  useEffect(() => {
+    seedDemoData()
+    setSettingsState(getSettings())
+  }, [])
+
+  const prevMonth = () => {
+    if (month === 1) { setMonth(12); setYear(y => y - 1) }
+    else setMonth(m => m - 1)
+  }
+  const nextMonth = () => {
+    if (month === 12) { setMonth(1); setYear(y => y + 1) }
+    else setMonth(m => m + 1)
+  }
+
+  const pagesWithMonthPicker = ['dashboard', 'attendance', 'fees', 'reviews']
+  const showPicker = pagesWithMonthPicker.includes(page)
+
+  const renderPage = () => {
+    switch (page) {
+      case 'dashboard':  return <DashboardPage year={year} month={month} onNavigate={setPage} />
+      case 'attendance': return <AttendancePage year={year} month={month} />
+      case 'fees':       return <FeesPage year={year} month={month} />
+      case 'reviews':    return <ReviewsPage year={year} month={month} />
+      case 'schedule':   return <SchedulePage />
+      case 'students':   return <StudentsPage />
+      case 'settings':   return <SettingsPage />
+      default:           return <DashboardPage year={year} month={month} onNavigate={setPage} />
+    }
+  }
+
+  return (
+    <div className="flex min-h-screen bg-surface-secondary">
+      {/* Sidebar */}
+      <Navbar
+        activePage={page}
+        onNavigate={setPage}
+        centerName={settings.centerName}
+      />
+
+      {/* Main content */}
+      <main className="flex-1 flex flex-col min-w-0">
+        {/* Top bar with month picker */}
+        <div className="bg-white border-b border-navy-100 px-6 py-3 flex items-center justify-between sticky top-0 lg:top-0 z-20 shadow-navy-sm">
+          <div className="flex items-center gap-3">
+            {showPicker && (
+              <div className="flex items-center gap-1">
+                <button
+                  onClick={prevMonth}
+                  className="p-1.5 rounded-lg text-navy-400 hover:text-navy-700 hover:bg-navy-50 transition-colors"
+                >
+                  <ChevronLeft size={16} />
+                </button>
+                <div className="flex items-center gap-0.5">
+                  {MONTHS.map((m, i) => (
+                    <button
+                      key={i}
+                      onClick={() => setMonth(i + 1)}
+                      className={clsx(
+                        'px-2 py-1 rounded-lg text-xs font-medium transition-all hidden sm:block',
+                        month === i + 1
+                          ? 'bg-navy-800 text-white'
+                          : 'text-navy-400 hover:text-navy-700 hover:bg-navy-50'
+                      )}
+                    >
+                      {m}
+                    </button>
+                  ))}
+                  {/* Mobile: just show current month */}
+                  <span className="sm:hidden text-sm font-semibold text-navy-800 px-2">
+                    Tháng {month}/{year}
+                  </span>
+                </div>
+                <button
+                  onClick={nextMonth}
+                  className="p-1.5 rounded-lg text-navy-400 hover:text-navy-700 hover:bg-navy-50 transition-colors"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
+          </div>
+
+          {/* Year selector */}
+          {showPicker && (
+            <div className="flex items-center gap-1.5">
+              {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map(y => (
+                <button
+                  key={y}
+                  onClick={() => setYear(y)}
+                  className={clsx(
+                    'px-2.5 py-1 rounded-lg text-xs font-medium transition-all',
+                    year === y
+                      ? 'bg-navy-100 text-navy-800 font-semibold'
+                      : 'text-navy-400 hover:bg-navy-50 hover:text-navy-700'
+                  )}
+                >
+                  {y}
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
+
+        {/* Page content */}
+        <div className="flex-1 p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">
+          {renderPage()}
+        </div>
+      </main>
+
+      {/* Toast */}
+      <ToastContainer />
+    </div>
+  )
+}
