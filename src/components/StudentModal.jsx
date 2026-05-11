@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Modal, Input, Select, Button, toast } from '@/components/ui'
 
-export const StudentModal = ({ open, onClose, student = null, classes = [], onSave }) => {
+export const StudentModal = ({ open, onClose, student = null, classes = [], onSave, isClassContext = false }) => {
   const [formData, setFormData] = useState({
     name: '',
     classId: '',
@@ -94,6 +94,7 @@ export const StudentModal = ({ open, onClose, student = null, classes = [], onSa
           value={formData.classId}
           onChange={handleChange}
           error={errors.classId}
+          disabled={isClassContext}
         >
           <option value="">-- Chọn lớp học --</option>
           {classes.map(c => (

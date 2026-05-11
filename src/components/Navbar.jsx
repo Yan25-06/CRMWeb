@@ -14,7 +14,7 @@ const NAV_ITEMS = [
   { id: 'fees', label: 'Học Phí', icon: BookOpen },
   { id: 'reviews', label: 'Nhận Xét', icon: GraduationCap },
   { id: 'schedule', label: 'Lịch Dạy', icon: Calendar },
-  { id: 'students', label: 'Học Sinh', icon: Users },
+  { id: 'classes', label: 'Lớp Học', icon: Users },
 ]
 
 export const Navbar = ({ activePage, onNavigate, centerName }) => {

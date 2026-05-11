@@ -7,7 +7,8 @@ import {
   AttendancePage, FeesPage, ReviewsPage,
   SchedulePage
 } from '@/pages/PlaceholderPages'
-import { StudentsPage } from '@/pages/StudentsPage'
+import { ClassesOverviewPage } from '@/pages/ClassesOverviewPage'
+import { ClassDetailPage } from '@/pages/ClassDetailPage'
 import { getSettings, seedDemoData } from '@/store/db'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { clsx } from 'clsx'
@@ -20,12 +21,25 @@ export default function App() {
   const [year, setYear]   = useState(now.getFullYear())
   const [month, setMonth] = useState(now.getMonth() + 1)
   const [settings, setSettingsState] = useState(getSettings())
+  const [selectedClassId, setSelectedClassId] = useState(() => {
+    const stored = localStorage.getItem('selectedClassId')
+    return stored || null
+  })
 
   // Seed on first load
   useEffect(() => {
     seedDemoData()
     setSettingsState(getSettings())
   }, [])
+
+  // Persist selectedClassId to localStorage
+  useEffect(() => {
+    if (selectedClassId) {
+      localStorage.setItem('selectedClassId', selectedClassId)
+    } else {
+      localStorage.removeItem('selectedClassId')
+    }
+  }, [selectedClassId])
 
   const prevMonth = () => {
     if (month === 1) { setMonth(12); setYear(y => y - 1) }
@@ -46,7 +60,14 @@ export default function App() {
       case 'fees':       return <FeesPage year={year} month={month} />
       case 'reviews':    return <ReviewsPage year={year} month={month} />
       case 'schedule':   return <SchedulePage />
-      case 'students':   return <StudentsPage />
+      case 'classes':
+        if (selectedClassId) {
+          return <ClassDetailPage
+            classId={selectedClassId}
+            onBack={() => setSelectedClassId(null)}
+          />
+        }
+        return <ClassesOverviewPage onSelectClass={setSelectedClassId} />
       case 'settings':   return <SettingsPage />
       default:           return <DashboardPage year={year} month={month} onNavigate={setPage} />
     }

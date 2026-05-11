@@ -7,6 +7,10 @@ const KEYS = {
   SCHEDULE: 'phf_schedule',
   REVIEWS: 'phf_reviews',
   SETTINGS: 'phf_settings',
+  ENROLLMENTS: 'phf_enrollments',
+  SESSION_REVIEWS: 'phf_session_reviews',
+  SESSIONS: 'phf_sessions',
+  HOMEWORKS: 'phf_homeworks',
 }
 
 // ─── Generic helpers ────────────────────────────────────
@@ -52,7 +56,7 @@ export const deleteClass = (id) => {
 }
 
 // ─── Attendance ─────────────────────────────────────────
-// Record shape: { id, studentId, classId, date: 'YYYY-MM-DD', present: bool, note? }
+// Record shape: { id, studentId, classId, date: 'YYYY-MM-DD', present: bool, note?, sessionId?: string }
 export const getAttendance = () => get(KEYS.ATTENDANCE)
 export const saveAttendance = (a) => set(KEYS.ATTENDANCE, a)
 
@@ -67,13 +71,41 @@ export const getAttendanceByMonth = (year, month) => {
   return getAttendance().filter(a => a.date.startsWith(prefix))
 }
 
+export const getAttendanceBySession = (sessionId) =>
+  getAttendance().filter(a => a.sessionId === sessionId)
+
+export const upsertAttendanceBySession = (sessionId, studentId, present, note) => {
+  const session = getSessionById(sessionId)
+  if (!session) return null
+  const all = getAttendance()
+  const idx = all.findIndex(a => a.sessionId === sessionId && a.studentId === studentId)
+  let rec = null
+  if (idx >= 0) {
+    rec = { ...all[idx], present }
+    if (note !== undefined) rec.note = note
+    all[idx] = rec
+  } else {
+    rec = { id: uid(), studentId, classId: session.classId, date: session.date, present, sessionId, note }
+    all.push(rec)
+  }
+  saveAttendance(all)
+  return rec
+}
+
+export const getAttendanceRate = (studentId, classId) => {
+  const allSessions = getSessionsByClass(classId).filter(s => s.date <= new Date().toISOString().split('T')[0])
+  if (allSessions.length === 0) return 0
+  const allAtt = getAttendanceByStudent(studentId).filter(a => a.classId === classId && a.present)
+  return Math.round((allAtt.length / allSessions.length) * 100)
+}
+
 export const upsertAttendance = (records) => {
-  // records: array of { studentId, classId, date, present, note? }
+  // records: array of { studentId, classId, date, present, note?, sessionId? }
   const all = getAttendance()
   const updated = [...all]
   for (const rec of records) {
     const idx = updated.findIndex(
-      a => a.studentId === rec.studentId && a.date === rec.date
+      a => a.studentId === rec.studentId && (rec.sessionId ? a.sessionId === rec.sessionId : a.date === rec.date)
     )
     if (idx >= 0) updated[idx] = { ...updated[idx], ...rec }
     else updated.push({ id: uid(), ...rec })
@@ -144,6 +176,93 @@ export const upsertReview = (data) => {
   else reviews.push({ id: uid(), ...data })
   saveReviews(reviews)
 }
+
+// ─── Homeworks (Phase C Stub) ────────────────────────────
+export const getHomeworks = () => get(KEYS.HOMEWORKS)
+export const saveHomeworks = (h) => set(KEYS.HOMEWORKS, h)
+
+// ─── Sessions ────────────────────────────────────────────
+// Shape: { id, classId, date, startTime, endTime, scheduleItemId?, createdManually, topic?, note?, createdAt }
+export const getSessions = () => get(KEYS.SESSIONS)
+export const saveSessions = (s) => set(KEYS.SESSIONS, s)
+
+export const getSessionsByClass = (classId) =>
+  getSessions().filter(s => s.classId === classId).sort((a, b) => new Date(b.date) - new Date(a.date))
+
+export const getSessionById = (id) => getSessions().find(s => s.id === id)
+
+export const createSession = (data) => {
+  const sessions = getSessions()
+  const session = { id: uid(), createdAt: new Date().toISOString(), createdManually: true, ...data }
+  sessions.push(session)
+  saveSessions(sessions)
+
+  // Side-effect: create HomeworkRecord stub for each active student
+  const activeStudents = getActiveStudents(data.classId)
+  const homeworks = getHomeworks()
+  activeStudents.forEach(s => {
+    homeworks.push({ id: uid(), sessionId: session.id, studentId: s.id, classId: data.classId, progress: 50 })
+  })
+  saveHomeworks(homeworks)
+
+  return session
+}
+
+export const deleteSession = (id) => {
+  saveSessions(getSessions().filter(s => s.id !== id))
+  // Cascade delete attendance and homeworks
+  saveAttendance(getAttendance().filter(a => a.sessionId !== id))
+  saveHomeworks(getHomeworks().filter(h => h.sessionId !== id))
+}
+
+// ─── StudentEnrollment ───────────────────────────────────
+// Shape: { id, studentId, classId, status ('active'|'paused'|'dropped'), goal?, note?, enrolledAt, pausedAt?, droppedAt? }
+export const getEnrollments = () => get(KEYS.ENROLLMENTS)
+export const saveEnrollments = (e) => set(KEYS.ENROLLMENTS, e)
+
+export const getEnrollmentsByClass = (classId) =>
+  getEnrollments().filter(e => e.classId === classId)
+
+export const getEnrollment = (studentId, classId) =>
+  getEnrollments().find(e => e.studentId === studentId && e.classId === classId)
+
+export const upsertEnrollment = (data) => {
+  const enrollments = getEnrollments()
+  const idx = enrollments.findIndex(
+    e => e.studentId === data.studentId && e.classId === data.classId
+  )
+  const now = new Date().toISOString()
+  let entry = idx >= 0 ? { ...enrollments[idx], ...data } : { id: uid(), enrolledAt: now, ...data }
+  // Auto-write timestamps on status changes
+  if (data.status === 'paused' && !entry.pausedAt) entry.pausedAt = now
+  if (data.status === 'dropped' && !entry.droppedAt) entry.droppedAt = now
+  if (data.status === 'active') { entry.pausedAt = null; entry.droppedAt = null }
+  if (idx >= 0) enrollments[idx] = entry
+  else enrollments.push(entry)
+  saveEnrollments(enrollments)
+  return entry
+}
+
+export const getActiveStudents = (classId) => {
+  const activeEnrollments = getEnrollmentsByClass(classId).filter(e => e.status === 'active')
+  const students = getStudents()
+  return activeEnrollments.map(e => students.find(s => s.id === e.studentId)).filter(Boolean)
+}
+
+// ─── Session Reviews (Quick Remarks) ─────────────────────
+// Shape: { id, studentId, classId, sessionId?, text, createdAt }
+export const getSessionReviews = () => get(KEYS.SESSION_REVIEWS)
+export const saveSessionReviews = (r) => set(KEYS.SESSION_REVIEWS, r)
+export const addSessionReview = (data) => {
+  const reviews = getSessionReviews()
+  const entry = { id: uid(), createdAt: new Date().toISOString(), sessionId: null, ...data }
+  saveSessionReviews([...reviews, entry])
+  return entry
+}
+export const getSessionReviewsByStudent = (studentId, classId) =>
+  getSessionReviews()
+    .filter(r => r.studentId === studentId && r.classId === classId)
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
 
 // ─── Settings ────────────────────────────────────────────
 export const getSettings = () => get(KEYS.SETTINGS, {
@@ -251,19 +370,59 @@ export const seedDemoData = () => {
     return s.id
   })
 
+  // Seed enrollments for demo students
+  const goals = [
+    'Đạt 7.0 IELTS để du học Úc', 'Cải thiện kỹ năng nghe và đọc',
+    'Lấy chứng chỉ IELTS', 'Đạt 650 TOEIC cho công việc',
+    'Nâng cao kỹ năng giao tiếp', 'Chuẩn bị cho kỳ thi TOEIC tháng 8',
+  ]
+  const statuses = ['active', 'active', 'active', 'active', 'paused', 'active']
+  studentIds.forEach((studentId, i) => {
+    const classId = i < 3 ? cls1.id : cls2.id
+    const status = statuses[i]
+    const entry = {
+      studentId,
+      classId,
+      status,
+      goal: goals[i],
+      note: '',
+      enrolledAt: new Date(Date.now() - (30 - i * 3) * 24 * 60 * 60 * 1000).toISOString(),
+    }
+    if (status === 'paused') entry.pausedAt = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+    upsertEnrollment(entry)
+  })
+
+  // Seed sessions
+  const y = new Date().getFullYear()
+  const m = new Date().getMonth() + 1
+  const s1 = createSession({
+    classId: cls1.id, date: `${y}-${String(m).padStart(2, '0')}-01`, startTime: '19:00', endTime: '20:30', topic: 'Unit 1: Introduction to IELTS'
+  })
+  const s2 = createSession({
+    classId: cls1.id, date: `${y}-${String(m).padStart(2, '0')}-03`, startTime: '19:00', endTime: '20:30', topic: 'Unit 2: Listening Part 1'
+  })
+  const s3 = createSession({
+    classId: cls1.id, date: `${y}-${String(m).padStart(2, '0')}-05`, startTime: '19:00', endTime: '20:30', topic: 'Unit 3: Reading Techniques'
+  })
+
   // Seed attendance for current month
   const now = new Date()
-  const y = now.getFullYear()
-  const m = now.getMonth() + 1
   const days = [1, 3, 5, 8, 10, 12, 15, 17, 19, 22]
   const recs = []
-  for (const d of days) {
+  const sessionIdsCls1 = [s1.id, s2.id, s3.id, null, null, null, null, null, null, null]
+  for (let d_idx = 0; d_idx < days.length; d_idx++) {
+    const d = days[d_idx]
     for (let i = 0; i < studentIds.length; i++) {
+      const classId = i < 3 ? cls1.id : cls2.id
+      let sessionId = null
+      if (classId === cls1.id) sessionId = sessionIdsCls1[d_idx]
+
       recs.push({
         studentId: studentIds[i],
-        classId: i < 3 ? cls1.id : cls2.id,
+        classId: classId,
         date: `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`,
         present: Math.random() > 0.15,
+        sessionId
       })
     }
   }
