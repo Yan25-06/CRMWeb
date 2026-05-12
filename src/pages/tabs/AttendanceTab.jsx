@@ -8,7 +8,7 @@ import { AttendanceToggle } from '@/components/AttendanceToggle'
 import { StudentAttendancePanel } from '@/components/StudentAttendancePanel'
 import {
   getSessionsByClass, getActiveStudents, getAttendanceBySession,
-  upsertAttendanceBySession, deleteSession, getEnrollmentsByClass, getStudents
+  upsertAttendanceBySession, deleteSession, getEnrollmentsByClass, getStudents, getAttendanceRate
 } from '@/store/db'
 
 const getInitials = (name = '') => {
@@ -147,12 +147,13 @@ export const AttendanceTab = ({ classId }) => {
       ) : (
         <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm overflow-hidden">
           <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm whitespace-nowrap">
+            <table className="w-full text-left text-sm whitespace-nowrap table-fixed">
               <thead>
                 <tr className="bg-navy-50/50 border-b border-navy-100">
-                  <th className="px-6 py-4 font-semibold text-navy-800">Học viên</th>
-                  <th className="px-6 py-4 font-semibold text-navy-800 w-32 text-center">Điểm danh</th>
-                  <th className="px-6 py-4 font-semibold text-navy-800 w-full max-w-sm">Ghi chú vắng</th>
+                  <th className="px-6 py-4 font-semibold text-navy-800 w-1/4">Học viên</th>
+                  <th className="px-6 py-4 font-semibold text-navy-800 w-1/4 text-center">Chuyên cần</th>
+                  <th className="px-6 py-4 font-semibold text-navy-800 w-1/4 text-center">Điểm danh</th>
+                  <th className="px-6 py-4 font-semibold text-navy-800 w-1/4">Ghi chú vắng</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-navy-50">
@@ -162,6 +163,7 @@ export const AttendanceTab = ({ classId }) => {
                   const att = attendance.find(a => a.studentId === student.id)
                   const present = att ? att.present : null
                   const note = att ? att.note : ''
+                  const rate = getAttendanceRate(student.id, classId)
 
                   return (
                     <tr 
@@ -183,9 +185,19 @@ export const AttendanceTab = ({ classId }) => {
                             <p className="font-medium text-navy-900 group-hover:text-navy-600 transition-colors">
                               {student.name}
                             </p>
-                            {isPaused && <p className="text-xs text-amber-600 font-medium">Tạm ngưng</p>}
+                            {isPaused && <p className="text-xs text-amber-600 font-medium mt-0.5">Tạm ngưng</p>}
                           </div>
                         </button>
+                      </td>
+                      <td className="px-6 py-3 text-center">
+                        <div className="flex flex-col items-center">
+                          <span className={clsx(
+                            "text-sm font-semibold",
+                            isPaused ? "text-navy-300" : rate >= 80 ? "text-emerald-600" : rate >= 50 ? "text-amber-600" : "text-red-600"
+                          )}>
+                            {rate}%
+                          </span>
+                        </div>
                       </td>
                       <td className="px-6 py-3 text-center">
                         <AttendanceToggle

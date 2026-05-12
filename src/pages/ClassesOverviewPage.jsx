@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Card, Button, Empty, toast } from '@/components/ui'
 import { Plus, BookOpen } from 'lucide-react'
-import { getClasses, addClass, updateClass, deleteClass, getStudents } from '@/store/db'
+import { getClasses, addClass, updateClass, deleteClass, getEnrollmentsByClass } from '@/store/db'
 import { ClassModal } from '@/components/ClassModal'
 import { ClassCard } from '@/components/ClassCard'
 
@@ -13,7 +13,6 @@ export const ClassesOverviewPage = ({ onSelectClass }) => {
 
   const loadData = () => {
     setClasses(getClasses())
-    setStudents(getStudents())
   }
 
   useEffect(() => {
@@ -32,9 +31,9 @@ export const ClassesOverviewPage = ({ onSelectClass }) => {
   }
 
   const handleDeleteClass = (id) => {
-    const hasStudents = students.some(s => s.classId === id)
-    if (hasStudents) {
-      toast.error('Không thể xóa lớp đang có học sinh. Vui lòng chuyển học sinh sang lớp khác trước.')
+    const hasActiveStudents = getEnrollmentsByClass(id).some(e => e.status !== 'dropped')
+    if (hasActiveStudents) {
+      toast.error('Không thể xóa lớp đang có học viên theo học. Vui lòng chuyển học viên sang lớp khác hoặc đổi trạng thái thành "Đã nghỉ" trước.')
       return
     }
 
@@ -66,7 +65,7 @@ export const ClassesOverviewPage = ({ onSelectClass }) => {
       {classes.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {classes.map(cls => {
-            const studentCount = students.filter(s => s.classId === cls.id).length
+            const studentCount = getEnrollmentsByClass(cls.id).filter(e => e.status === 'active').length
             return (
               <div key={cls.id} onClick={() => onSelectClass(cls.id)} className="cursor-pointer">
                 <ClassCard
@@ -85,6 +84,11 @@ export const ClassesOverviewPage = ({ onSelectClass }) => {
             icon={<BookOpen />}
             title="Không có lớp học nào"
             desc="Bấm nút Thêm lớp học để tạo lớp mới"
+            action={
+              <Button onClick={() => openClassModal()} className="mt-4 flex items-center gap-2">
+                <Plus size={18} /> Thêm lớp học
+              </Button>
+            }
           />
         </Card>
       )}

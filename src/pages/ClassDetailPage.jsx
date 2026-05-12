@@ -32,7 +32,23 @@ export const ClassDetailPage = ({ classId, onBack }) => {
   }, [classId])
 
   if (!currentClass) {
-    return <div className="p-8 text-navy-400">Không tìm thấy lớp học</div>
+    return (
+      <div className="p-8 flex flex-col items-center justify-center h-full gap-4 text-center">
+        <div className="text-navy-300 mb-2">
+          <Users size={48} />
+        </div>
+        <p className="text-navy-600 font-medium">Không tìm thấy lớp học</p>
+        <p className="text-sm text-navy-400 max-w-sm">
+          Lớp học này có thể đã bị xóa hoặc không tồn tại.
+        </p>
+        <button
+          onClick={onBack}
+          className="mt-4 px-4 py-2 bg-navy-50 text-navy-700 hover:bg-navy-100 font-medium rounded-xl flex items-center gap-2 transition-colors"
+        >
+          <ChevronLeft size={18} /> Quay lại danh sách lớp
+        </button>
+      </div>
+    )
   }
 
   return (

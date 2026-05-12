@@ -37,6 +37,13 @@ export const updateStudent = (id, data) => {
 }
 export const deleteStudent = (id) => {
   saveStudents(getStudents().filter(s => s.id !== id))
+  // Cascade delete related records
+  saveEnrollments(getEnrollments().filter(e => e.studentId !== id))
+  saveAttendance(getAttendance().filter(a => a.studentId !== id))
+  saveHomeworks(getHomeworks().filter(h => h.studentId !== id))
+  saveFees(getFees().filter(f => f.studentId !== id))
+  saveReviews(getReviews().filter(r => r.studentId !== id))
+  saveSessionReviews(getSessionReviews().filter(r => r.studentId !== id))
 }
 
 // ─── Classes ────────────────────────────────────────────
@@ -53,6 +60,12 @@ export const updateClass = (id, data) => {
 }
 export const deleteClass = (id) => {
   saveClasses(getClasses().filter(c => c.id !== id))
+  // Cascade delete related records
+  saveEnrollments(getEnrollments().filter(e => e.classId !== id))
+  saveSessions(getSessions().filter(s => s.classId !== id))
+  saveAttendance(getAttendance().filter(a => a.classId !== id))
+  saveHomeworks(getHomeworks().filter(h => h.classId !== id))
+  saveSessionReviews(getSessionReviews().filter(r => r.classId !== id))
 }
 
 // ─── Attendance ─────────────────────────────────────────
@@ -95,8 +108,15 @@ export const upsertAttendanceBySession = (sessionId, studentId, present, note) =
 export const getAttendanceRate = (studentId, classId) => {
   const allSessions = getSessionsByClass(classId).filter(s => s.date <= new Date().toISOString().split('T')[0])
   if (allSessions.length === 0) return 0
-  const allAtt = getAttendanceByStudent(studentId).filter(a => a.classId === classId && a.present)
-  return Math.round((allAtt.length / allSessions.length) * 100)
+  
+  const studentAtts = getAttendanceByStudent(studentId).filter(a => a.classId === classId)
+  let presentCount = 0
+  for (const s of allSessions) {
+    const att = studentAtts.find(a => a.sessionId === s.id)
+    if (att && att.present) presentCount++
+  }
+  
+  return Math.round((presentCount / allSessions.length) * 100)
 }
 
 export const upsertAttendance = (records) => {
