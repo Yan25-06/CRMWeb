@@ -7,7 +7,8 @@ import { clsx } from 'clsx'
 import { Badge, Button, Skeleton } from '@/components/ui'
 import {
   getSessionReviewsByStudent, addSessionReview, upsertEnrollment,
-  getAttendanceRate, getSessionsByClass, getAttendanceByStudent
+  getAttendanceRate, getSessionsByClass, getAttendanceByStudent,
+  getHomeworkStats, getHomeworkByStudent
 } from '@/store/db'
 
 const STATUS_CONFIG = {
@@ -178,7 +179,31 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
       }
     })
     .filter(a => a.present !== null)
+  // Calculate homework history for timeline
+  const studentHw = getHomeworkByStudent(student.id, enrollment.classId)
+  const recentHomework = classSessions
+    .filter(s => s.date <= new Date().toISOString().split('T')[0])
+    .map(s => {
+      const hw = studentHw.find(h => h.sessionId === s.id)
+      if (!hw || hw.progress === 0) return null
+      return {
+        id: `hw_${hw.id}`,
+        type: 'homework',
+        date: s.date,
+        progress: hw.progress,
+        topic: s.topic || hw.title
+      }
+    })
+    .filter(Boolean)
     .slice(0, 5)
+
+  // Combine events and sort by date descending
+  const timelineEvents = [...recentAttendance, ...recentHomework]
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 5)
+
+  const hwStats = getHomeworkStats(student.id, enrollment.classId)
+  const hwRate = hwStats.total > 0 ? Math.round((hwStats.done / hwStats.total) * 100) : 0
 
   const handleStatusClick = () => {
     // Cycle: active → paused (needs confirm handled in parent / EnrollmentModal)
@@ -275,8 +300,8 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
             <ClipboardList size={13} className="text-navy-400" />
             <span className="text-xs text-navy-400 font-medium uppercase tracking-wide">Bài tập</span>
           </div>
-          <span className="text-2xl font-display text-navy-900 leading-none">—/—</span>
-          <span className="text-xs text-navy-400">bài · Phase C</span>
+          <span className="text-2xl font-display text-navy-900 leading-none">{hwStats.done}/{hwStats.total}</span>
+          <span className="text-xs text-navy-400">hoàn thành ({hwRate}%)</span>
         </div>
 
         <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-4 flex flex-col gap-1">
@@ -336,24 +361,47 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
             </div>
           )}
 
-          {/* Attendance events */}
-          {recentAttendance.map(event => (
-            <div key={event.id} className="flex items-start gap-3">
-              <div className={clsx(
-                "w-1.5 h-1.5 rounded-full mt-1.5 shrink-0",
-                event.present ? "bg-emerald-400" : "bg-red-400"
-              )} />
-              <div>
-                <p className="text-sm text-navy-700">
-                  {event.present ? "Có mặt" : "Vắng mặt"} 
-                  {event.topic && <span className="text-navy-400 font-normal"> — {event.topic}</span>}
-                </p>
-                <p className="text-xs text-navy-400">{formatDate(event.date)}</p>
-              </div>
-            </div>
-          ))}
+          {/* Combined events */}
+          {timelineEvents.map(event => {
+            if (event.type === 'attendance') {
+              return (
+                <div key={event.id} className="flex items-start gap-3">
+                  <div className={clsx(
+                    "w-1.5 h-1.5 rounded-full mt-1.5 shrink-0",
+                    event.present ? "bg-emerald-400" : "bg-red-400"
+                  )} />
+                  <div>
+                    <p className="text-sm text-navy-700">
+                      {event.present ? "Có mặt" : "Vắng mặt"} 
+                      {event.topic && <span className="text-navy-400 font-normal"> — {event.topic}</span>}
+                    </p>
+                    <p className="text-xs text-navy-400">{formatDate(event.date)}</p>
+                  </div>
+                </div>
+              )
+            } else if (event.type === 'homework') {
+              return (
+                <div key={event.id} className="flex items-start gap-3">
+                  <div className="text-[10px] mt-1 shrink-0">📝</div>
+                  <div>
+                    <p className="text-sm text-navy-700">
+                      Bài tập{event.topic && <span className="font-medium"> {event.topic}</span>}: 
+                      <span className={clsx(
+                        "ml-1 font-medium",
+                        event.progress === 100 ? "text-emerald-600" : "text-amber-600"
+                      )}>
+                        {event.progress === 100 ? "Hoàn thành" : "Đang làm"}
+                      </span>
+                    </p>
+                    <p className="text-xs text-navy-400">{formatDate(event.date)}</p>
+                  </div>
+                </div>
+              )
+            }
+            return null
+          })}
 
-          {recentAttendance.length === 0 && (
+          {timelineEvents.length === 0 && (
             <div className="flex items-start gap-3 opacity-50">
               <div className="w-1.5 h-1.5 rounded-full bg-navy-200 mt-1.5 shrink-0" />
               <p className="text-xs text-navy-400 italic">

@@ -35,17 +35,18 @@ export const StudentAttendancePanel = ({ student, classId, onClose }) => {
 
   return (
     <>
-      {/* Mobile Backdrop */}
+      {/* Backdrop */}
       <div 
-        className="fixed inset-0 bg-navy-950/40 backdrop-blur-sm z-40 md:hidden"
+        className="fixed inset-0 bg-navy-950/40 backdrop-blur-sm z-40 animate-fade-in"
         onClick={onClose}
       />
 
-      {/* Drawer */}
-      <div className={clsx(
-        "fixed inset-y-0 right-0 z-50 w-full md:w-96 bg-white shadow-navy-2xl border-l border-navy-100 flex flex-col transition-transform duration-300",
-        "translate-x-0" // The parent component should handle mounting/unmounting or translate class
-      )}>
+      {/* Modal */}
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 pointer-events-none">
+        <div className={clsx(
+          "bg-white shadow-navy-2xl rounded-2xl flex flex-col w-full max-w-xl max-h-[90vh] pointer-events-auto",
+          "animate-scale-in"
+        )}>
         {/* Header */}
         <div className="px-6 py-4 border-b border-navy-50 flex items-center justify-between bg-white">
           <h2 className="text-lg font-display text-navy-900">{student.name}</h2>
@@ -120,6 +121,7 @@ export const StudentAttendancePanel = ({ student, classId, onClose }) => {
               </table>
             </div>
           </div>
+        </div>
         </div>
       </div>
     </>

@@ -197,9 +197,50 @@ export const upsertReview = (data) => {
   saveReviews(reviews)
 }
 
-// ─── Homeworks (Phase C Stub) ────────────────────────────
+// ─── Homeworks (Phase C) ────────────────────────────
 export const getHomeworks = () => get(KEYS.HOMEWORKS)
 export const saveHomeworks = (h) => set(KEYS.HOMEWORKS, h)
+
+export const getHomeworkBySession = (sessionId) =>
+  getHomeworks().filter(h => h.sessionId === sessionId)
+
+export const getHomeworkByStudent = (studentId, classId) =>
+  getHomeworks().filter(h => h.studentId === studentId && h.classId === classId)
+
+export const updateHomework = (id, data) => {
+  const all = getHomeworks()
+  const idx = all.findIndex(h => h.id === id)
+  if (idx >= 0) {
+    all[idx] = { ...all[idx], ...data, updatedAt: new Date().toISOString() }
+    saveHomeworks(all)
+    return all[idx]
+  }
+  return null
+}
+
+export const updateSessionHomeworkTitle = (sessionId, title) => {
+  const all = getHomeworks()
+  let changed = false
+  all.forEach(h => {
+    if (h.sessionId === sessionId) {
+      h.title = title
+      h.updatedAt = new Date().toISOString()
+      changed = true
+    }
+  })
+  if (changed) saveHomeworks(all)
+}
+
+export const getHomeworkStats = (studentId, classId) => {
+  const records = getHomeworkByStudent(studentId, classId)
+  const stats = { done: 0, inProgress: 0, notDone: 0, total: records.length }
+  records.forEach(r => {
+    if (r.progress === 100) stats.done++
+    else if (r.progress === 50) stats.inProgress++
+    else stats.notDone++
+  })
+  return stats
+}
 
 // ─── Sessions ────────────────────────────────────────────
 // Shape: { id, classId, date, startTime, endTime, scheduleItemId?, createdManually, topic?, note?, createdAt }
@@ -220,8 +261,19 @@ export const createSession = (data) => {
   // Side-effect: create HomeworkRecord stub for each active student
   const activeStudents = getActiveStudents(data.classId)
   const homeworks = getHomeworks()
+  const now = new Date().toISOString()
   activeStudents.forEach(s => {
-    homeworks.push({ id: uid(), sessionId: session.id, studentId: s.id, classId: data.classId, progress: 50 })
+    homeworks.push({
+      id: uid(),
+      sessionId: session.id,
+      studentId: s.id,
+      classId: data.classId,
+      progress: 0, // Default to not done
+      title: '',
+      note: '',
+      createdAt: now,
+      updatedAt: now
+    })
   })
   saveHomeworks(homeworks)
 

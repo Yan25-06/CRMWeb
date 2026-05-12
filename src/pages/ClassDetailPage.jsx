@@ -5,6 +5,7 @@ import { clsx } from 'clsx'
 import { getClasses, getEnrollmentsByClass } from '@/store/db'
 import { StudentsTab } from '@/pages/tabs/StudentsTab'
 import { AttendanceTab } from '@/pages/tabs/AttendanceTab'
+import { HomeworkTab } from '@/pages/tabs/HomeworkTab'
 
 const TABS = [
   { id: 'students',    label: 'Học Viên',  disabled: false },
@@ -115,7 +116,10 @@ export const ClassDetailPage = ({ classId, onBack }) => {
         {activeTab === 'attendance' && (
           <AttendanceTab classId={classId} />
         )}
-        {['assignments', 'mocktest'].includes(activeTab) && (
+        {activeTab === 'assignments' && (
+          <HomeworkTab classId={classId} />
+        )}
+        {['mocktest'].includes(activeTab) && (
           <Card className="p-12">
             <div className="flex flex-col items-center gap-3 text-center py-8">
               <BarChart2 size={40} className="text-navy-200" />

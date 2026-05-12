@@ -153,7 +153,7 @@ export const AttendanceTab = ({ classId }) => {
                   <th className="px-6 py-4 font-semibold text-navy-800 w-1/4">Học viên</th>
                   <th className="px-6 py-4 font-semibold text-navy-800 w-1/4 text-center">Chuyên cần</th>
                   <th className="px-6 py-4 font-semibold text-navy-800 w-1/4 text-center">Điểm danh</th>
-                  <th className="px-6 py-4 font-semibold text-navy-800 w-1/4">Ghi chú vắng</th>
+                  <th className="px-6 py-4 font-semibold text-navy-800 w-1/4">Ghi chú</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-navy-50">
@@ -207,11 +207,11 @@ export const AttendanceTab = ({ classId }) => {
                         />
                       </td>
                       <td className="px-6 py-3">
-                        {present === false && !isPaused && (
+                        {!isPaused && (
                           <input
                             type="text"
-                            placeholder="Ghi chú lý do vắng..."
-                            className="input h-8 text-xs bg-red-50/30 border-red-100 focus:border-red-300 focus:ring-red-100 w-full max-w-xs"
+                            placeholder="Nhập ghi chú..."
+                            className="input h-8 text-xs bg-navy-50/30 border-navy-100 focus:border-navy-300 focus:ring-navy-100 w-full max-w-xs"
                             value={note || ''}
                             onChange={(e) => handleNoteChange(student.id, e.target.value)}
                           />
