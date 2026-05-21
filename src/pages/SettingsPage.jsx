@@ -48,7 +48,7 @@ export const SettingsPage = () => {
   return (
     <div className="flex flex-col gap-6 animate-fade-in max-w-xl">
       <div>
-        <h1 className="text-2xl font-display text-navy-900">Cài Đặt</h1>
+        <h1 className="text-2xl font-display font-bold text-navy-900">Cài Đặt</h1>
         <p className="text-sm text-navy-400 mt-0.5">Thông tin trung tâm và quản lý dữ liệu</p>
       </div>
 

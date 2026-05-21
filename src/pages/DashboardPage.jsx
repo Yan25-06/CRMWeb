@@ -27,7 +27,7 @@ export const DashboardPage = ({ year, month, onNavigate }) => {
 
       {/* ── Header ── */}
       <div>
-        <h1 className="text-2xl font-display text-navy-900">Dashboard</h1>
+        <h1 className="text-2xl font-display font-bold text-navy-900">Dashboard</h1>
         <p className="text-sm text-navy-400 mt-0.5">
           {new Date().toLocaleDateString('vi-VN', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}
         </p>

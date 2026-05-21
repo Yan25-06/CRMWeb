@@ -27,8 +27,8 @@ export const StudentHomeworkPanel = ({ student, classId, onClose }) => {
   let notDoneCount = 0
   
   history.filter(h => h.session.date <= new Date().toISOString().split('T')[0]).forEach(h => {
-    if (h.hw?.progress === 100) doneCount++
-    else if (h.hw?.progress === 50) inProgressCount++
+    if (h.hw?.progress === 'done') doneCount++
+    else if (h.hw?.progress === 'in_progress') inProgressCount++
     else notDoneCount++
   })
 
@@ -58,7 +58,7 @@ export const StudentHomeworkPanel = ({ student, classId, onClose }) => {
         )}>
           {/* Header */}
           <div className="px-6 py-4 border-b border-navy-50 flex items-center justify-between bg-white rounded-t-2xl">
-            <h2 className="text-lg font-display text-navy-900">{student.name}</h2>
+            <h2 className="text-lg font-display font-bold text-navy-900">{student.name}</h2>
             <button
               onClick={onClose}
               className="p-1.5 text-navy-400 hover:text-navy-700 hover:bg-navy-100 rounded-lg transition-colors"
@@ -123,9 +123,9 @@ export const StudentHomeworkPanel = ({ student, classId, onClose }) => {
                             </div>
                           </td>
                           <td className="px-4 py-3 text-right">
-                            {h.hw?.progress === 100 && <Badge variant="success">Hoàn tất</Badge>}
-                            {h.hw?.progress === 50 && <Badge variant="warning">Chưa hoàn tất</Badge>}
-                            {(!h.hw || h.hw.progress === 0) && <Badge variant="danger">Không nộp</Badge>}
+                            {h.hw?.progress === 'done' && <Badge variant="success">Hoàn tất</Badge>}
+                            {h.hw?.progress === 'in_progress' && <Badge variant="warning">Chưa hoàn tất</Badge>}
+                            {(!h.hw || h.hw.progress === 'not_done') && <Badge variant="danger">Không nộp</Badge>}
                           </td>
                         </tr>
                       ))

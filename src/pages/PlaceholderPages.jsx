@@ -4,7 +4,7 @@ import { CalendarCheck, BookOpen, GraduationCap, Calendar, Users } from 'lucide-
 const PlaceholderPage = ({ icon: Icon, title, desc, phase }) => (
   <div className="flex flex-col gap-6 animate-fade-in">
     <div>
-      <h1 className="text-2xl font-display text-navy-900">{title}</h1>
+      <h1 className="text-2xl font-display font-bold text-navy-900">{title}</h1>
       <p className="text-sm text-navy-400 mt-0.5">{desc}</p>
     </div>
     <Card className="p-12 flex flex-col items-center justify-center gap-4 text-center">

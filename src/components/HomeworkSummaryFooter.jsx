@@ -8,8 +8,8 @@ export const HomeworkSummaryFooter = ({ records = [] }) => {
   let notDone = 0
 
   records.forEach(r => {
-    if (r.progress === 100) done++
-    else if (r.progress === 50) inProgress++
+    if (r.progress === 'done') done++
+    else if (r.progress === 'in_progress') inProgress++
     else notDone++
   })
 

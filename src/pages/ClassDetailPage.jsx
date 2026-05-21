@@ -64,7 +64,7 @@ export const ClassDetailPage = ({ classId, onBack }) => {
           <ChevronLeft size={20} />
         </button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-display text-navy-900 leading-tight">{currentClass.name}</h1>
+          <h1 className="text-xl font-display font-bold text-navy-900 leading-tight">{currentClass.name}</h1>
           <p className="text-xs text-navy-400 mt-0.5">
             {currentClass.scheduleDays} · {currentClass.scheduleTime}
           </p>

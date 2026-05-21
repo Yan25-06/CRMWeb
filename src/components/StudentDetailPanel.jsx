@@ -255,7 +255,7 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
           <div className="flex-1 min-w-0">
             <div className="flex items-start justify-between gap-2">
               <div>
-                <h2 className="text-xl font-display text-navy-900 leading-tight">{student.name}</h2>
+                <h2 className="text-xl font-display font-bold text-navy-900 leading-tight">{student.name}</h2>
                 <p className="text-sm text-navy-400 mt-0.5">{student.phone || 'Chưa có SĐT'}</p>
               </div>
               <button
@@ -321,7 +321,7 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
             <BookOpen size={13} className="text-navy-400" />
             <span className="text-xs text-navy-400 font-medium uppercase tracking-wide">Điểm danh</span>
           </div>
-          <span className="text-2xl font-display text-navy-900 leading-none">{attendanceRate}%</span>
+          <span className="text-2xl font-display font-bold text-navy-900 leading-none">{attendanceRate}%</span>
           <span className="text-xs text-navy-400">chuyên cần</span>
         </div>
 
@@ -330,7 +330,7 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
             <ClipboardList size={13} className="text-navy-400" />
             <span className="text-xs text-navy-400 font-medium uppercase tracking-wide">Bài tập</span>
           </div>
-          <span className="text-2xl font-display text-navy-900 leading-none">{hwStats.done}/{hwStats.total}</span>
+          <span className="text-2xl font-display font-bold text-navy-900 leading-none">{hwStats.done}/{hwStats.total}</span>
           <span className="text-xs text-navy-400">hoàn thành ({hwRate}%)</span>
         </div>
 
@@ -342,7 +342,7 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
           {latestMockResult ? (
             <>
               <span className={clsx(
-                'text-2xl font-display leading-none',
+                'text-2xl font-display font-bold leading-none',
                 latestMockPct >= 80 ? 'text-emerald-600' : latestMockPct >= 50 ? 'text-amber-600' : 'text-red-600'
               )}>
                 {latestMockPct}%

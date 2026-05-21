@@ -108,7 +108,7 @@ export const StudentsPage = () => {
     <div className="flex flex-col gap-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-display text-navy-900">Quản lý học sinh</h1>
+          <h1 className="text-2xl font-display font-bold text-navy-900">Quản lý học sinh</h1>
           <p className="text-sm text-navy-400 mt-0.5">Quản lý danh sách học sinh và lớp học</p>
         </div>
         

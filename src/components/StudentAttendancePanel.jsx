@@ -49,7 +49,7 @@ export const StudentAttendancePanel = ({ student, classId, onClose }) => {
         )}>
         {/* Header */}
         <div className="px-6 py-4 border-b border-navy-50 flex items-center justify-between bg-white">
-          <h2 className="text-lg font-display text-navy-900">{student.name}</h2>
+          <h2 className="text-lg font-display font-bold text-navy-900">{student.name}</h2>
           <button
             onClick={onClose}
             className="p-1.5 text-navy-400 hover:text-navy-700 hover:bg-navy-100 rounded-lg transition-colors"
