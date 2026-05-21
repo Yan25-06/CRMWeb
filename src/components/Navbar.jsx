@@ -35,10 +35,9 @@ export const Navbar = ({ activePage, onNavigate, centerName }) => {
             <div className="w-12 h-12 rounded-full bg-blue-500/15 flex items-center justify-center text-blue-400 shrink-0">
               <GraduationCap size={20} strokeWidth={2} />
             </div>
-            <div className="flex flex-col font-display text-white font-bold text-xl leading-[1.1] tracking-tight">
-              <span>Anh Ngữ</span>
-              <span>Ms.Phương</span>
-            </div>
+            <span className="font-display text-white font-bold text-xl leading-[1.1] tracking-tight">
+              {centerName || 'Anh Ngữ Ms.Phương'}
+            </span>
           </div>
         </div>
 
@@ -91,10 +90,9 @@ export const Navbar = ({ activePage, onNavigate, centerName }) => {
           <div className="w-9 h-9 rounded-full bg-blue-500/15 flex items-center justify-center text-blue-400 shrink-0">
             <GraduationCap size={20} strokeWidth={2} />
           </div>
-          <div className="flex flex-col font-display text-white font-bold text-base leading-[1.1] tracking-tight">
-            <span>Anh Ngữ</span>
-            <span>Ms.Phương</span>
-          </div>
+          <span className="font-display text-white font-bold text-base leading-[1.1] tracking-tight">
+            {centerName || 'Anh Ngữ Ms.Phương'}
+          </span>
         </div>
         <button onClick={() => setMenuOpen(!menuOpen)} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors">
           {menuOpen ? <X size={20} /> : <Menu size={20} />}

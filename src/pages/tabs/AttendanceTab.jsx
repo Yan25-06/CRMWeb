@@ -7,15 +7,10 @@ import { SessionModal } from '@/components/SessionModal'
 import { AttendanceToggle } from '@/components/AttendanceToggle'
 import { StudentAttendancePanel } from '@/components/StudentAttendancePanel'
 import {
-  getSessionsByClass, getActiveStudents, getAttendanceBySession,
+  getSessionsByClass, getAttendanceBySession,
   upsertAttendanceBySession, deleteSession, getEnrollmentsByClass, getStudents, getAttendanceRate
 } from '@/store/db'
-
-const getInitials = (name = '') => {
-  const parts = name.trim().split(' ')
-  if (parts.length === 1) return parts[0][0]?.toUpperCase() || '?'
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-}
+import { getInitials } from '@/utils/helpers'
 
 export const AttendanceTab = ({ classId }) => {
   const [sessions, setSessions] = useState([])
@@ -26,25 +21,6 @@ export const AttendanceTab = ({ classId }) => {
   
   const [sessionModalOpen, setSessionModalOpen] = useState(false)
   const [selectedStudent, setSelectedStudent] = useState(null)
-
-  const loadData = () => {
-    const classSessions = getSessionsByClass(classId)
-    setSessions(classSessions)
-    
-    // Default to newest session
-    if (!activeSessionId && classSessions.length > 0) {
-      setActiveSessionId(classSessions[0].id)
-    }
-
-    // We need all active/paused students. Active ones are fully active, paused ones opacity-50 and disabled
-    // Dropped are hidden
-    const activeStudentsList = getActiveStudents(classId)
-    // Actually we need to get ALL enrollments and filter
-    const allEnrolls = getEnrollmentsByClass(classId).filter(e => e.status !== 'dropped')
-    // We should probably just fetch students matching enrollments. But getActiveStudents only gets 'active'
-    // Let's manually get them. Wait, store/db.js doesn't have a direct method for this.
-    // I'll fetch students manually if needed. Wait, getActiveStudents is fine, but I need paused too.
-  }
 
   // Effect to load initial data
   useEffect(() => {
@@ -193,9 +169,9 @@ export const AttendanceTab = ({ classId }) => {
                         <div className="flex flex-col items-center">
                           <span className={clsx(
                             "text-sm font-semibold",
-                            isPaused ? "text-navy-300" : rate >= 80 ? "text-emerald-600" : rate >= 50 ? "text-amber-600" : "text-red-600"
+                            isPaused ? "text-navy-300" : rate === null ? "text-navy-300" : rate >= 80 ? "text-emerald-600" : rate >= 50 ? "text-amber-600" : "text-red-600"
                           )}>
-                            {rate}%
+                            {rate === null ? '—' : `${rate}%`}
                           </span>
                         </div>
                       </td>

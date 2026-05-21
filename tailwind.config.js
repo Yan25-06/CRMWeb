@@ -24,7 +24,7 @@ export default {
         }
       },
       fontFamily: {
-        display: ['"faustina"', 'Georgia', 'serif'],
+        display: ['faustina', 'Georgia', 'serif'],
         body: ['"DM Sans"', 'system-ui', 'sans-serif'],
         mono: ['"JetBrains Mono"', 'monospace'],
       },

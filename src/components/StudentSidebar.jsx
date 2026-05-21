@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react'
 import { Search, Plus, Users } from 'lucide-react'
 import { clsx } from 'clsx'
 import { Badge } from '@/components/ui'
+import { getInitials } from '@/utils/helpers'
 
 const FILTER_TABS = [
   { id: 'all',     label: 'Tất cả' },
@@ -14,12 +15,6 @@ const STATUS_CONFIG = {
   active:  { label: 'Đang học',  variant: 'success' },
   paused:  { label: 'Tạm ngưng', variant: 'warning' },
   dropped: { label: 'Đã nghỉ',   variant: 'gray'    },
-}
-
-const getInitials = (name = '') => {
-  const parts = name.trim().split(' ')
-  if (parts.length === 1) return parts[0][0]?.toUpperCase() || '?'
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
 export const StudentSidebar = ({

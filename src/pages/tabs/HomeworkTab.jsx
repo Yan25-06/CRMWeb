@@ -10,16 +10,10 @@ import { HomeworkSummaryFooter } from '@/components/HomeworkSummaryFooter'
 import { StudentHomeworkPanel } from '@/components/StudentHomeworkPanel'
 import {
   getSessionsByClass, getStudents, getEnrollmentsByClass,
-  getHomeworkBySession, updateHomework, updateSessionHomeworkTitle, saveHomeworks, getHomeworks, getHomeworkStats
+  getHomeworkBySession, updateHomework, updateSessionHomeworkTitle, saveHomeworks, getHomeworks, getHomeworkStats,
+  uid
 } from '@/store/db'
-
-const getInitials = (name = '') => {
-  const parts = name.trim().split(' ')
-  if (parts.length === 1) return parts[0][0]?.toUpperCase() || '?'
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-}
-
-const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+import { getInitials } from '@/utils/helpers'
 
 export const HomeworkTab = ({ classId }) => {
   const [sessions, setSessions] = useState([])
@@ -239,7 +233,7 @@ export const HomeworkTab = ({ classId }) => {
             </table>
           </div>
           
-          <HomeworkSummaryFooter records={records.filter(r => !enrollments.find(e => e.studentId === r.studentId)?.status.includes('paused'))} />
+          <HomeworkSummaryFooter records={records.filter(r => enrollments.find(e => e.studentId === r.studentId)?.status !== 'paused')} />
         </div>
       )}
 

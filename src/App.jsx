@@ -10,24 +10,25 @@ import {
 import { ClassesOverviewPage } from '@/pages/ClassesOverviewPage'
 import { ClassDetailPage } from '@/pages/ClassDetailPage'
 import { getSettings, seedDemoData } from '@/store/db'
+import { runMigrations } from '@/store/migrations'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { clsx } from 'clsx'
 
 const MONTHS = ['Th.1','Th.2','Th.3','Th.4','Th.5','Th.6','Th.7','Th.8','Th.9','Th.10','Th.11','Th.12']
 
 export default function App() {
-  const now = new Date()
   const [page, setPage]   = useState('dashboard')
-  const [year, setYear]   = useState(now.getFullYear())
-  const [month, setMonth] = useState(now.getMonth() + 1)
+  const [year, setYear]   = useState(() => new Date().getFullYear())
+  const [month, setMonth] = useState(() => new Date().getMonth() + 1)
   const [settings, setSettingsState] = useState(getSettings())
   const [selectedClassId, setSelectedClassId] = useState(() => {
     const stored = localStorage.getItem('selectedClassId')
     return stored || null
   })
 
-  // Seed on first load
+  // Run migrations then seed on first load
   useEffect(() => {
+    runMigrations()
     seedDemoData()
     setSettingsState(getSettings())
   }, [])
@@ -128,7 +129,7 @@ export default function App() {
           {/* Year selector */}
           {showPicker && (
             <div className="flex items-center gap-1.5">
-              {[now.getFullYear() - 1, now.getFullYear(), now.getFullYear() + 1].map(y => (
+              {[year - 1, year, year + 1].map(y => (
                 <button
                   key={y}
                   onClick={() => setYear(y)}

@@ -4,7 +4,8 @@ import { Search, Plus, Edit2, Trash2, Users, BookOpen } from 'lucide-react'
 import { clsx } from 'clsx'
 import {
   getStudents, addStudent, updateStudent, deleteStudent,
-  getClasses, addClass, updateClass, deleteClass
+  getClasses, addClass, updateClass, deleteClass,
+  getEnrollmentsByClass
 } from '@/store/db'
 import { StudentModal } from '@/components/StudentModal'
 import { ClassModal } from '@/components/ClassModal'
@@ -78,7 +79,7 @@ export const StudentsPage = () => {
   }
 
   const handleDeleteClass = (id) => {
-    const hasStudents = students.some(s => s.classId === id)
+    const hasStudents = getEnrollmentsByClass(id).some(e => e.status !== 'dropped')
     if (hasStudents) {
       toast.error('Không thể xóa lớp đang có học sinh. Vui lòng chuyển học sinh sang lớp khác trước.')
       return

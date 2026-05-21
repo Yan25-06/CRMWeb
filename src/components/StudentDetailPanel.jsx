@@ -10,17 +10,12 @@ import {
   getAttendanceRate, getSessionsByClass, getAttendanceByStudent,
   getHomeworkStats, getHomeworkByStudent
 } from '@/store/db'
+import { getInitials } from '@/utils/helpers'
 
 const STATUS_CONFIG = {
   active:  { label: 'Đang học',  variant: 'success', next: 'paused'  },
   paused:  { label: 'Tạm ngưng', variant: 'warning', next: 'dropped' },
   dropped: { label: 'Đã nghỉ',   variant: 'gray',    next: 'active'  },
-}
-
-const getInitials = (name = '') => {
-  const parts = name.trim().split(' ')
-  if (parts.length === 1) return parts[0][0]?.toUpperCase() || '?'
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
 }
 
 const formatDate = (iso) => {

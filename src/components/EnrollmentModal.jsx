@@ -4,18 +4,13 @@ import { clsx } from 'clsx'
 import { Button, Select } from '@/components/ui'
 import { upsertEnrollment, getStudents, getEnrollmentsByClass } from '@/store/db'
 import { toast as uiToast } from '@/components/ui'
+import { getInitials } from '@/utils/helpers'
 
 const STATUS_OPTIONS = [
   { value: 'active',  label: 'Đang học' },
   { value: 'paused',  label: 'Tạm ngưng' },
   { value: 'dropped', label: 'Đã nghỉ' },
 ]
-
-const getInitials = (name = '') => {
-  const parts = name.trim().split(' ')
-  if (parts.length === 1) return parts[0][0]?.toUpperCase() || '?'
-  return (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
-}
 
 export const EnrollmentModal = ({
   open,

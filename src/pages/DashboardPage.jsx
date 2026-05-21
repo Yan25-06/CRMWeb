@@ -107,7 +107,7 @@ export const DashboardPage = ({ year, month, onNavigate }) => {
           <div className="px-5 py-4 border-b border-navy-50 flex items-center justify-between">
             <h2 className="font-semibold text-navy-800 text-sm">Các Lớp Học</h2>
             <button
-              onClick={() => onNavigate('students')}
+              onClick={() => onNavigate('classes')}
               className="text-xs text-navy-500 hover:text-navy-800 font-medium transition-colors"
             >
               Quản lý →
@@ -125,7 +125,7 @@ export const DashboardPage = ({ year, month, onNavigate }) => {
                   <div
                     key={cls.id}
                     className="flex items-center gap-3 px-5 py-3 hover:bg-navy-50 transition-colors cursor-pointer"
-                    onClick={() => onNavigate('attendance')}
+                    onClick={() => onNavigate('classes')}
                   >
                     <div className="w-8 h-8 rounded-xl bg-navy-800 flex items-center justify-center text-white shrink-0">
                       <BookOpen size={14} />

@@ -13,6 +13,9 @@ const KEYS = {
   HOMEWORKS: 'phf_homeworks',
 }
 
+// ─── Homework progress constants ────────────────────────
+export const PROGRESS = { NOT_DONE: 'not_done', IN_PROGRESS: 'in_progress', DONE: 'done' }
+
 // ─── Generic helpers ────────────────────────────────────
 const get = (key, fallback = []) => {
   try {
@@ -21,7 +24,7 @@ const get = (key, fallback = []) => {
   } catch { return fallback }
 }
 const set = (key, value) => localStorage.setItem(key, JSON.stringify(value))
-const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+export const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
 
 // ─── Students ───────────────────────────────────────────
 export const getStudents = () => get(KEYS.STUDENTS)
@@ -37,7 +40,6 @@ export const updateStudent = (id, data) => {
 }
 export const deleteStudent = (id) => {
   saveStudents(getStudents().filter(s => s.id !== id))
-  // Cascade delete related records
   saveEnrollments(getEnrollments().filter(e => e.studentId !== id))
   saveAttendance(getAttendance().filter(a => a.studentId !== id))
   saveHomeworks(getHomeworks().filter(h => h.studentId !== id))
@@ -62,9 +64,10 @@ export const deleteClass = (id) => {
   saveClasses(getClasses().filter(c => c.id !== id))
   // Cascade delete related records
   saveEnrollments(getEnrollments().filter(e => e.classId !== id))
+  const deletedSessionIds = new Set(getSessions().filter(s => s.classId === id).map(s => s.id))
   saveSessions(getSessions().filter(s => s.classId !== id))
-  saveAttendance(getAttendance().filter(a => a.classId !== id))
-  saveHomeworks(getHomeworks().filter(h => h.classId !== id))
+  saveAttendance(getAttendance().filter(a => !deletedSessionIds.has(a.sessionId)))
+  saveHomeworks(getHomeworks().filter(h => !deletedSessionIds.has(h.sessionId)))
   saveSessionReviews(getSessionReviews().filter(r => r.classId !== id))
 }
 
@@ -98,7 +101,7 @@ export const upsertAttendanceBySession = (sessionId, studentId, present, note) =
     if (note !== undefined) rec.note = note
     all[idx] = rec
   } else {
-    rec = { id: uid(), studentId, classId: session.classId, date: session.date, present, sessionId, note }
+    rec = { id: uid(), studentId, date: session.date, present, sessionId, note }
     all.push(rec)
   }
   saveAttendance(all)
@@ -107,36 +110,48 @@ export const upsertAttendanceBySession = (sessionId, studentId, present, note) =
 
 export const getAttendanceRate = (studentId, classId) => {
   const allSessions = getSessionsByClass(classId).filter(s => s.date <= new Date().toISOString().split('T')[0])
-  if (allSessions.length === 0) return 0
-  
-  const studentAtts = getAttendanceByStudent(studentId).filter(a => a.classId === classId)
+  if (allSessions.length === 0) return null
+
+  const sessionIds = new Set(allSessions.map(s => s.id))
+  const studentAtts = getAttendanceByStudent(studentId).filter(a => sessionIds.has(a.sessionId))
   let presentCount = 0
   for (const s of allSessions) {
     const att = studentAtts.find(a => a.sessionId === s.id)
     if (att && att.present) presentCount++
   }
-  
+
   return Math.round((presentCount / allSessions.length) * 100)
 }
 
 export const upsertAttendance = (records) => {
-  // records: array of { studentId, classId, date, present, note?, sessionId? }
+  // records: array of { studentId, date, present, note?, sessionId? }
   const all = getAttendance()
   const updated = [...all]
   for (const rec of records) {
+    const { classId: _, ...cleanRec } = rec
     const idx = updated.findIndex(
-      a => a.studentId === rec.studentId && (rec.sessionId ? a.sessionId === rec.sessionId : a.date === rec.date)
+      a => a.studentId === cleanRec.studentId && (cleanRec.sessionId ? a.sessionId === cleanRec.sessionId : a.date === cleanRec.date)
     )
-    if (idx >= 0) updated[idx] = { ...updated[idx], ...rec }
-    else updated.push({ id: uid(), ...rec })
+    if (idx >= 0) updated[idx] = { ...updated[idx], ...cleanRec }
+    else updated.push({ id: uid(), ...cleanRec })
   }
   saveAttendance(updated)
 }
 
-// Count present sessions for a student in a month
-export const countSessions = (studentId, year, month) => {
-  const recs = getAttendanceByMonth(year, month)
-  return recs.filter(a => a.studentId === studentId && a.present).length
+// Count present sessions for a student in a month, optionally filtered by class
+export const countSessions = (studentId, year, month, classId = null) => {
+  if (classId) {
+    const prefix = `${year}-${String(month).padStart(2, '0')}`
+    const sessionIds = new Set(
+      getSessionsByClass(classId).filter(s => s.date.startsWith(prefix)).map(s => s.id)
+    )
+    return getAttendance().filter(
+      a => a.studentId === studentId && a.present === true && sessionIds.has(a.sessionId)
+    ).length
+  }
+  return getAttendanceByMonth(year, month).filter(
+    a => a.studentId === studentId && a.present === true
+  ).length
 }
 
 // ─── Fees ────────────────────────────────────────────────
@@ -160,13 +175,18 @@ export const upsertFee = (data) => {
   saveFees(fees)
 }
 
-// Calculate fee amount: sessions * feePerSession + surcharge
+// Calculate total fee across all enrollments: Σ(sessions_per_class × feePerSession) + surcharge
 export const calcFee = (studentId, year, month) => {
-  const sessions = countSessions(studentId, year, month)
   const feeRec = getFeeByStudentMonth(studentId, year, month)
-  const rate = feeRec?.feePerSession ?? 0
   const surcharge = feeRec?.surcharge ?? 0
-  return sessions * rate + surcharge
+  const activeEnrollments = getEnrollments().filter(
+    e => e.studentId === studentId && e.status !== 'dropped'
+  )
+  const sessionFees = activeEnrollments.reduce((sum, e) => {
+    const sessions = countSessions(studentId, year, month, e.classId)
+    return sum + sessions * (e.feePerSession ?? 0)
+  }, 0)
+  return sessionFees + surcharge
 }
 
 // ─── Schedule ────────────────────────────────────────────
@@ -204,8 +224,10 @@ export const saveHomeworks = (h) => set(KEYS.HOMEWORKS, h)
 export const getHomeworkBySession = (sessionId) =>
   getHomeworks().filter(h => h.sessionId === sessionId)
 
-export const getHomeworkByStudent = (studentId, classId) =>
-  getHomeworks().filter(h => h.studentId === studentId && h.classId === classId)
+export const getHomeworkByStudent = (studentId, classId) => {
+  const sessionIds = new Set(getSessionsByClass(classId).map(s => s.id))
+  return getHomeworks().filter(h => h.studentId === studentId && sessionIds.has(h.sessionId))
+}
 
 export const updateHomework = (id, data) => {
   const all = getHomeworks()
@@ -235,8 +257,8 @@ export const getHomeworkStats = (studentId, classId) => {
   const records = getHomeworkByStudent(studentId, classId)
   const stats = { done: 0, inProgress: 0, notDone: 0, total: records.length }
   records.forEach(r => {
-    if (r.progress === 100) stats.done++
-    else if (r.progress === 50) stats.inProgress++
+    if (r.progress === 'done' || r.progress === 100) stats.done++
+    else if (r.progress === 'in_progress' || r.progress === 50) stats.inProgress++
     else stats.notDone++
   })
   return stats
@@ -267,8 +289,7 @@ export const createSession = (data) => {
       id: uid(),
       sessionId: session.id,
       studentId: s.id,
-      classId: data.classId,
-      progress: 0, // Default to not done
+      progress: 'not_done',
       title: '',
       note: '',
       createdAt: now,
@@ -360,15 +381,11 @@ export const getDashboardStats = (year, month) => {
     return sum + calcFee(s.id, year, month)
   }, 0)
 
-  // Yearly revenue
-  const yearlyRevenue = fees
-    .filter(f => f.year === year)
-    .reduce((sum, f) => {
-      const s = getStudents().find(st => st.id === f.studentId)
-      if (!s) return sum
-      const sessions = countSessions(f.studentId, year, f.month)
-      return sum + sessions * (f.feePerSession ?? 0) + (f.surcharge ?? 0)
-    }, 0)
+  // Yearly revenue: sum calcFee across all months that have a fee record
+  const months = [...new Set(fees.filter(f => f.year === year).map(f => f.month))]
+  const yearlyRevenue = students.reduce((sum, s) => {
+    return sum + months.reduce((mSum, m) => mSum + calcFee(s.id, year, m), 0)
+  }, 0)
 
   return {
     totalStudents: students.length,
@@ -382,14 +399,18 @@ export const getDashboardStats = (year, month) => {
 // ─── Export / Import ─────────────────────────────────────
 export const exportData = () => {
   const data = {
-    version: 1,
+    version: 2,
     exportedAt: new Date().toISOString(),
     students: getStudents(),
     classes: getClasses(),
+    enrollments: getEnrollments(),
+    sessions: getSessions(),
     attendance: getAttendance(),
+    homeworks: getHomeworks(),
     fees: getFees(),
     schedule: getSchedule(),
     reviews: getReviews(),
+    sessionReviews: getSessionReviews(),
     settings: getSettings(),
   }
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
@@ -406,10 +427,14 @@ export const importData = (jsonString) => {
   if (!data.version) throw new Error('File không hợp lệ')
   if (data.students) saveStudents(data.students)
   if (data.classes) saveClasses(data.classes)
+  if (data.enrollments) saveEnrollments(data.enrollments)
+  if (data.sessions) saveSessions(data.sessions)
   if (data.attendance) saveAttendance(data.attendance)
+  if (data.homeworks) saveHomeworks(data.homeworks)
   if (data.fees) saveFees(data.fees)
   if (data.schedule) saveSchedule(data.schedule)
   if (data.reviews) saveReviews(data.reviews)
+  if (data.sessionReviews) saveSessionReviews(data.sessionReviews)
   if (data.settings) saveSettings(data.settings)
 }
 
@@ -435,14 +460,12 @@ export const seedDemoData = () => {
     const s = addStudent({
       name,
       grade,
-      classId: i < 3 ? cls1.id : cls2.id,
-      feePerSession: 150000,
       phone: `090${String(i + 1).padStart(7, '0')}`,
     })
     return s.id
   })
 
-  // Seed enrollments for demo students
+  // Seed enrollments for demo students (feePerSession lives on enrollment)
   const goals = [
     'Đạt 7.0 IELTS để du học Úc', 'Cải thiện kỹ năng nghe và đọc',
     'Lấy chứng chỉ IELTS', 'Đạt 650 TOEIC cho công việc',
@@ -456,6 +479,7 @@ export const seedDemoData = () => {
       studentId,
       classId,
       status,
+      feePerSession: 150000,
       goal: goals[i],
       note: '',
       enrolledAt: new Date(Date.now() - (30 - i * 3) * 24 * 60 * 60 * 1000).toISOString(),
@@ -491,7 +515,6 @@ export const seedDemoData = () => {
 
       recs.push({
         studentId: studentIds[i],
-        classId: classId,
         date: `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`,
         present: Math.random() > 0.15,
         sessionId
@@ -500,9 +523,9 @@ export const seedDemoData = () => {
   }
   upsertAttendance(recs)
 
-  // Seed fees
+  // Seed fees (no feePerSession — lives on enrollment now)
   for (const id of studentIds) {
-    upsertFee({ studentId: id, year: y, month: m, feePerSession: 150000, surcharge: 0, paid: false })
+    upsertFee({ studentId: id, year: y, month: m, surcharge: 0, paid: false })
   }
 
   saveSettings({ teacherName: 'Ms.Phương', centerName: 'Anh Ngữ Ms.Phương' })
