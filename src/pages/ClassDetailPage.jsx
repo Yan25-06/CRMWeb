@@ -1,18 +1,17 @@
 import { useState, useEffect } from 'react'
-import { Card } from '@/components/ui'
-import { ChevronLeft, Users, BarChart2 } from 'lucide-react'
+import { ChevronLeft, Users } from 'lucide-react'
 import { clsx } from 'clsx'
 import { getClasses, getEnrollmentsByClass } from '@/store/db'
 import { StudentsTab } from '@/pages/tabs/StudentsTab'
 import { AttendanceTab } from '@/pages/tabs/AttendanceTab'
 import { HomeworkTab } from '@/pages/tabs/HomeworkTab'
+import { MockTestTab } from '@/pages/tabs/MockTestTab'
 
 const TABS = [
   { id: 'students',    label: 'Học Viên',  disabled: false },
   { id: 'attendance',  label: 'Điểm Danh', disabled: false },
   { id: 'assignments', label: 'Bài Tập',   disabled: false },
   { id: 'mocktest',    label: 'Mock Test',  disabled: false },
-  { id: 'reports',     label: 'Báo Cáo',   disabled: true,  tooltip: 'Sắp có' },
 ]
 
 export const ClassDetailPage = ({ classId, onBack }) => {
@@ -119,14 +118,8 @@ export const ClassDetailPage = ({ classId, onBack }) => {
         {activeTab === 'assignments' && (
           <HomeworkTab classId={classId} />
         )}
-        {['mocktest'].includes(activeTab) && (
-          <Card className="p-12">
-            <div className="flex flex-col items-center gap-3 text-center py-8">
-              <BarChart2 size={40} className="text-navy-200" />
-              <p className="font-medium text-navy-600">Tính năng này sẽ sớm có</p>
-              <p className="text-sm text-navy-400">Đang trong quá trình phát triển</p>
-            </div>
-          </Card>
+        {activeTab === 'mocktest' && (
+          <MockTestTab classId={classId} className={currentClass?.name ?? ''} />
         )}
       </div>
     </div>

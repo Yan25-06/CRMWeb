@@ -8,7 +8,7 @@ import { Badge, Button, Skeleton } from '@/components/ui'
 import {
   getSessionReviewsByStudent, addSessionReview, upsertEnrollment,
   getAttendanceRate, getSessionsByClass, getAttendanceByStudent,
-  getHomeworkStats, getHomeworkByStudent
+  getHomeworkStats, getHomeworkByStudent, getResultsByStudent, getMockTestsByClass,
 } from '@/store/db'
 import { getInitials } from '@/utils/helpers'
 
@@ -159,7 +159,8 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
   
   // Calculate attendance history for timeline
   const classSessions = getSessionsByClass(enrollment.classId)
-  const studentAtts = getAttendanceByStudent(student.id).filter(a => a.classId === enrollment.classId)
+  const classSessionIds = new Set(classSessions.map(s => s.id))
+  const studentAtts = getAttendanceByStudent(student.id).filter(a => classSessionIds.has(a.sessionId))
   
   const recentAttendance = classSessions
     .filter(s => s.date <= new Date().toISOString().split('T')[0])
@@ -180,7 +181,7 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
     .filter(s => s.date <= new Date().toISOString().split('T')[0])
     .map(s => {
       const hw = studentHw.find(h => h.sessionId === s.id)
-      if (!hw || hw.progress === 0) return null
+      if (!hw || hw.progress === 'not_done' || hw.progress === 0) return null
       return {
         id: `hw_${hw.id}`,
         type: 'homework',
@@ -192,13 +193,47 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
     .filter(Boolean)
     .slice(0, 5)
 
-  // Combine events and sort by date descending
-  const timelineEvents = [...recentAttendance, ...recentHomework]
-    .sort((a, b) => new Date(b.date) - new Date(a.date))
-    .slice(0, 5)
-
   const hwStats = getHomeworkStats(student.id, enrollment.classId)
   const hwRate = hwStats.total > 0 ? Math.round((hwStats.done / hwStats.total) * 100) : 0
+
+  // Mock test data
+  const studentMockResults = getResultsByStudent(student.id, enrollment.classId)
+  const latestMockResult = studentMockResults.find(r => r.totalScore > 0) ?? null
+  const classMockTests = getMockTestsByClass(enrollment.classId)
+  const latestMockTest = latestMockResult
+    ? classMockTests.find(t => t.id === latestMockResult.mockTestId)
+    : null
+  const latestMockMax = latestMockTest
+    ? (latestMockTest.sections ?? []).reduce((s, sec) => s + sec.maxScore, 0)
+    : 0
+  const latestMockPct = latestMockMax > 0 && latestMockResult?.totalScore > 0
+    ? Math.round((latestMockResult.totalScore / latestMockMax) * 100)
+    : null
+
+  // Mock test timeline events
+  const mockTimelineEvents = studentMockResults
+    .filter(r => r.totalScore > 0)
+    .map(r => {
+      const test = classMockTests.find(t => t.id === r.mockTestId)
+      if (!test) return null
+      const maxTotal = (test.sections ?? []).reduce((s, sec) => s + sec.maxScore, 0)
+      const pct = maxTotal > 0 ? Math.round((r.totalScore / maxTotal) * 100) : 0
+      return {
+        id: `mock_${r.id}`,
+        type: 'mocktest',
+        date: test.date,
+        title: test.title,
+        score: r.totalScore,
+        maxTotal,
+        pct,
+      }
+    })
+    .filter(Boolean)
+
+  // Combine events and sort by date descending
+  const timelineEvents = [...recentAttendance, ...recentHomework, ...mockTimelineEvents]
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+    .slice(0, 5)
 
   const handleStatusClick = () => {
     // Cycle: active → paused (needs confirm handled in parent / EnrollmentModal)
@@ -304,8 +339,24 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
             <BarChart2 size={13} className="text-navy-400" />
             <span className="text-xs text-navy-400 font-medium uppercase tracking-wide">Mock Test</span>
           </div>
-          <span className="text-sm font-medium text-navy-400 mt-1">Chưa có</span>
-          <span className="text-xs text-navy-300">Phase D</span>
+          {latestMockResult ? (
+            <>
+              <span className={clsx(
+                'text-2xl font-display leading-none',
+                latestMockPct >= 80 ? 'text-emerald-600' : latestMockPct >= 50 ? 'text-amber-600' : 'text-red-600'
+              )}>
+                {latestMockPct}%
+              </span>
+              <span className="text-xs text-navy-400 truncate" title={latestMockTest?.title}>
+                {latestMockResult.totalScore}/{latestMockMax} — {latestMockTest?.title}
+              </span>
+            </>
+          ) : (
+            <>
+              <span className="text-sm font-medium text-navy-400 mt-1">Chưa thi</span>
+              <span className="text-xs text-navy-300">{studentMockResults.length > 0 ? 'Chưa có điểm' : 'Chưa có bài'}</span>
+            </>
+          )}
         </div>
 
         <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-4 flex flex-col gap-1">
@@ -383,9 +434,27 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
                       Bài tập{event.topic && <span className="font-medium"> {event.topic}</span>}: 
                       <span className={clsx(
                         "ml-1 font-medium",
-                        event.progress === 100 ? "text-emerald-600" : "text-amber-600"
+                        event.progress === 'done' || event.progress === 100 ? "text-emerald-600" : "text-amber-600"
                       )}>
-                        {event.progress === 100 ? "Hoàn thành" : "Đang làm"}
+                        {event.progress === 'done' || event.progress === 100 ? "Hoàn thành" : "Đang làm"}
+                      </span>
+                    </p>
+                    <p className="text-xs text-navy-400">{formatDate(event.date)}</p>
+                  </div>
+                </div>
+              )
+            } else if (event.type === 'mocktest') {
+              return (
+                <div key={event.id} className="flex items-start gap-3">
+                  <div className="text-[10px] mt-1 shrink-0">📊</div>
+                  <div>
+                    <p className="text-sm text-navy-700">
+                      {event.title}:&nbsp;
+                      <span className={clsx(
+                        'font-semibold',
+                        event.pct >= 80 ? 'text-emerald-600' : event.pct >= 50 ? 'text-amber-600' : 'text-red-600'
+                      )}>
+                        {event.score}/{event.maxTotal} ({event.pct}%)
                       </span>
                     </p>
                     <p className="text-xs text-navy-400">{formatDate(event.date)}</p>

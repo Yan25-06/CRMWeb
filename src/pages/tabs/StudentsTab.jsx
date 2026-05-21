@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { Users } from 'lucide-react'
-import { Skeleton } from '@/components/ui'
+import { Skeleton, Card, Button } from '@/components/ui'
 import { StudentSidebar } from '@/components/StudentSidebar'
 import { StudentDetailPanel } from '@/components/StudentDetailPanel'
 import { EnrollmentModal } from '@/components/EnrollmentModal'
@@ -70,22 +70,13 @@ export const StudentsTab = ({ classId, onEnrollmentChange }) => {
   // Empty state — no enrollments at all
   if (!loading && enrollments.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4 text-center">
-        <div className="w-16 h-16 rounded-full bg-navy-50 flex items-center justify-center">
-          <Users size={28} className="text-navy-300" />
-        </div>
-        <div>
+      <>
+        <Card className="p-16 flex flex-col items-center justify-center text-center gap-3">
+          <Users size={48} className="text-navy-200" />
           <p className="font-semibold text-navy-700">Lớp chưa có học viên nào</p>
-          <p className="text-sm text-navy-400 mt-1">Bấm nút bên dưới để thêm học viên đầu tiên</p>
-        </div>
-        <button
-          onClick={handleAddStudent}
-          className="flex items-center gap-2 px-4 py-2 bg-navy-800 text-white text-sm font-medium rounded-xl
-            hover:bg-navy-700 transition-colors"
-        >
-          + Thêm học viên
-        </button>
-
+          <p className="text-sm text-navy-400">Bấm nút bên dưới để thêm học viên đầu tiên</p>
+          <Button onClick={handleAddStudent} className="mt-2">+ Thêm học viên</Button>
+        </Card>
         <EnrollmentModal
           open={modalOpen}
           onClose={() => setModalOpen(false)}
@@ -93,7 +84,7 @@ export const StudentsTab = ({ classId, onEnrollmentChange }) => {
           classId={classId}
           onSaved={handleModalSaved}
         />
-      </div>
+      </>
     )
   }
 

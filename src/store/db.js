@@ -11,6 +11,8 @@ const KEYS = {
   SESSION_REVIEWS: 'phf_session_reviews',
   SESSIONS: 'phf_sessions',
   HOMEWORKS: 'phf_homeworks',
+  MOCK_TESTS: 'phf_mock_tests',
+  MOCK_TEST_RESULTS: 'phf_mock_test_results',
 }
 
 // ─── Homework progress constants ────────────────────────
@@ -412,6 +414,8 @@ export const exportData = () => {
     reviews: getReviews(),
     sessionReviews: getSessionReviews(),
     settings: getSettings(),
+    mockTests: getMockTests(),
+    mockTestResults: getMockTestResults(),
   }
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -436,6 +440,88 @@ export const importData = (jsonString) => {
   if (data.reviews) saveReviews(data.reviews)
   if (data.sessionReviews) saveSessionReviews(data.sessionReviews)
   if (data.settings) saveSettings(data.settings)
+  if (data.mockTests) saveMockTests(data.mockTests)
+  if (data.mockTestResults) saveMockTestResults(data.mockTestResults)
+}
+
+// ─── Mock Tests ──────────────────────────────────────────
+// MockTest shape: { id, classId, title, date, sections: [{id, name, maxScore, order}], teacherNote?, createdAt }
+// MockTestResult shape: { id, mockTestId, studentId, scores: {[sectionId]: number}, totalScore, teacherNote?, createdAt, updatedAt }
+
+export const getMockTests = () => get(KEYS.MOCK_TESTS)
+export const saveMockTests = (v) => set(KEYS.MOCK_TESTS, v)
+
+// 0.4
+export const getMockTestsByClass = (classId) =>
+  getMockTests()
+    .filter(t => t.classId === classId)
+    .sort((a, b) => new Date(b.date) - new Date(a.date))
+
+// 0.5
+export const createMockTest = (data) => {
+  const tests = getMockTests()
+  const test = { id: uid(), createdAt: new Date().toISOString(), ...data }
+  saveMockTests([...tests, test])
+  // Side-effect: create empty results for active students
+  const activeStudents = getActiveStudents(data.classId)
+  const results = getMockTestResults()
+  const now = new Date().toISOString()
+  activeStudents.forEach(s => {
+    results.push({ id: uid(), mockTestId: test.id, studentId: s.id, scores: {}, totalScore: 0, teacherNote: '', createdAt: now, updatedAt: now })
+  })
+  saveMockTestResults(results)
+  return test
+}
+
+// 0.6
+export const updateMockTest = (id, data) => {
+  const tests = getMockTests()
+  const idx = tests.findIndex(t => t.id === id)
+  if (idx < 0) return null
+  tests[idx] = { ...tests[idx], ...data }
+  saveMockTests(tests)
+  return tests[idx]
+}
+
+// 0.7
+export const deleteMockTest = (id) => {
+  saveMockTests(getMockTests().filter(t => t.id !== id))
+  saveMockTestResults(getMockTestResults().filter(r => r.mockTestId !== id))
+}
+
+export const getMockTestResults = () => get(KEYS.MOCK_TEST_RESULTS)
+export const saveMockTestResults = (v) => set(KEYS.MOCK_TEST_RESULTS, v)
+
+// 0.8
+export const getMockTestResultsByTest = (mockTestId) =>
+  getMockTestResults().filter(r => r.mockTestId === mockTestId)
+
+// 0.9
+export const getResultsByStudent = (studentId, classId) => {
+  const testIds = new Set(getMockTestsByClass(classId).map(t => t.id))
+  return getMockTestResults()
+    .filter(r => r.studentId === studentId && testIds.has(r.mockTestId))
+    .sort((a, b) => {
+      const testA = getMockTests().find(t => t.id === a.mockTestId)
+      const testB = getMockTests().find(t => t.id === b.mockTestId)
+      return new Date(testA?.date) - new Date(testB?.date)
+    })
+}
+
+// 0.10
+export const upsertMockTestResult = (data) => {
+  const results = getMockTestResults()
+  const idx = results.findIndex(r => r.mockTestId === data.mockTestId && r.studentId === data.studentId)
+  const now = new Date().toISOString()
+  const scores = data.scores ?? (idx >= 0 ? results[idx].scores : {})
+  const totalScore = Object.values(scores).reduce((s, v) => s + (Number(v) || 0), 0)
+  const entry = idx >= 0
+    ? { ...results[idx], ...data, scores, totalScore, updatedAt: now }
+    : { id: uid(), createdAt: now, ...data, scores, totalScore, updatedAt: now }
+  if (idx >= 0) results[idx] = entry
+  else results.push(entry)
+  saveMockTestResults(results)
+  return entry
 }
 
 // ─── Seed demo data ──────────────────────────────────────
