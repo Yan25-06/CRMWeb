@@ -1,8 +1,8 @@
 import { clsx } from 'clsx'
 import {
   LayoutDashboard, CalendarCheck, BookOpen,
-  Calendar, Users, Settings, Menu, X, Download, Upload,
-  GraduationCap,
+  Calendar, Users, Settings, Menu, X, Download,
+  GraduationCap, BarChart2,
 } from 'lucide-react'
 import { useState } from 'react'
 import { exportData } from '@/store/db'
@@ -12,6 +12,7 @@ const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'attendance', label: 'Điểm Danh', icon: CalendarCheck },
   { id: 'fees', label: 'Học Phí', icon: BookOpen },
+  { id: 'reports', label: 'Báo Cáo', icon: BarChart2 },
   { id: 'reviews', label: 'Nhận Xét', icon: GraduationCap },
   { id: 'schedule', label: 'Lịch Dạy', icon: Calendar },
   { id: 'classes', label: 'Lớp Học', icon: Users },

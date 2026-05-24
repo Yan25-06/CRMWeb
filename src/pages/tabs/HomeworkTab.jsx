@@ -1,21 +1,28 @@
 import { useState, useEffect, useRef } from 'react'
 import { clsx } from 'clsx'
-import { FileText, Plus } from 'lucide-react'
-import { Button, Card, toast } from '@/components/ui'
+import { FileText, Plus, ArrowLeft, ClipboardList, Calendar } from 'lucide-react'
+import { Button, Card, Badge, toast } from '@/components/ui'
 import { SessionSelector } from '@/components/SessionSelector'
 import { SessionModal } from '@/components/SessionModal'
 import { ProgressBadge } from '@/components/ProgressBadge'
 import { HomeworkNoteCell } from '@/components/HomeworkNoteCell'
 import { HomeworkSummaryFooter } from '@/components/HomeworkSummaryFooter'
 import { StudentHomeworkPanel } from '@/components/StudentHomeworkPanel'
+import { HomeworkAssignmentModal } from '@/components/homework/HomeworkAssignmentModal'
+import { SubmissionTable } from '@/components/homework/SubmissionTable'
 import {
   getSessionsByClass, getStudents, getEnrollmentsByClass,
   getHomeworkBySession, updateHomework, updateSessionHomeworkTitle, saveHomeworks, getHomeworks, getHomeworkStats,
+  getHwAssignmentsByClass, createHwAssignment, deleteHwAssignment,
+  getSubmissionsByAssignment, getActiveStudents,
   uid
 } from '@/store/db'
-import { getInitials } from '@/utils/helpers'
+import { getInitials, fmtDate } from '@/utils/helpers'
+
+const MODE = { SESSION: 'session', ASSIGN: 'assign' }
 
 export const HomeworkTab = ({ classId }) => {
+  const [mode, setMode] = useState(MODE.SESSION)
   const [sessions, setSessions] = useState([])
   const [activeSessionId, setActiveSessionId] = useState('')
   const [students, setStudents] = useState([])
@@ -104,8 +111,30 @@ export const HomeworkTab = ({ classId }) => {
     setRecords(getHomeworkBySession(activeSessionId))
   }
 
+  if (mode === MODE.ASSIGN) {
+    return <AssignView classId={classId} onBack={() => setMode(MODE.SESSION)} />
+  }
+
   return (
     <div className="flex flex-col gap-6 relative h-full min-h-[500px]">
+      {/* Mode toggle */}
+      <div className="flex gap-2">
+        <button
+          onClick={() => setMode(MODE.SESSION)}
+          className={clsx('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
+            mode === MODE.SESSION ? 'bg-navy-800 text-white' : 'text-navy-500 hover:bg-navy-50')}
+        >
+          <Calendar size={14} /> Theo Buổi
+        </button>
+        <button
+          onClick={() => setMode(MODE.ASSIGN)}
+          className={clsx('flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-colors',
+            mode === MODE.ASSIGN ? 'bg-navy-800 text-white' : 'text-navy-500 hover:bg-navy-50')}
+        >
+          <ClipboardList size={14} /> Bài Giao
+        </button>
+      </div>
+
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-navy-100 shadow-navy-sm">
         <SessionSelector
@@ -250,6 +279,179 @@ export const HomeworkTab = ({ classId }) => {
           onClose={() => setSelectedStudent(null)}
         />
       )}
+    </div>
+  )
+}
+
+// ─── Bài Giao view ─────────────────────────────────────────
+const AssignView = ({ classId, onBack }) => {
+  const [assignments, setAssignments] = useState([])
+  const [selected, setSelected] = useState(null)
+  const [submissions, setSubmissions] = useState([])
+  const [students, setStudents] = useState([])
+  const [modalOpen, setModalOpen] = useState(false)
+
+  const refresh = () => {
+    setAssignments(getHwAssignmentsByClass(classId))
+    setStudents(getActiveStudents(classId))
+  }
+
+  useEffect(() => { refresh() }, [classId])
+
+  const openAssignment = (a) => {
+    setSelected(a)
+    setSubmissions(getSubmissionsByAssignment(a.id))
+  }
+
+  const handleSave = (data) => {
+    createHwAssignment({ ...data, classId })
+    toast.success('Đã thêm bài tập!')
+    refresh()
+    setModalOpen(false)
+  }
+
+  const handleDelete = (id) => {
+    if (!confirm('Xóa bài tập này? Tất cả dữ liệu nộp bài sẽ bị xóa.')) return
+    deleteHwAssignment(id)
+    if (selected?.id === id) setSelected(null)
+    refresh()
+    toast.success('Đã xóa bài tập')
+  }
+
+  const refreshSubmissions = () => {
+    if (selected) setSubmissions(getSubmissionsByAssignment(selected.id))
+  }
+
+  const submittedCount = submissions.filter(s => s.submitted).length
+  const avgScore = (() => {
+    const scored = submissions.filter(s => s.score != null)
+    if (!scored.length) return null
+    return (scored.reduce((a, s) => a + s.score, 0) / scored.length).toFixed(1)
+  })()
+
+  const isOverdue = (a) => a.dueDate && a.dueDate < new Date().toISOString().split('T')[0]
+
+  return (
+    <div className="flex flex-col gap-4 animate-fade-in">
+      {/* Back + header */}
+      <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-2">
+          <button
+            onClick={onBack}
+            className="p-1.5 rounded-lg text-navy-400 hover:text-navy-700 hover:bg-navy-50 transition-colors"
+          >
+            <ArrowLeft size={16} />
+          </button>
+          <h3 className="font-semibold text-navy-800">
+            {selected ? selected.title : 'Bài Giao'}
+          </h3>
+        </div>
+        {!selected && (
+          <Button size="sm" onClick={() => setModalOpen(true)}>
+            <Plus size={14} className="mr-1" /> Thêm bài tập
+          </Button>
+        )}
+        {selected && (
+          <Button size="sm" variant="secondary" onClick={() => setSelected(null)}>
+            <ArrowLeft size={14} className="mr-1" /> Danh sách
+          </Button>
+        )}
+      </div>
+
+      {/* View A: list */}
+      {!selected && (
+        assignments.length === 0 ? (
+          <Card className="p-12 flex flex-col items-center justify-center gap-3 text-center">
+            <ClipboardList size={40} className="text-navy-200" />
+            <p className="font-semibold text-navy-700">Chưa có bài tập nào</p>
+            <Button size="sm" onClick={() => setModalOpen(true)}>+ Thêm bài tập</Button>
+          </Card>
+        ) : (
+          <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm overflow-hidden">
+            <table className="w-full text-sm text-left whitespace-nowrap">
+              <thead>
+                <tr className="bg-navy-50/60 border-b border-navy-100">
+                  <th className="px-5 py-3 font-semibold text-navy-700">Bài tập</th>
+                  <th className="px-5 py-3 font-semibold text-navy-700">Ngày giao</th>
+                  <th className="px-5 py-3 font-semibold text-navy-700">Hạn nộp</th>
+                  <th className="px-5 py-3 font-semibold text-navy-700 text-center">Nộp</th>
+                  <th className="px-5 py-3 font-semibold text-navy-700 text-center"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-navy-50">
+                {assignments.map(a => {
+                  const subs = getSubmissionsByAssignment(a.id)
+                  const cnt = subs.filter(s => s.submitted).length
+                  return (
+                    <tr
+                      key={a.id}
+                      className="hover:bg-navy-50/40 cursor-pointer transition-colors"
+                      onClick={() => openAssignment(a)}
+                    >
+                      <td className="px-5 py-3 font-medium text-navy-900">{a.title}</td>
+                      <td className="px-5 py-3 text-navy-500">{fmtDate(a.assignedAt)}</td>
+                      <td className="px-5 py-3">
+                        {a.dueDate
+                          ? <span className={clsx('text-sm', isOverdue(a) ? 'text-red-500 font-medium' : 'text-navy-500')}>
+                              {fmtDate(a.dueDate)}
+                              {isOverdue(a) && ' (quá hạn)'}
+                            </span>
+                          : <span className="text-navy-300">—</span>
+                        }
+                      </td>
+                      <td className="px-5 py-3 text-center">
+                        <Badge variant={cnt === students.length && students.length > 0 ? 'success' : cnt > 0 ? 'warning' : 'gray'}>
+                          {cnt}/{students.length}
+                        </Badge>
+                      </td>
+                      <td className="px-5 py-3 text-center">
+                        <button
+                          onClick={e => { e.stopPropagation(); handleDelete(a.id) }}
+                          className="p-1 rounded text-navy-300 hover:text-red-500 hover:bg-red-50 transition-colors"
+                        >
+                          ✕
+                        </button>
+                      </td>
+                    </tr>
+                  )
+                })}
+              </tbody>
+            </table>
+          </div>
+        )
+      )}
+
+      {/* View B: submission table */}
+      {selected && (
+        <>
+          {selected.description && (
+            <p className="text-sm text-navy-500 bg-navy-50 rounded-xl px-4 py-2">{selected.description}</p>
+          )}
+          <SubmissionTable
+            students={students}
+            submissions={submissions}
+            hwAssignmentId={selected.id}
+            onUpdate={refreshSubmissions}
+          />
+          {/* Footer summary */}
+          <div className="bg-navy-50 border border-navy-100 rounded-2xl px-5 py-3 flex items-center gap-6 text-sm">
+            <span className="text-navy-700">
+              Đã nộp <strong className="text-navy-900">{submittedCount}/{students.length}</strong>
+            </span>
+            {avgScore != null && (
+              <span className="text-navy-700">
+                Điểm TB <strong className="text-navy-900">{avgScore}</strong>
+              </span>
+            )}
+          </div>
+        </>
+      )}
+
+      <HomeworkAssignmentModal
+        open={modalOpen}
+        onClose={() => setModalOpen(false)}
+        onSave={handleSave}
+      />
     </div>
   )
 }

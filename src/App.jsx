@@ -4,9 +4,11 @@ import { ToastContainer } from '@/components/ui'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { SettingsPage } from '@/pages/SettingsPage'
 import {
-  AttendancePage, FeesPage, ReviewsPage,
+  AttendancePage, ReviewsPage,
   SchedulePage
 } from '@/pages/PlaceholderPages'
+import { FeesPage } from '@/pages/FeesPage'
+import { ReportsPage } from '@/pages/ReportsPage'
 import { ClassesOverviewPage } from '@/pages/ClassesOverviewPage'
 import { ClassDetailPage } from '@/pages/ClassDetailPage'
 import { getSettings, seedDemoData } from '@/store/db'
@@ -59,6 +61,7 @@ export default function App() {
       case 'dashboard':  return <DashboardPage year={year} month={month} onNavigate={setPage} />
       case 'attendance': return <AttendancePage year={year} month={month} />
       case 'fees':       return <FeesPage year={year} month={month} />
+      case 'reports':    return <ReportsPage />
       case 'reviews':    return <ReviewsPage year={year} month={month} />
       case 'schedule':   return <SchedulePage />
       case 'classes':

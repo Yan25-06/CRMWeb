@@ -13,6 +13,9 @@ const KEYS = {
   HOMEWORKS: 'phf_homeworks',
   MOCK_TESTS: 'phf_mock_tests',
   MOCK_TEST_RESULTS: 'phf_mock_test_results',
+  PAYMENTS: 'phf_payments',
+  HW_ASSIGNMENTS: 'phf_hw_assignments',
+  SUBMISSIONS: 'phf_submissions',
 }
 
 // ─── Homework progress constants ────────────────────────
@@ -48,6 +51,8 @@ export const deleteStudent = (id) => {
   saveFees(getFees().filter(f => f.studentId !== id))
   saveReviews(getReviews().filter(r => r.studentId !== id))
   saveSessionReviews(getSessionReviews().filter(r => r.studentId !== id))
+  savePayments(getPayments().filter(p => p.studentId !== id))
+  saveSubmissions(getSubmissions().filter(s => s.studentId !== id))
 }
 
 // ─── Classes ────────────────────────────────────────────
@@ -64,13 +69,16 @@ export const updateClass = (id, data) => {
 }
 export const deleteClass = (id) => {
   saveClasses(getClasses().filter(c => c.id !== id))
-  // Cascade delete related records
   saveEnrollments(getEnrollments().filter(e => e.classId !== id))
   const deletedSessionIds = new Set(getSessions().filter(s => s.classId === id).map(s => s.id))
   saveSessions(getSessions().filter(s => s.classId !== id))
   saveAttendance(getAttendance().filter(a => !deletedSessionIds.has(a.sessionId)))
   saveHomeworks(getHomeworks().filter(h => !deletedSessionIds.has(h.sessionId)))
   saveSessionReviews(getSessionReviews().filter(r => r.classId !== id))
+  const deletedAssignmentIds = new Set(getHwAssignments().filter(a => a.classId === id).map(a => a.id))
+  saveHwAssignments(getHwAssignments().filter(a => a.classId !== id))
+  saveSubmissions(getSubmissions().filter(s => !deletedAssignmentIds.has(s.hwAssignmentId)))
+  savePayments(getPayments().filter(p => p.classId !== id))
 }
 
 // ─── Attendance ─────────────────────────────────────────
@@ -401,7 +409,7 @@ export const getDashboardStats = (year, month) => {
 // ─── Export / Import ─────────────────────────────────────
 export const exportData = () => {
   const data = {
-    version: 2,
+    version: 3,
     exportedAt: new Date().toISOString(),
     students: getStudents(),
     classes: getClasses(),
@@ -416,6 +424,9 @@ export const exportData = () => {
     settings: getSettings(),
     mockTests: getMockTests(),
     mockTestResults: getMockTestResults(),
+    payments: getPayments(),
+    hwAssignments: getHwAssignments(),
+    submissions: getSubmissions(),
   }
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
@@ -442,6 +453,9 @@ export const importData = (jsonString) => {
   if (data.settings) saveSettings(data.settings)
   if (data.mockTests) saveMockTests(data.mockTests)
   if (data.mockTestResults) saveMockTestResults(data.mockTestResults)
+  if (data.payments) savePayments(data.payments)
+  if (data.hwAssignments) saveHwAssignments(data.hwAssignments)
+  if (data.submissions) saveSubmissions(data.submissions)
 }
 
 // ─── Mock Tests ──────────────────────────────────────────
@@ -522,6 +536,89 @@ export const upsertMockTestResult = (data) => {
   else results.push(entry)
   saveMockTestResults(results)
   return entry
+}
+
+// ─── Payments ────────────────────────────────────────────
+// Shape: { id, studentId, classId?, amount, paidAt: 'YYYY-MM-DD', method: 'cash'|'transfer', period: 'YYYY-MM', note?, createdAt }
+export const getPayments = () => get(KEYS.PAYMENTS)
+export const savePayments = (p) => set(KEYS.PAYMENTS, p)
+
+export const getPaymentsByStudent = (studentId) =>
+  getPayments()
+    .filter(p => p.studentId === studentId)
+    .sort((a, b) => b.paidAt.localeCompare(a.paidAt))
+
+export const getPaymentsByPeriod = (period) =>
+  getPayments().filter(p => p.period === period)
+
+export const getPaidAmountByStudentPeriod = (studentId, period) =>
+  getPayments()
+    .filter(p => p.studentId === studentId && p.period === period)
+    .reduce((sum, p) => sum + (p.amount ?? 0), 0)
+
+export const createPayment = (data) => {
+  const payments = getPayments()
+  const payment = { id: uid(), createdAt: Date.now(), ...data }
+  savePayments([...payments, payment])
+  return payment
+}
+
+export const deletePayment = (id) => {
+  savePayments(getPayments().filter(p => p.id !== id))
+}
+
+// ─── Homework Assignments ─────────────────────────────────
+// Shape: { id, classId, title, description?, assignedAt: 'YYYY-MM-DD', dueDate?: 'YYYY-MM-DD', createdAt }
+export const getHwAssignments = () => get(KEYS.HW_ASSIGNMENTS)
+export const saveHwAssignments = (a) => set(KEYS.HW_ASSIGNMENTS, a)
+
+export const getHwAssignmentsByClass = (classId) =>
+  getHwAssignments()
+    .filter(a => a.classId === classId)
+    .sort((a, b) => b.assignedAt.localeCompare(a.assignedAt))
+
+export const createHwAssignment = (data) => {
+  const all = getHwAssignments()
+  const entry = { id: uid(), createdAt: Date.now(), ...data }
+  saveHwAssignments([...all, entry])
+  return entry
+}
+
+export const updateHwAssignment = (id, data) => {
+  saveHwAssignments(getHwAssignments().map(a => a.id === id ? { ...a, ...data } : a))
+}
+
+export const deleteHwAssignment = (id) => {
+  saveHwAssignments(getHwAssignments().filter(a => a.id !== id))
+  saveSubmissions(getSubmissions().filter(s => s.hwAssignmentId !== id))
+}
+
+// ─── Submissions ──────────────────────────────────────────
+// Shape: { id, hwAssignmentId, studentId, submitted: bool, score?: number, comment?: string, gradedAt?: number }
+export const getSubmissions = () => get(KEYS.SUBMISSIONS)
+export const saveSubmissions = (s) => set(KEYS.SUBMISSIONS, s)
+
+export const getSubmissionsByAssignment = (hwAssignmentId) =>
+  getSubmissions().filter(s => s.hwAssignmentId === hwAssignmentId)
+
+export const getSubmissionsByStudent = (studentId) =>
+  getSubmissions().filter(s => s.studentId === studentId)
+
+export const upsertSubmission = (data) => {
+  const all = getSubmissions()
+  const idx = all.findIndex(s => s.hwAssignmentId === data.hwAssignmentId && s.studentId === data.studentId)
+  const now = Date.now()
+  const entry = idx >= 0
+    ? { ...all[idx], ...data, gradedAt: now }
+    : { id: uid(), ...data, gradedAt: now }
+  if (idx >= 0) all[idx] = entry
+  else all.push(entry)
+  saveSubmissions(all)
+  return entry
+}
+
+export const deleteSubmissionsByAssignment = (hwAssignmentId) => {
+  saveSubmissions(getSubmissions().filter(s => s.hwAssignmentId !== hwAssignmentId))
 }
 
 // ─── Seed demo data ──────────────────────────────────────
