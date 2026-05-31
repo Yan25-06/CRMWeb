@@ -22,12 +22,16 @@ const fmtDate = (dateStr) => {
  * ReportCardModal — preview and export a professional report card
  * @param {boolean}  open
  * @param {Function} onClose
- * @param {Object}   student    - student object
- * @param {Object}   cls        - class object
+ * @param {Object}   student      - student object
+ * @param {Object}   cls          - class object
  * @param {Object}   latestReview - the review to export (most recent)
- * @param {Object}   settings   - { centerName, teacherName }
+ * @param {Object}   settings     - { centerName, teacherName }
+ * @param {Object}   dateRange    - { fromDate, toDate } for the filter period
+ * @param {number|null} attendancePct - % chuyên cần in range
+ * @param {number|null} homeworkPct   - % bài tập in range
+ * @param {Object|null} generalComment - { text } from phf_general_comments
  */
-export const ReportCardModal = ({ open, onClose, student, cls, latestReview, settings = {} }) => {
+export const ReportCardModal = ({ open, onClose, student, cls, latestReview, settings = {}, dateRange, attendancePct, homeworkPct, generalComment }) => {
   const cardRef  = useRef(null)
   const [loading, setLoading] = useState(null) // 'png' | 'pdf' | null
 
@@ -90,6 +94,12 @@ export const ReportCardModal = ({ open, onClose, student, cls, latestReview, set
               <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
                 <div><span className="font-semibold text-navy-600">Họ và tên:</span> <span className="text-navy-900">{student?.name ?? '—'}</span></div>
                 <div><span className="font-semibold text-navy-600">Lớp:</span> <span className="text-navy-900">{cls?.name ?? '—'}</span></div>
+                {dateRange?.fromDate && dateRange?.toDate && (
+                  <div className="col-span-2">
+                    <span className="font-semibold text-navy-600">Khoảng thời gian:</span>{' '}
+                    <span className="text-navy-900">{fmtDate(dateRange.fromDate)} – {fmtDate(dateRange.toDate)}</span>
+                  </div>
+                )}
                 <div><span className="font-semibold text-navy-600">Ngày đánh giá:</span> <span className="text-navy-900">{fmtDate(latestReview?.date)}</span></div>
                 <div><span className="font-semibold text-navy-600">Giáo viên:</span> <span className="text-navy-900">{latestReview?.teacherName || settings.teacherName || '—'}</span></div>
               </div>
@@ -97,6 +107,20 @@ export const ReportCardModal = ({ open, onClose, student, cls, latestReview, set
 
             {hasReview ? (
               <div className="px-6 py-4 flex flex-col gap-4">
+                {/* Attendance + homework stats */}
+                {(attendancePct != null || homeworkPct != null) && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="bg-navy-50 rounded-xl px-4 py-3 text-center">
+                      <p className="text-xs text-navy-500 mb-1">Chuyên cần</p>
+                      <p className="text-xl font-bold text-navy-800">{attendancePct != null ? `${attendancePct}%` : '—'}</p>
+                    </div>
+                    <div className="bg-navy-50 rounded-xl px-4 py-3 text-center">
+                      <p className="text-xs text-navy-500 mb-1">Bài tập</p>
+                      <p className="text-xl font-bold text-navy-800">{homeworkPct != null ? `${homeworkPct}%` : '—'}</p>
+                    </div>
+                  </div>
+                )}
+
                 {/* Skill scores table */}
                 <div>
                   <p className="text-xs font-bold text-navy-600 uppercase tracking-wide mb-2">Điểm Kỹ Năng</p>
@@ -150,6 +174,14 @@ export const ReportCardModal = ({ open, onClose, student, cls, latestReview, set
                   <div className="bg-navy-50 border border-navy-200 rounded-xl px-4 py-3">
                     <p className="text-xs font-bold text-navy-600 uppercase tracking-wide mb-1">💡 Lời Khuyên</p>
                     <p className="text-sm text-navy-700">{latestReview.advice}</p>
+                  </div>
+                )}
+
+                {/* General comment */}
+                {generalComment?.text && (
+                  <div className="border border-blue-200 rounded-xl px-4 py-3 bg-blue-50">
+                    <p className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-1">Nhận Xét Tổng Kết</p>
+                    <p className="text-sm text-navy-700">{generalComment.text}</p>
                   </div>
                 )}
 

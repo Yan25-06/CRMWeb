@@ -16,6 +16,7 @@ const KEYS = {
   PAYMENTS: 'phf_payments',
   HW_ASSIGNMENTS: 'phf_hw_assignments',
   SUBMISSIONS: 'phf_submissions',
+  GENERAL_COMMENTS: 'phf_general_comments',
 }
 
 // ─── Homework progress constants ────────────────────────
@@ -281,6 +282,55 @@ export const getReviewsByStudent = (studentId, classId) =>
   getReviews()
     .filter(r => r.studentId === studentId && r.classId === classId)
     .sort((a, b) => b.date.localeCompare(a.date))
+
+// ─── Attendance by date range ────────────────────────
+// Returns attendance records for a student in a class within [fromDate, toDate], sorted date DESC.
+// Uses session IDs to scope to the class (attendance records don't store classId directly).
+export const getAttendanceByRange = (studentId, classId, fromDate, toDate) => {
+  const sessionIds = new Set(
+    getSessionsByClass(classId)
+      .filter(s => s.date >= fromDate && s.date <= toDate)
+      .map(s => s.id)
+  )
+  return getAttendance()
+    .filter(a => a.studentId === studentId && sessionIds.has(a.sessionId))
+    .sort((a, b) => b.date.localeCompare(a.date))
+}
+
+// ─── Session-based homework by date range ────────────
+// Returns phf_homeworks records for a student in a class within [fromDate, toDate].
+// Each record is enriched with `.date` and `.sessionTopic` from the parent session.
+export const getHomeworkByRange = (studentId, classId, fromDate, toDate) => {
+  const sessions = getSessionsByClass(classId).filter(s => s.date >= fromDate && s.date <= toDate)
+  const sessionMap = new Map(sessions.map(s => [s.id, s]))
+  const sessionIds = new Set(sessions.map(s => s.id))
+  return getHomeworks()
+    .filter(h => h.studentId === studentId && sessionIds.has(h.sessionId))
+    .map(h => ({ ...h, date: sessionMap.get(h.sessionId)?.date, sessionTopic: sessionMap.get(h.sessionId)?.topic }))
+    .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
+}
+
+// ─── General Comments ─────────────────────────────────
+// Shape: { id, studentId, classId, text, updatedAt }
+export const getGeneralComments = () => get(KEYS.GENERAL_COMMENTS)
+export const saveGeneralComments = (c) => set(KEYS.GENERAL_COMMENTS, c)
+
+export const getGeneralComment = (studentId, classId) =>
+  getGeneralComments().find(c => c.studentId === studentId && c.classId === classId) ?? null
+
+export const upsertGeneralComment = (studentId, classId, text) => {
+  const all = getGeneralComments()
+  const idx = all.findIndex(c => c.studentId === studentId && c.classId === classId)
+  const now = Date.now()
+  if (idx >= 0) {
+    all[idx] = { ...all[idx], text, updatedAt: now }
+    saveGeneralComments(all)
+    return all[idx]
+  }
+  const entry = { id: uid(), studentId, classId, text, updatedAt: now }
+  saveGeneralComments([...all, entry])
+  return entry
+}
 
 // ─── Homeworks (Phase C) ────────────────────────────
 export const getHomeworks = () => get(KEYS.HOMEWORKS)
