@@ -1,4 +1,4 @@
-// ─── Keys ───────────────────────────────────────────────
+﻿// ─── Keys ───────────────────────────────────────────────
 const KEYS = {
   STUDENTS: 'phf_students',
   CLASSES: 'phf_classes',
@@ -750,134 +750,312 @@ export const deleteSubmissionsByAssignment = (hwAssignmentId) => {
 export const seedDemoData = () => {
   if (getStudents().length > 0) return // already seeded
 
+  const y = new Date().getFullYear()
+  const m = new Date().getMonth() + 1
+  const pad = (n) => String(n).padStart(2, '0')
+  const ym = `${y}-${pad(m)}`
+
+  // ── Settings ──────────────────────────────────────────
+  saveSettings({ teacherName: 'Ms.Phương', centerName: 'Anh Ngữ Ms.Phương' })
+
+  // ── 3 Classes ─────────────────────────────────────────
   const cls1 = addClass({
     name: 'IELTS 02', level: '6.0+', maxStudents: 10,
-    courseType: 'IELTS', scheduleDays: 'Thứ 2-4-6', scheduleTime: '19:00-20:30', startDate: '2026-05-11'
+    courseType: 'IELTS', scheduleDays: 'Thứ 2-4-6', scheduleTime: '19:00-20:30', startDate: '2026-03-01'
   })
   const cls2 = addClass({
     name: 'TOEIC 02', level: '500+', maxStudents: 8,
-    courseType: 'TOEIC', scheduleDays: 'Thứ 3-5-7', scheduleTime: '19:00-20:30', startDate: '2026-05-05'
+    courseType: 'TOEIC', scheduleDays: 'Thứ 3-5-7', scheduleTime: '19:00-20:30', startDate: '2026-03-15'
+  })
+  const cls3 = addClass({
+    name: 'Giao Tiếp A1', level: 'Beginner', maxStudents: 12,
+    courseType: 'Giao Tiếp', scheduleDays: 'Thứ 2-4', scheduleTime: '17:30-19:00', startDate: '2026-04-01'
   })
 
-  const names = [
-    ['Nguyễn Minh Anh', 'Lớp 5'], ['Trần Bảo Ngọc', 'Lớp 6'],
-    ['Lê Hoàng Nam', 'Lớp 7'], ['Phạm Thu Hà', 'Lớp 5'],
-    ['Đặng Quốc Tuấn', 'Lớp 8'], ['Vũ Ngọc Linh', 'Lớp 6'],
+  // ── 10 Students ───────────────────────────────────────
+  const studentData = [
+    ['Nguyễn Minh Anh',   'Lớp 5',  '0901234001'],
+    ['Trần Bảo Ngọc',     'Lớp 6',  '0901234002'],
+    ['Lê Hoàng Nam',      'Lớp 7',  '0901234003'],
+    ['Phạm Thu Hà',       'Lớp 5',  '0901234004'],
+    ['Đặng Quốc Tuấn',   'Lớp 8',  '0901234005'],
+    ['Vũ Ngọc Linh',     'Lớp 6',  '0901234006'],
+    ['Hoàng Gia Bảo',    'Lớp 9',  '0901234007'],
+    ['Ngô Thùy Trang',   'Lớp 7',  '0901234008'],
+    ['Bùi Đức Minh',     'Lớp 10', '0901234009'],
+    ['Mai Hương Giang',   'Lớp 8',  '0901234010'],
   ]
-  const studentIds = names.map(([name, grade], i) => {
-    const s = addStudent({
-      name,
-      grade,
-      phone: `090${String(i + 1).padStart(7, '0')}`,
-    })
-    return s.id
-  })
+  const students = studentData.map(([name, grade, phone]) =>
+    addStudent({ name, grade, phone })
+  )
+  const sIds = students.map(s => s.id)
 
-  // Seed enrollments for demo students (feePerSession lives on enrollment)
-  const goals = [
-    'Đạt 7.0 IELTS để du học Úc', 'Cải thiện kỹ năng nghe và đọc',
-    'Lấy chứng chỉ IELTS', 'Đạt 650 TOEIC cho công việc',
-    'Nâng cao kỹ năng giao tiếp', 'Chuẩn bị cho kỳ thi TOEIC tháng 8',
+  // ── Enrollments (spread across 3 classes) ─────────────
+  const enrollCfg = [
+    [0, cls1.id, 'active',  150000, 'Đạt 7.0 IELTS để du học Úc'],
+    [1, cls1.id, 'active',  150000, 'Cải thiện nghe và đọc'],
+    [2, cls1.id, 'active',  150000, 'Lấy chứng chỉ IELTS 6.5'],
+    [3, cls1.id, 'paused',  150000, 'Chuẩn bị thi IELTS tháng 9'],
+    [4, cls2.id, 'active',  120000, 'Đạt 650 TOEIC cho công việc'],
+    [5, cls2.id, 'active',  120000, 'Nâng band TOEIC lên 700'],
+    [6, cls2.id, 'active',  120000, 'Thi TOEIC tháng 8'],
+    [7, cls3.id, 'active',  100000, 'Giao tiếp tiếng Anh cơ bản'],
+    [8, cls3.id, 'active',  100000, 'Tự tin nói chuyện với người nước ngoài'],
+    [9, cls3.id, 'active',  100000, 'Chuẩn bị phỏng vấn xin việc'],
+    [0, cls3.id, 'active',  100000, 'Bổ sung kỹ năng giao tiếp'],
   ]
-  const statuses = ['active', 'active', 'active', 'active', 'paused', 'active']
-  studentIds.forEach((studentId, i) => {
-    const classId = i < 3 ? cls1.id : cls2.id
-    const status = statuses[i]
+  enrollCfg.forEach(([si, classId, status, feePerSession, goal]) => {
     const entry = {
-      studentId,
-      classId,
-      status,
-      feePerSession: 150000,
-      goal: goals[i],
-      note: '',
-      enrolledAt: new Date(Date.now() - (30 - i * 3) * 24 * 60 * 60 * 1000).toISOString(),
+      studentId: sIds[si], classId, status, feePerSession, goal, note: '',
+      enrolledAt: new Date(Date.now() - (60 - si * 5) * 86400000).toISOString(),
     }
-    if (status === 'paused') entry.pausedAt = new Date(Date.now() - 5 * 24 * 60 * 60 * 1000).toISOString()
+    if (status === 'paused') entry.pausedAt = new Date(Date.now() - 5 * 86400000).toISOString()
     upsertEnrollment(entry)
   })
 
-  // Seed sessions
-  const y = new Date().getFullYear()
-  const m = new Date().getMonth() + 1
-  const s1 = createSession({
-    classId: cls1.id, date: `${y}-${String(m).padStart(2, '0')}-01`, startTime: '19:00', endTime: '20:30', topic: 'Unit 1: Introduction to IELTS'
-  })
-  const s2 = createSession({
-    classId: cls1.id, date: `${y}-${String(m).padStart(2, '0')}-03`, startTime: '19:00', endTime: '20:30', topic: 'Unit 2: Listening Part 1'
-  })
-  const s3 = createSession({
-    classId: cls1.id, date: `${y}-${String(m).padStart(2, '0')}-05`, startTime: '19:00', endTime: '20:30', topic: 'Unit 3: Reading Techniques'
-  })
-
-  // Seed attendance for current month
-  const now = new Date()
-  const days = [1, 3, 5, 8, 10, 12, 15, 17, 19, 22]
-  const recs = []
-  const sessionIdsCls1 = [s1.id, s2.id, s3.id, null, null, null, null, null, null, null]
-  for (let d_idx = 0; d_idx < days.length; d_idx++) {
-    const d = days[d_idx]
-    for (let i = 0; i < studentIds.length; i++) {
-      const classId = i < 3 ? cls1.id : cls2.id
-      let sessionId = null
-      if (classId === cls1.id) sessionId = sessionIdsCls1[d_idx]
-
-      recs.push({
-        studentId: studentIds[i],
-        date: `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`,
-        present: Math.random() > 0.15,
-        sessionId
+  // ── Sessions (5 sessions per class) ───────────────────
+  const ieltsTopics = [
+    'Unit 1: Introduction & Diagnostic Test', 'Unit 2: Listening Part 1 – Form Filling',
+    'Unit 3: Reading – Skimming & Scanning', 'Unit 4: Writing Task 1 – Line Graph',
+    'Unit 5: Speaking Part 1 – Familiar Topics',
+  ]
+  const toeicTopics = [
+    'Part 1: Photographs', 'Part 2: Question-Response',
+    'Part 3: Conversations', 'Part 4: Short Talks',
+    'Part 5-6: Incomplete Sentences',
+  ]
+  const gtTopics = [
+    'Lesson 1: Greetings & Self Introduction', 'Lesson 2: At the Restaurant',
+    'Lesson 3: Asking for Directions', 'Lesson 4: Shopping & Bargaining',
+    'Lesson 5: Talking About Family',
+  ]
+  const sessionDays = [1, 5, 8, 12, 15]
+  const allSessions = { [cls1.id]: [], [cls2.id]: [], [cls3.id]: [] }
+  for (const [clsId, topics] of [[cls1.id, ieltsTopics], [cls2.id, toeicTopics], [cls3.id, gtTopics]]) {
+    topics.forEach((topic, i) => {
+      const s = createSession({
+        classId: clsId,
+        date: `${ym}-${pad(sessionDays[i])}`,
+        startTime: clsId === cls3.id ? '17:30' : '19:00',
+        endTime:   clsId === cls3.id ? '19:00' : '20:30',
+        topic,
       })
+      allSessions[clsId].push(s)
+    })
+  }
+
+  // ── Attendance ────────────────────────────────────────
+  const attDays = [1, 3, 5, 8, 10, 12, 15, 17, 19, 22]
+  const attRecs = []
+  const classStuMap = {
+    [cls1.id]: [0, 1, 2, 3],
+    [cls2.id]: [4, 5, 6],
+    [cls3.id]: [0, 7, 8, 9],
+  }
+  for (const [classId, stuIdxs] of Object.entries(classStuMap)) {
+    const sessions = allSessions[classId]
+    for (let di = 0; di < attDays.length; di++) {
+      for (const si of stuIdxs) {
+        attRecs.push({
+          studentId: sIds[si],
+          date: `${ym}-${pad(attDays[di])}`,
+          present: Math.random() > 0.12,
+          sessionId: sessions[di] ? sessions[di].id : null,
+        })
+      }
     }
   }
-  upsertAttendance(recs)
+  upsertAttendance(attRecs)
 
-  // Seed fees (no feePerSession — lives on enrollment now)
-  for (const id of studentIds) {
+  // ── Fees + Payments ───────────────────────────────────
+  const prevMonth = m === 1 ? 12 : m - 1
+  const prevYear  = m === 1 ? y - 1 : y
+  for (const id of sIds) {
     upsertFee({ studentId: id, year: y, month: m, surcharge: 0, paid: false })
+    upsertFee({ studentId: id, year: prevYear, month: prevMonth, surcharge: 0, paid: true })
   }
+  const paidStudents = [0, 1, 2, 4, 5, 7, 8]
+  paidStudents.forEach(si => {
+    createPayment({
+      studentId: sIds[si],
+      classId: si < 4 ? cls1.id : si < 7 ? cls2.id : cls3.id,
+      amount: si < 4 ? 1800000 : si < 7 ? 1440000 : 1200000,
+      paidAt: `${prevYear}-${pad(prevMonth)}-20`,
+      method: si % 2 === 0 ? 'transfer' : 'cash',
+      period: `${prevYear}-${pad(prevMonth)}`,
+      note: '',
+    })
+  })
+  createPayment({
+    studentId: sIds[0], classId: cls1.id, amount: 1000000,
+    paidAt: `${ym}-10`, method: 'transfer', period: ym, note: 'Đợt 1',
+  })
+  createPayment({
+    studentId: sIds[4], classId: cls2.id, amount: 1440000,
+    paidAt: `${ym}-12`, method: 'cash', period: ym, note: 'Thanh toán đủ',
+  })
 
-  saveSettings({ teacherName: 'Ms.Phương', centerName: 'Anh Ngữ Ms.Phương' })
-
-  // Seed schedule (fixed weekly schedule for demo classes)
-  // IELTS 02: Mon(1), Wed(3), Fri(5) 19:00-20:30 Phòng 102
+  // ── Schedule ──────────────────────────────────────────
   addScheduleItem({ classId: cls1.id, dayOfWeek: 1, startTime: '19:00', endTime: '20:30', room: 'Phòng 102', note: '' })
   addScheduleItem({ classId: cls1.id, dayOfWeek: 3, startTime: '19:00', endTime: '20:30', room: 'Phòng 102', note: '' })
   addScheduleItem({ classId: cls1.id, dayOfWeek: 5, startTime: '19:00', endTime: '20:30', room: 'Phòng 102', note: '' })
-  // TOEIC 02: Tue(2), Thu(4), Sat(6) 19:00-20:30 Phòng 105
   addScheduleItem({ classId: cls2.id, dayOfWeek: 2, startTime: '19:00', endTime: '20:30', room: 'Phòng 105', note: '' })
   addScheduleItem({ classId: cls2.id, dayOfWeek: 4, startTime: '19:00', endTime: '20:30', room: 'Phòng 105', note: '' })
   addScheduleItem({ classId: cls2.id, dayOfWeek: 6, startTime: '19:00', endTime: '20:30', room: 'Phòng 105', note: '' })
+  addScheduleItem({ classId: cls3.id, dayOfWeek: 1, startTime: '17:30', endTime: '19:00', room: 'Phòng 103', note: '' })
+  addScheduleItem({ classId: cls3.id, dayOfWeek: 3, startTime: '17:30', endTime: '19:00', room: 'Phòng 103', note: '' })
 
-  // Seed demo reviews for student[0] in IELTS 02 (3 periods to show radar overlay)
-  const demoStudentId = studentIds[0]
-  const prevMonth = m === 1 ? 12 : m - 1
-  const prevYear  = m === 1 ? y - 1 : y
-  const pad = (n) => String(n).padStart(2, '0')
-  upsertReview({
-    studentId: demoStudentId, classId: cls1.id,
-    date: `${prevYear}-${pad(prevMonth)}-15`,
-    listenScore: 5.5, speakScore: 5, readScore: 5, writeScore: 4.5,
-    tags: ['Còn thụ động', 'Cần luyện viết thêm'],
-    remark: 'Bắt đầu học, cần thêm thời gian làm quen',
-    advice: 'Luyện nghe mỗi ngày 20 phút, làm bài tập về nhà đầy đủ.',
-    teacherName: 'Ms.Phương',
+  // ── Reviews (multi-period for multiple students) ──────
+  const reviewSeed = [
+    { si: 0, classId: cls1.id, date: `${prevYear}-${pad(prevMonth)}-15`,
+      listen: 5.5, speak: 5, read: 5, write: 4.5,
+      tags: ['Còn thụ động', 'Cần luyện viết thêm'],
+      remark: 'Bắt đầu học, cần thêm thời gian làm quen',
+      advice: 'Luyện nghe mỗi ngày 20 phút, làm bài tập về nhà đầy đủ.' },
+    { si: 0, classId: cls1.id, date: `${ym}-01`,
+      listen: 6.5, speak: 6, read: 6, write: 5.5,
+      tags: ['Tiến bộ rõ rệt', 'Hăng hái'],
+      remark: 'Tiến bộ rõ rệt sau 1 tháng',
+      advice: 'Tiếp tục duy trì, tập trung vào kỹ năng viết essay.' },
+    { si: 0, classId: cls1.id, date: `${ym}-15`,
+      listen: 7, speak: 6.5, read: 6.5, write: 6,
+      tags: ['Hăng hái', 'Phát âm chuẩn', 'Hiểu bài nhanh'],
+      remark: 'Phát âm cải thiện rõ, tự tin hơn khi speaking',
+      advice: 'Đang trên đà tốt! Thử luyện mock test IELTS tuần tới.' },
+    { si: 1, classId: cls1.id, date: `${ym}-05`,
+      listen: 6, speak: 5.5, read: 7, write: 5,
+      tags: ['Làm tốt bài tập', 'Cần luyện viết thêm'],
+      remark: 'Đọc rất tốt nhưng viết còn yếu',
+      advice: 'Tập viết mỗi ngày 1 paragraph, chú ý grammar.' },
+    { si: 1, classId: cls1.id, date: `${ym}-18`,
+      listen: 6.5, speak: 6, read: 7.5, write: 5.5,
+      tags: ['Tiến bộ rõ rệt', 'Làm tốt bài tập'],
+      remark: 'Reading tăng rõ, writing cũng cải thiện',
+      advice: 'Bắt đầu làm full test để quen format.' },
+    { si: 4, classId: cls2.id, date: `${ym}-03`,
+      listen: 5, speak: 4, read: 6, write: 5.5,
+      tags: ['Quên bài tập', 'Chưa tập trung'],
+      remark: 'Hay quên bài, cần nhắc nhở thường xuyên',
+      advice: 'Lập kế hoạch học tập, dành 30 phút/ngày cho TOEIC.' },
+    { si: 4, classId: cls2.id, date: `${ym}-17`,
+      listen: 6, speak: 5, read: 6.5, write: 6,
+      tags: ['Tiến bộ rõ rệt', 'Hăng hái'],
+      remark: 'Đã chú ý hơn, điểm tăng đều',
+      advice: 'Tiếp tục luyện part 3-4, đây là phần dễ lấy điểm nhất.' },
+    { si: 7, classId: cls3.id, date: `${ym}-10`,
+      listen: 4, speak: 3.5, read: 5, write: 4,
+      tags: ['Đến muộn', 'Còn thụ động'],
+      remark: 'Hay đến muộn 10-15 phút, cần cải thiện',
+      advice: 'Cố gắng đi đúng giờ, tham gia phát biểu nhiều hơn.' },
+  ]
+  reviewSeed.forEach(r => {
+    upsertReview({
+      studentId: sIds[r.si], classId: r.classId, date: r.date,
+      listenScore: r.listen, speakScore: r.speak, readScore: r.read, writeScore: r.write,
+      tags: r.tags, remark: r.remark, advice: r.advice, teacherName: 'Ms.Phương',
+    })
   })
-  upsertReview({
-    studentId: demoStudentId, classId: cls1.id,
-    date: `${y}-${pad(m)}-01`,
-    listenScore: 6.5, speakScore: 6, readScore: 6, writeScore: 5.5,
-    tags: ['Tiến bộ rõ rệt', 'Hăng hái'],
-    remark: 'Tiến bộ rõ rệt sau 1 tháng',
-    advice: 'Tiếp tục duy trì, tập trung vào kỹ năng viết essay.',
-    teacherName: 'Ms.Phương',
+
+  // ── Session Reviews ───────────────────────────────────
+  const sessionRevs = [
+    { si: 0, classId: cls1.id, sIdx: 0, text: 'Tập trung tốt, trả lời nhanh phần listening' },
+    { si: 1, classId: cls1.id, sIdx: 0, text: 'Cần luyện thêm vocabulary' },
+    { si: 2, classId: cls1.id, sIdx: 1, text: 'Hăng hái phát biểu, reading skills tốt' },
+    { si: 4, classId: cls2.id, sIdx: 0, text: 'Chưa làm bài tập về nhà' },
+    { si: 5, classId: cls2.id, sIdx: 1, text: 'Part 2 cải thiện rõ rệt' },
+    { si: 7, classId: cls3.id, sIdx: 0, text: 'Nhút nhát, cần khuyến khích nói nhiều hơn' },
+    { si: 8, classId: cls3.id, sIdx: 1, text: 'Tự tin giao tiếp, phản xạ nhanh' },
+  ]
+  sessionRevs.forEach(sr => {
+    const session = allSessions[sr.classId]?.[sr.sIdx]
+    if (session) {
+      upsertSessionReview({
+        studentId: sIds[sr.si], classId: sr.classId,
+        sessionId: session.id, text: sr.text,
+      })
+    }
   })
-  upsertReview({
-    studentId: demoStudentId, classId: cls1.id,
-    date: `${y}-${pad(m)}-15`,
-    listenScore: 7, speakScore: 6.5, readScore: 6.5, writeScore: 6,
-    tags: ['Hăng hái', 'Phát âm chuẩn', 'Hiểu bài nhanh'],
-    remark: 'Phát âm cải thiện rõ, tự tin hơn khi speaking',
-    advice: 'Đang trên đà tốt! Thử luyện mock test IELTS tuần tới.',
-    teacherName: 'Ms.Phương',
+
+  // ── Homework Assignments + Submissions ────────────────
+  const hw1 = createHwAssignment({
+    classId: cls1.id, title: 'IELTS Writing Task 1 – Bar Chart',
+    description: 'Viết 150 từ mô tả biểu đồ cột về dân số.',
+    assignedAt: `${ym}-05`, dueDate: `${ym}-10`,
+  })
+  const hw2 = createHwAssignment({
+    classId: cls1.id, title: 'Listening Practice Test 1',
+    description: 'Làm full test listening, ghi điểm.',
+    assignedAt: `${ym}-10`, dueDate: `${ym}-15`,
+  })
+  const hw3 = createHwAssignment({
+    classId: cls2.id, title: 'TOEIC Part 5 – Grammar Drill',
+    description: '30 câu incomplete sentences.',
+    assignedAt: `${ym}-08`, dueDate: `${ym}-12`,
+  })
+  const hw4 = createHwAssignment({
+    classId: cls3.id, title: 'Record Self Introduction',
+    description: 'Ghi âm bài tự giới thiệu bản thân 2 phút.',
+    assignedAt: `${ym}-05`, dueDate: `${ym}-09`,
+  })
+  const hwSubs = [
+    { hwId: hw1.id, si: 0, submitted: true, score: 7, comment: 'Bài viết tốt, cấu trúc rõ ràng' },
+    { hwId: hw1.id, si: 1, submitted: true, score: 6, comment: 'Cần thêm chi tiết, thiếu overview' },
+    { hwId: hw1.id, si: 2, submitted: true, score: 8, comment: 'Xuất sắc! Vocabulary phong phú' },
+    { hwId: hw1.id, si: 3, submitted: false },
+    { hwId: hw2.id, si: 0, submitted: true, score: 7.5, comment: 'Nghe tốt, sai 3 câu part 4' },
+    { hwId: hw2.id, si: 1, submitted: true, score: 6.5, comment: 'Part 2 cần cải thiện' },
+    { hwId: hw2.id, si: 2, submitted: false },
+    { hwId: hw3.id, si: 4, submitted: true, score: 24, comment: '24/30, sai chủ yếu phần tense' },
+    { hwId: hw3.id, si: 5, submitted: true, score: 27, comment: '27/30, rất tốt!' },
+    { hwId: hw3.id, si: 6, submitted: true, score: 22, comment: '22/30, ôn thêm prepositions' },
+    { hwId: hw4.id, si: 7, submitted: true, score: 6, comment: 'Nói chậm nhưng phát âm rõ' },
+    { hwId: hw4.id, si: 8, submitted: true, score: 8, comment: 'Tự nhiên, lưu loát' },
+    { hwId: hw4.id, si: 9, submitted: false },
+  ]
+  hwSubs.forEach(s => {
+    upsertSubmission({
+      hwAssignmentId: s.hwId, studentId: sIds[s.si],
+      submitted: s.submitted, score: s.score ?? null, comment: s.comment ?? '',
+    })
+  })
+
+  // ── Mock Tests + Results ──────────────────────────────
+  const sec1 = uid(), sec2 = uid(), sec3 = uid(), sec4 = uid()
+  const mt1 = createMockTest({
+    classId: cls1.id, title: 'IELTS Mini Test 1', date: `${ym}-12`,
+    sections: [
+      { id: sec1, name: 'Listening', maxScore: 40, order: 1 },
+      { id: sec2, name: 'Reading',   maxScore: 40, order: 2 },
+      { id: sec3, name: 'Writing',   maxScore: 9,  order: 3 },
+      { id: sec4, name: 'Speaking',  maxScore: 9,  order: 4 },
+    ],
+    teacherNote: 'Đề thi thử lần 1 – 120 phút',
+  })
+  const ieltsScores = [
+    [0, { [sec1]: 30, [sec2]: 28, [sec3]: 6, [sec4]: 6.5 }, 'Listening tốt, cải thiện writing'],
+    [1, { [sec1]: 25, [sec2]: 32, [sec3]: 5.5, [sec4]: 5 }, 'Reading rất tốt, speaking cần luyện'],
+    [2, { [sec1]: 28, [sec2]: 30, [sec3]: 7, [sec4]: 7 }, 'Kết quả đồng đều, rất ấn tượng'],
+  ]
+  ieltsScores.forEach(([si, scores, note]) => {
+    upsertMockTestResult({ mockTestId: mt1.id, studentId: sIds[si], scores, teacherNote: note })
+  })
+
+  const tsec1 = uid(), tsec2 = uid()
+  const mt2 = createMockTest({
+    classId: cls2.id, title: 'TOEIC Practice Test 1', date: `${ym}-14`,
+    sections: [
+      { id: tsec1, name: 'Listening (Part 1-4)', maxScore: 495, order: 1 },
+      { id: tsec2, name: 'Reading (Part 5-7)',   maxScore: 495, order: 2 },
+    ],
+    teacherNote: 'Full test 120 phút',
+  })
+  const toeicScores = [
+    [4, { [tsec1]: 310, [tsec2]: 280 }, 'Listening khá, reading cần cải thiện part 7'],
+    [5, { [tsec1]: 350, [tsec2]: 320 }, 'Tốt! Cần tăng tốc part 7'],
+    [6, { [tsec1]: 280, [tsec2]: 250 }, 'Cần luyện nhiều hơn, đặc biệt part 3-4'],
+  ]
+  toeicScores.forEach(([si, scores, note]) => {
+    upsertMockTestResult({ mockTestId: mt2.id, studentId: sIds[si], scores, teacherNote: note })
   })
 }
+
