@@ -1,0 +1,106 @@
+import { clsx } from 'clsx'
+import { Calendar, ChevronRight, Star } from 'lucide-react'
+import { POSITIVE_TAGS } from './QuickTagEditor'
+
+const SKILL_LABELS = { listenScore: 'Nghe', speakScore: 'Nói', readScore: 'Đọc', writeScore: 'Viết' }
+const SKILL_KEYS   = ['listenScore', 'speakScore', 'readScore', 'writeScore']
+
+const fmtDate = (dateStr) => {
+  const d = new Date(dateStr)
+  return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`
+}
+
+const ScoreBadge = ({ label, score }) => {
+  if (score == null) return null
+  const color = score >= 7 ? 'bg-emerald-100 text-emerald-700' : score >= 5 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+  return (
+    <span className={clsx('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold', color)}>
+      {label} {score}
+    </span>
+  )
+}
+
+/**
+ * ReviewHistory — timeline of past reviews for a student
+ * @param {Array}    reviews  - sorted DESC review records
+ * @param {Function} onEdit   - callback(review) to edit
+ */
+export const ReviewHistory = ({ reviews = [], onEdit }) => {
+  if (reviews.length === 0) {
+    return (
+      <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-8 flex flex-col items-center justify-center gap-3 text-center">
+        <Star size={28} className="text-navy-200" />
+        <div>
+          <p className="font-semibold text-navy-600">Chưa có nhận xét nào</p>
+          <p className="text-sm text-navy-400 mt-0.5">Thêm đánh giá để bắt đầu theo dõi tiến bộ</p>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm overflow-hidden">
+      <div className="px-4 py-3 border-b border-navy-50">
+        <p className="text-sm font-semibold text-navy-800">Lịch Sử Đánh Giá</p>
+        <p className="text-xs text-navy-400">{reviews.length} đợt đánh giá</p>
+      </div>
+
+      <div className="divide-y divide-navy-50">
+        {reviews.map(rev => {
+          const positiveTags = (rev.tags ?? []).filter(t => POSITIVE_TAGS.includes(t))
+          const improveTags  = (rev.tags ?? []).filter(t => !POSITIVE_TAGS.includes(t))
+
+          return (
+            <div
+              key={rev.id}
+              className="group px-4 py-3 hover:bg-navy-50/50 transition-colors cursor-pointer"
+              onClick={() => onEdit?.(rev)}
+            >
+              <div className="flex items-start justify-between gap-2">
+                <div className="flex-1 min-w-0">
+                  {/* Date */}
+                  <div className="flex items-center gap-1.5 mb-2">
+                    <Calendar size={13} className="text-navy-400 shrink-0" />
+                    <span className="text-sm font-semibold text-navy-800">{fmtDate(rev.date)}</span>
+                  </div>
+
+                  {/* Skill scores */}
+                  <div className="flex flex-wrap gap-1 mb-2">
+                    {SKILL_KEYS.map(k =>
+                      rev[k] != null
+                        ? <ScoreBadge key={k} label={SKILL_LABELS[k]} score={rev[k]} />
+                        : null
+                    )}
+                  </div>
+
+                  {/* Tags */}
+                  {rev.tags?.length > 0 && (
+                    <div className="flex flex-wrap gap-1 mb-1.5">
+                      {positiveTags.map(t => (
+                        <span key={t} className="text-xs bg-emerald-50 text-emerald-700 border border-emerald-200 px-2 py-0.5 rounded-full">
+                          {t}
+                        </span>
+                      ))}
+                      {improveTags.map(t => (
+                        <span key={t} className="text-xs bg-amber-50 text-amber-700 border border-amber-200 px-2 py-0.5 rounded-full">
+                          {t}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* Remark snippet */}
+                  {rev.remark && (
+                    <p className="text-xs text-navy-500 line-clamp-1">{rev.remark}</p>
+                  )}
+                </div>
+
+                <ChevronRight size={16} className="text-navy-300 group-hover:text-navy-600 shrink-0 mt-1 transition-colors" />
+              </div>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}

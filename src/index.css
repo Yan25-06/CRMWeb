@@ -199,13 +199,14 @@
   }
   .modal-box {
     @apply bg-white rounded-3xl shadow-navy-xl w-full max-w-lg
-           animate-slide-up overflow-hidden;
+           animate-slide-up overflow-hidden
+           flex flex-col max-h-[90vh];
   }
   .modal-header {
-    @apply px-6 pt-6 pb-4 border-b border-navy-50;
+    @apply px-6 pt-5 pb-4 border-b border-navy-50 shrink-0;
   }
-  .modal-body   { @apply px-6 py-5; }
-  .modal-footer { @apply px-6 py-4 bg-navy-50 flex justify-end gap-3; }
+  .modal-body   { @apply px-6 py-4 overflow-y-auto flex-1; }
+  .modal-footer { @apply px-6 py-3 bg-navy-50 flex justify-end gap-3 shrink-0; }
 
   /* ─── Skeleton loading ─── */
   .skeleton {

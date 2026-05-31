@@ -65,15 +65,15 @@ export const updateStudent = (id, data) => {
 export const deleteStudent = (id) => {
   // Compute all filtered arrays first, then write in one batch
   const updates = [
-    [KEYS.STUDENTS,          getStudents().filter(s => s.id !== id)],
-    [KEYS.ENROLLMENTS,       getEnrollments().filter(e => e.studentId !== id)],
-    [KEYS.ATTENDANCE,        getAttendance().filter(a => a.studentId !== id)],
-    [KEYS.HOMEWORKS,         getHomeworks().filter(h => h.studentId !== id)],
-    [KEYS.FEES,              getFees().filter(f => f.studentId !== id)],
-    [KEYS.REVIEWS,           getReviews().filter(r => r.studentId !== id)],
-    [KEYS.SESSION_REVIEWS,   getSessionReviews().filter(r => r.studentId !== id)],
-    [KEYS.PAYMENTS,          getPayments().filter(p => p.studentId !== id)],
-    [KEYS.SUBMISSIONS,       getSubmissions().filter(s => s.studentId !== id)],
+    [KEYS.STUDENTS, getStudents().filter(s => s.id !== id)],
+    [KEYS.ENROLLMENTS, getEnrollments().filter(e => e.studentId !== id)],
+    [KEYS.ATTENDANCE, getAttendance().filter(a => a.studentId !== id)],
+    [KEYS.HOMEWORKS, getHomeworks().filter(h => h.studentId !== id)],
+    [KEYS.FEES, getFees().filter(f => f.studentId !== id)],
+    [KEYS.REVIEWS, getReviews().filter(r => r.studentId !== id)],
+    [KEYS.SESSION_REVIEWS, getSessionReviews().filter(r => r.studentId !== id)],
+    [KEYS.PAYMENTS, getPayments().filter(p => p.studentId !== id)],
+    [KEYS.SUBMISSIONS, getSubmissions().filter(s => s.studentId !== id)],
     [KEYS.MOCK_TEST_RESULTS, getMockTestResults().filter(r => r.studentId !== id)],
   ]
   updates.forEach(([key, value]) => set(key, value))
@@ -102,16 +102,16 @@ export const deleteClass = (id) => {
 
   // Compute all filtered arrays first, then write in one batch
   const updates = [
-    [KEYS.CLASSES,           getClasses().filter(c => c.id !== id)],
-    [KEYS.ENROLLMENTS,       getEnrollments().filter(e => e.classId !== id)],
-    [KEYS.SESSIONS,          allSessions.filter(s => s.classId !== id)],
-    [KEYS.ATTENDANCE,        getAttendance().filter(a => !deletedSessionIds.has(a.sessionId))],
-    [KEYS.HOMEWORKS,         getHomeworks().filter(h => !deletedSessionIds.has(h.sessionId))],
-    [KEYS.SESSION_REVIEWS,   getSessionReviews().filter(r => r.classId !== id)],
-    [KEYS.HW_ASSIGNMENTS,    allHwAssignments.filter(a => a.classId !== id)],
-    [KEYS.SUBMISSIONS,       getSubmissions().filter(s => !deletedAssignmentIds.has(s.hwAssignmentId))],
-    [KEYS.PAYMENTS,          getPayments().filter(p => p.classId !== id)],
-    [KEYS.MOCK_TESTS,        allMockTests.filter(t => t.classId !== id)],
+    [KEYS.CLASSES, getClasses().filter(c => c.id !== id)],
+    [KEYS.ENROLLMENTS, getEnrollments().filter(e => e.classId !== id)],
+    [KEYS.SESSIONS, allSessions.filter(s => s.classId !== id)],
+    [KEYS.ATTENDANCE, getAttendance().filter(a => !deletedSessionIds.has(a.sessionId))],
+    [KEYS.HOMEWORKS, getHomeworks().filter(h => !deletedSessionIds.has(h.sessionId))],
+    [KEYS.SESSION_REVIEWS, getSessionReviews().filter(r => r.classId !== id)],
+    [KEYS.HW_ASSIGNMENTS, allHwAssignments.filter(a => a.classId !== id)],
+    [KEYS.SUBMISSIONS, getSubmissions().filter(s => !deletedAssignmentIds.has(s.hwAssignmentId))],
+    [KEYS.PAYMENTS, getPayments().filter(p => p.classId !== id)],
+    [KEYS.MOCK_TESTS, allMockTests.filter(t => t.classId !== id)],
     [KEYS.MOCK_TEST_RESULTS, getMockTestResults().filter(r => !deletedMockTestIds.has(r.mockTestId))],
   ]
   updates.forEach(([key, value]) => set(key, value))
@@ -255,20 +255,32 @@ export const addScheduleItem = (data) => {
 export const deleteScheduleItem = (id) => {
   saveSchedule(getSchedule().filter(s => s.id !== id))
 }
+export const updateScheduleItem = (id, data) => {
+  saveSchedule(getSchedule().map(s => s.id === id ? { ...s, ...data } : s))
+}
+export const getScheduleByDay = (dayOfWeek) =>
+  getSchedule().filter(s => s.dayOfWeek === dayOfWeek).sort((a, b) => a.startTime.localeCompare(b.startTime))
 
 // ─── Reviews ─────────────────────────────────────────────
-// Shape: { id, studentId, classId, date, speakScore, writeScore, remark, absent?, absentReason? }
+// Shape: { id, studentId, classId, date, speakScore?, writeScore?, readScore?, listenScore?,
+//          remark?, tags?: string[], advice?, teacherName?, absent?, absentReason? }
 export const getReviews = () => get(KEYS.REVIEWS)
 export const saveReviews = (r) => set(KEYS.REVIEWS, r)
 export const upsertReview = (data) => {
   const reviews = getReviews()
   const idx = reviews.findIndex(
-    r => r.studentId === data.studentId && r.date === data.date
+    r => r.studentId === data.studentId && r.classId === data.classId && r.date === data.date
   )
+  // Spread merge handles new optional fields (readScore, listenScore, tags, advice, teacherName)
+  // while preserving existing fields — backward compatible with old records
   if (idx >= 0) reviews[idx] = { ...reviews[idx], ...data }
   else reviews.push({ id: uid(), ...data })
   saveReviews(reviews)
 }
+export const getReviewsByStudent = (studentId, classId) =>
+  getReviews()
+    .filter(r => r.studentId === studentId && r.classId === classId)
+    .sort((a, b) => b.date.localeCompare(a.date))
 
 // ─── Homeworks (Phase C) ────────────────────────────
 export const getHomeworks = () => get(KEYS.HOMEWORKS)
@@ -513,7 +525,7 @@ export const exportData = () => {
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
   a.href = url
-  a.download = `phieuhocphi_backup_${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}.json`
+  a.download = `backup_${new Date().toLocaleDateString('vi-VN').replace(/\//g, '-')}.json`
   a.click()
   URL.revokeObjectURL(url)
 }
@@ -526,41 +538,41 @@ export const importData = (jsonString) => {
   const backup = exportDataAsObject()
 
   const restoreBackup = () => {
-    if (backup.students)       saveStudents(backup.students)
-    if (backup.classes)        saveClasses(backup.classes)
-    if (backup.enrollments)    saveEnrollments(backup.enrollments)
-    if (backup.sessions)       saveSessions(backup.sessions)
-    if (backup.attendance)     saveAttendance(backup.attendance)
-    if (backup.homeworks)      saveHomeworks(backup.homeworks)
-    if (backup.fees)           saveFees(backup.fees)
-    if (backup.schedule)       saveSchedule(backup.schedule)
-    if (backup.reviews)        saveReviews(backup.reviews)
+    if (backup.students) saveStudents(backup.students)
+    if (backup.classes) saveClasses(backup.classes)
+    if (backup.enrollments) saveEnrollments(backup.enrollments)
+    if (backup.sessions) saveSessions(backup.sessions)
+    if (backup.attendance) saveAttendance(backup.attendance)
+    if (backup.homeworks) saveHomeworks(backup.homeworks)
+    if (backup.fees) saveFees(backup.fees)
+    if (backup.schedule) saveSchedule(backup.schedule)
+    if (backup.reviews) saveReviews(backup.reviews)
     if (backup.sessionReviews) saveSessionReviews(backup.sessionReviews)
-    if (backup.settings)       saveSettings(backup.settings)
-    if (backup.mockTests)      saveMockTests(backup.mockTests)
+    if (backup.settings) saveSettings(backup.settings)
+    if (backup.mockTests) saveMockTests(backup.mockTests)
     if (backup.mockTestResults) saveMockTestResults(backup.mockTestResults)
-    if (backup.payments)       savePayments(backup.payments)
-    if (backup.hwAssignments)  saveHwAssignments(backup.hwAssignments)
-    if (backup.submissions)    saveSubmissions(backup.submissions)
+    if (backup.payments) savePayments(backup.payments)
+    if (backup.hwAssignments) saveHwAssignments(backup.hwAssignments)
+    if (backup.submissions) saveSubmissions(backup.submissions)
   }
 
   try {
-    if (data.students)       saveStudents(data.students)
-    if (data.classes)        saveClasses(data.classes)
-    if (data.enrollments)    saveEnrollments(data.enrollments)
-    if (data.sessions)       saveSessions(data.sessions)
-    if (data.attendance)     saveAttendance(data.attendance)
-    if (data.homeworks)      saveHomeworks(data.homeworks)
-    if (data.fees)           saveFees(data.fees)
-    if (data.schedule)       saveSchedule(data.schedule)
-    if (data.reviews)        saveReviews(data.reviews)
+    if (data.students) saveStudents(data.students)
+    if (data.classes) saveClasses(data.classes)
+    if (data.enrollments) saveEnrollments(data.enrollments)
+    if (data.sessions) saveSessions(data.sessions)
+    if (data.attendance) saveAttendance(data.attendance)
+    if (data.homeworks) saveHomeworks(data.homeworks)
+    if (data.fees) saveFees(data.fees)
+    if (data.schedule) saveSchedule(data.schedule)
+    if (data.reviews) saveReviews(data.reviews)
     if (data.sessionReviews) saveSessionReviews(data.sessionReviews)
-    if (data.settings)       saveSettings(data.settings)
-    if (data.mockTests)      saveMockTests(data.mockTests)
+    if (data.settings) saveSettings(data.settings)
+    if (data.mockTests) saveMockTests(data.mockTests)
     if (data.mockTestResults) saveMockTestResults(data.mockTestResults)
-    if (data.payments)       savePayments(data.payments)
-    if (data.hwAssignments)  saveHwAssignments(data.hwAssignments)
-    if (data.submissions)    saveSubmissions(data.submissions)
+    if (data.payments) savePayments(data.payments)
+    if (data.hwAssignments) saveHwAssignments(data.hwAssignments)
+    if (data.submissions) saveSubmissions(data.submissions)
   } catch (err) {
     // Rollback to backup if any write fails mid-import
     restoreBackup()
@@ -825,4 +837,47 @@ export const seedDemoData = () => {
   }
 
   saveSettings({ teacherName: 'Ms.Phương', centerName: 'Anh Ngữ Ms.Phương' })
+
+  // Seed schedule (fixed weekly schedule for demo classes)
+  // IELTS 02: Mon(1), Wed(3), Fri(5) 19:00-20:30 Phòng 102
+  addScheduleItem({ classId: cls1.id, dayOfWeek: 1, startTime: '19:00', endTime: '20:30', room: 'Phòng 102', note: '' })
+  addScheduleItem({ classId: cls1.id, dayOfWeek: 3, startTime: '19:00', endTime: '20:30', room: 'Phòng 102', note: '' })
+  addScheduleItem({ classId: cls1.id, dayOfWeek: 5, startTime: '19:00', endTime: '20:30', room: 'Phòng 102', note: '' })
+  // TOEIC 02: Tue(2), Thu(4), Sat(6) 19:00-20:30 Phòng 105
+  addScheduleItem({ classId: cls2.id, dayOfWeek: 2, startTime: '19:00', endTime: '20:30', room: 'Phòng 105', note: '' })
+  addScheduleItem({ classId: cls2.id, dayOfWeek: 4, startTime: '19:00', endTime: '20:30', room: 'Phòng 105', note: '' })
+  addScheduleItem({ classId: cls2.id, dayOfWeek: 6, startTime: '19:00', endTime: '20:30', room: 'Phòng 105', note: '' })
+
+  // Seed demo reviews for student[0] in IELTS 02 (3 periods to show radar overlay)
+  const demoStudentId = studentIds[0]
+  const prevMonth = m === 1 ? 12 : m - 1
+  const prevYear  = m === 1 ? y - 1 : y
+  const pad = (n) => String(n).padStart(2, '0')
+  upsertReview({
+    studentId: demoStudentId, classId: cls1.id,
+    date: `${prevYear}-${pad(prevMonth)}-15`,
+    listenScore: 5.5, speakScore: 5, readScore: 5, writeScore: 4.5,
+    tags: ['Còn thụ động', 'Cần luyện viết thêm'],
+    remark: 'Bắt đầu học, cần thêm thời gian làm quen',
+    advice: 'Luyện nghe mỗi ngày 20 phút, làm bài tập về nhà đầy đủ.',
+    teacherName: 'Ms.Phương',
+  })
+  upsertReview({
+    studentId: demoStudentId, classId: cls1.id,
+    date: `${y}-${pad(m)}-01`,
+    listenScore: 6.5, speakScore: 6, readScore: 6, writeScore: 5.5,
+    tags: ['Tiến bộ rõ rệt', 'Hăng hái'],
+    remark: 'Tiến bộ rõ rệt sau 1 tháng',
+    advice: 'Tiếp tục duy trì, tập trung vào kỹ năng viết essay.',
+    teacherName: 'Ms.Phương',
+  })
+  upsertReview({
+    studentId: demoStudentId, classId: cls1.id,
+    date: `${y}-${pad(m)}-15`,
+    listenScore: 7, speakScore: 6.5, readScore: 6.5, writeScore: 6,
+    tags: ['Hăng hái', 'Phát âm chuẩn', 'Hiểu bài nhanh'],
+    remark: 'Phát âm cải thiện rõ, tự tin hơn khi speaking',
+    advice: 'Đang trên đà tốt! Thử luyện mock test IELTS tuần tới.',
+    teacherName: 'Ms.Phương',
+  })
 }

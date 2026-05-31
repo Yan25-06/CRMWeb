@@ -3,10 +3,8 @@ import { Navbar } from '@/components/layout/Navbar'
 import { ToastContainer } from '@/components/ui'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { SettingsPage } from '@/pages/SettingsPage'
-import {
-  ReviewsPage,
-  SchedulePage
-} from '@/pages/PlaceholderPages'
+import { ReviewsPage } from '@/pages/ReviewsPage'
+import { SchedulePage } from '@/pages/SchedulePage'
 import { FeesPage } from '@/pages/FeesPage'
 import { ReportsPage } from '@/pages/ReportsPage'
 import { ClassesOverviewPage } from '@/pages/ClassesOverviewPage'
@@ -51,7 +49,7 @@ export default function App() {
     else setMonth(m => m + 1)
   }
 
-  const pagesWithMonthPicker = ['dashboard', 'fees', 'reviews']
+  const pagesWithMonthPicker = ['dashboard', 'fees']
   const showPicker = pagesWithMonthPicker.includes(page)
 
   const renderPage = () => {
@@ -60,8 +58,8 @@ export default function App() {
 
       case 'fees':       return <FeesPage year={year} month={month} />
       case 'reports':    return <ReportsPage />
-      case 'reviews':    return <ReviewsPage year={year} month={month} />
-      case 'schedule':   return <SchedulePage />
+      case 'reviews':    return <ReviewsPage />
+      case 'schedule':   return <SchedulePage onNavigate={setPage} />
       case 'classes':
         if (selectedClassId) {
           return <ClassDetailPage

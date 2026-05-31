@@ -21,8 +21,8 @@ surface:  #F5F8FC  — page background
 
 ### Typography
 ```
-font-display: "faustina" — headings, stat values
-font-body:    "DM Sans"          — body text, UI labels
+font-display: "Plus Jakarta Sans" — headings, stat values
+font-body:    "Plus Jakarta Sans"          — body text, UI labels
 font-mono:    "JetBrains Mono"   — code, IDs
 ```
 

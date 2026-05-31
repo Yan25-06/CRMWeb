@@ -1,5 +1,5 @@
 import { Card } from '@/components/ui'
-import { CalendarCheck, BookOpen, GraduationCap, Calendar, Users } from 'lucide-react'
+import { CalendarCheck } from 'lucide-react'
 
 const PlaceholderPage = ({ icon: Icon, title, desc, phase }) => (
   <div className="flex flex-col gap-6 animate-fade-in">
@@ -32,30 +32,4 @@ export const AttendancePage = ({ year, month }) => (
   />
 )
 
-export const FeesPage = ({ year, month }) => (
-  <PlaceholderPage
-    icon={BookOpen}
-    title="Học Phí"
-    desc={`Tháng ${month}/${year}`}
-    phase="Phase 3"
-  />
-)
-
-export const ReviewsPage = ({ year, month }) => (
-  <PlaceholderPage
-    icon={GraduationCap}
-    title="Nhận Xét"
-    desc={`Tháng ${month}/${year}`}
-    phase="Phase 4"
-  />
-)
-
-export const SchedulePage = () => (
-  <PlaceholderPage
-    icon={Calendar}
-    title="Lịch Dạy"
-    desc="Quản lý lịch dạy theo tuần/tháng"
-    phase="Phase 4"
-  />
-)
 
