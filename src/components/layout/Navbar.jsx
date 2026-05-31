@@ -10,7 +10,6 @@ import { toast } from '@/components/ui'
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
-  { id: 'attendance', label: 'Điểm Danh', icon: CalendarCheck },
   { id: 'fees', label: 'Học Phí', icon: BookOpen },
   { id: 'reports', label: 'Báo Cáo', icon: BarChart2 },
   { id: 'reviews', label: 'Nhận Xét', icon: GraduationCap },

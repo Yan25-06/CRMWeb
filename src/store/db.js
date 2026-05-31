@@ -28,15 +28,34 @@ const get = (key, fallback = []) => {
     return v ? JSON.parse(v) : fallback
   } catch { return fallback }
 }
-const set = (key, value) => localStorage.setItem(key, JSON.stringify(value))
-export const uid = () => `${Date.now()}_${Math.random().toString(36).slice(2, 7)}`
+const set = (key, value) => {
+  try {
+    localStorage.setItem(key, JSON.stringify(value))
+  } catch (e) {
+    if (e.name === 'QuotaExceededError') {
+      alert('⚠️ Bộ nhớ trình duyệt đã đầy! Hãy xuất backup và xóa dữ liệu cũ để tiếp tục.')
+    }
+    throw e
+  }
+}
+
+// Kiểm tra dung lượng localStorage đang dùng (bytes & %)
+export const getStorageUsage = () => {
+  let total = 0
+  for (const key of Object.values(KEYS)) {
+    total += (localStorage.getItem(key) || '').length * 2 // UTF-16: 2 bytes/char
+  }
+  const limit = 5 * 1024 * 1024 // ~5MB
+  return { usedBytes: total, limitBytes: limit, percent: Math.round(total / limit * 100) }
+}
+export const uid = () => crypto.randomUUID()
 
 // ─── Students ───────────────────────────────────────────
 export const getStudents = () => get(KEYS.STUDENTS)
 export const saveStudents = (s) => set(KEYS.STUDENTS, s)
 export const addStudent = (data) => {
   const students = getStudents()
-  const student = { id: uid(), createdAt: Date.now(), ...data }
+  const student = { id: uid(), createdAt: new Date().toISOString(), ...data }
   saveStudents([...students, student])
   return student
 }
@@ -44,17 +63,20 @@ export const updateStudent = (id, data) => {
   saveStudents(getStudents().map(s => s.id === id ? { ...s, ...data } : s))
 }
 export const deleteStudent = (id) => {
-  saveStudents(getStudents().filter(s => s.id !== id))
-  saveEnrollments(getEnrollments().filter(e => e.studentId !== id))
-  saveAttendance(getAttendance().filter(a => a.studentId !== id))
-  saveHomeworks(getHomeworks().filter(h => h.studentId !== id))
-  saveFees(getFees().filter(f => f.studentId !== id))
-  saveReviews(getReviews().filter(r => r.studentId !== id))
-  saveSessionReviews(getSessionReviews().filter(r => r.studentId !== id))
-  savePayments(getPayments().filter(p => p.studentId !== id))
-  saveSubmissions(getSubmissions().filter(s => s.studentId !== id))
-  // Cascade: xoa MockTestResult cua hoc sinh nay
-  saveMockTestResults(getMockTestResults().filter(r => r.studentId !== id))
+  // Compute all filtered arrays first, then write in one batch
+  const updates = [
+    [KEYS.STUDENTS,          getStudents().filter(s => s.id !== id)],
+    [KEYS.ENROLLMENTS,       getEnrollments().filter(e => e.studentId !== id)],
+    [KEYS.ATTENDANCE,        getAttendance().filter(a => a.studentId !== id)],
+    [KEYS.HOMEWORKS,         getHomeworks().filter(h => h.studentId !== id)],
+    [KEYS.FEES,              getFees().filter(f => f.studentId !== id)],
+    [KEYS.REVIEWS,           getReviews().filter(r => r.studentId !== id)],
+    [KEYS.SESSION_REVIEWS,   getSessionReviews().filter(r => r.studentId !== id)],
+    [KEYS.PAYMENTS,          getPayments().filter(p => p.studentId !== id)],
+    [KEYS.SUBMISSIONS,       getSubmissions().filter(s => s.studentId !== id)],
+    [KEYS.MOCK_TEST_RESULTS, getMockTestResults().filter(r => r.studentId !== id)],
+  ]
+  updates.forEach(([key, value]) => set(key, value))
 }
 
 // ─── Classes ────────────────────────────────────────────
@@ -62,7 +84,7 @@ export const getClasses = () => get(KEYS.CLASSES)
 export const saveClasses = (c) => set(KEYS.CLASSES, c)
 export const addClass = (data) => {
   const classes = getClasses()
-  const cls = { id: uid(), createdAt: Date.now(), ...data }
+  const cls = { id: uid(), createdAt: new Date().toISOString(), ...data }
   saveClasses([...classes, cls])
   return cls
 }
@@ -70,29 +92,32 @@ export const updateClass = (id, data) => {
   saveClasses(getClasses().map(c => c.id === id ? { ...c, ...data } : c))
 }
 export const deleteClass = (id) => {
-  saveClasses(getClasses().filter(c => c.id !== id))
-  saveEnrollments(getEnrollments().filter(e => e.classId !== id))
-  // Cache sessions truoc khi xoa de tranh doc localStorage 2 lan
+  // Cache dependent data to avoid re-reading localStorage during filtering
   const allSessions = getSessions()
   const deletedSessionIds = new Set(allSessions.filter(s => s.classId === id).map(s => s.id))
-  saveSessions(allSessions.filter(s => s.classId !== id))
-  saveAttendance(getAttendance().filter(a => !deletedSessionIds.has(a.sessionId)))
-  saveHomeworks(getHomeworks().filter(h => !deletedSessionIds.has(h.sessionId)))
-  saveSessionReviews(getSessionReviews().filter(r => r.classId !== id))
   const allHwAssignments = getHwAssignments()
   const deletedAssignmentIds = new Set(allHwAssignments.filter(a => a.classId === id).map(a => a.id))
-  saveHwAssignments(allHwAssignments.filter(a => a.classId !== id))
-  saveSubmissions(getSubmissions().filter(s => !deletedAssignmentIds.has(s.hwAssignmentId)))
-  savePayments(getPayments().filter(p => p.classId !== id))
-  // Cascade: xoa MockTest va MockTestResult cua lop nay
   const allMockTests = getMockTests()
   const deletedMockTestIds = new Set(allMockTests.filter(t => t.classId === id).map(t => t.id))
-  saveMockTests(allMockTests.filter(t => t.classId !== id))
-  saveMockTestResults(getMockTestResults().filter(r => !deletedMockTestIds.has(r.mockTestId)))
+
+  // Compute all filtered arrays first, then write in one batch
+  const updates = [
+    [KEYS.CLASSES,           getClasses().filter(c => c.id !== id)],
+    [KEYS.ENROLLMENTS,       getEnrollments().filter(e => e.classId !== id)],
+    [KEYS.SESSIONS,          allSessions.filter(s => s.classId !== id)],
+    [KEYS.ATTENDANCE,        getAttendance().filter(a => !deletedSessionIds.has(a.sessionId))],
+    [KEYS.HOMEWORKS,         getHomeworks().filter(h => !deletedSessionIds.has(h.sessionId))],
+    [KEYS.SESSION_REVIEWS,   getSessionReviews().filter(r => r.classId !== id)],
+    [KEYS.HW_ASSIGNMENTS,    allHwAssignments.filter(a => a.classId !== id)],
+    [KEYS.SUBMISSIONS,       getSubmissions().filter(s => !deletedAssignmentIds.has(s.hwAssignmentId))],
+    [KEYS.PAYMENTS,          getPayments().filter(p => p.classId !== id)],
+    [KEYS.MOCK_TESTS,        allMockTests.filter(t => t.classId !== id)],
+    [KEYS.MOCK_TEST_RESULTS, getMockTestResults().filter(r => !deletedMockTestIds.has(r.mockTestId))],
+  ]
+  updates.forEach(([key, value]) => set(key, value))
 }
 
 // ─── Attendance ─────────────────────────────────────────
-// Record shape: { id, studentId, classId, date: 'YYYY-MM-DD', present: bool, note?, sessionId?: string }
 export const getAttendance = () => get(KEYS.ATTENDANCE)
 export const saveAttendance = (a) => set(KEYS.ATTENDANCE, a)
 
@@ -207,6 +232,14 @@ export const calcFee = (studentId, year, month) => {
     return sum + sessions * (e.feePerSession ?? 0)
   }, 0)
   return sessionFees + surcharge
+}
+
+// Tính trạng thái đã thanh toán động từ Payments thay vì dùng Fees.paid tĩnh
+export const isFeePaid = (studentId, year, month) => {
+  const period = `${year}-${String(month).padStart(2, '0')}`
+  const totalPaid = getPaidAmountByStudentPeriod(studentId, period)
+  const totalFee = calcFee(studentId, year, month)
+  return totalFee > 0 && totalPaid >= totalFee
 }
 
 // ─── Schedule ────────────────────────────────────────────
@@ -395,24 +428,50 @@ export const getSettings = () => get(KEYS.SETTINGS, {
 export const saveSettings = (s) => set(KEYS.SETTINGS, { ...getSettings(), ...s })
 
 // ─── Dashboard stats ─────────────────────────────────────
+
+// Internal helper: same logic as calcFee but operates on pre-loaded in-memory
+// arrays, avoiding repeated localStorage.getItem calls inside a reduce loop.
+const calcFeeFromCache = (studentId, year, month, { fees, allEnrollments, allSessions, allAttendance }) => {
+  const feeRec = fees.find(f => f.studentId === studentId && f.year === year && f.month === month)
+  const surcharge = feeRec?.surcharge ?? 0
+  const prefix = `${year}-${String(month).padStart(2, '0')}`
+  const activeEnrollments = allEnrollments.filter(
+    e => e.studentId === studentId && e.status !== 'dropped'
+  )
+  const sessionFees = activeEnrollments.reduce((sum, e) => {
+    const sessionIds = new Set(
+      allSessions.filter(s => s.classId === e.classId && s.date.startsWith(prefix)).map(s => s.id)
+    )
+    const count = allAttendance.filter(
+      a => a.studentId === studentId && a.present === true && sessionIds.has(a.sessionId)
+    ).length
+    return sum + count * (e.feePerSession ?? 0)
+  }, 0)
+  return sessionFees + surcharge
+}
+
 export const getDashboardStats = (year, month) => {
+  // Pre-load all collections once — reduces localStorage parses from 80+ to 5
   const students = getStudents()
   const classes = getClasses()
-  const attMonth = getAttendanceByMonth(year, month)
   const fees = getFees()
+  const allEnrollments = getEnrollments()
+  const allSessions = getSessions()
+  const allAttendance = getAttendance()
   const today = new Date().toISOString().split('T')[0]
-  const attToday = getAttendanceByDate(today)
-  const presentToday = attToday.filter(a => a.present).length
+  const presentToday = allAttendance.filter(a => a.date === today && a.present).length
+
+  const cache = { fees, allEnrollments, allSessions, allAttendance }
 
   // Monthly revenue
   const monthlyRevenue = students.reduce((sum, s) => {
-    return sum + calcFee(s.id, year, month)
+    return sum + calcFeeFromCache(s.id, year, month, cache)
   }, 0)
 
   // Yearly revenue: sum calcFee across all months that have a fee record
   const months = [...new Set(fees.filter(f => f.year === year).map(f => f.month))]
   const yearlyRevenue = students.reduce((sum, s) => {
-    return sum + months.reduce((mSum, m) => mSum + calcFee(s.id, year, m), 0)
+    return sum + months.reduce((mSum, m) => mSum + calcFeeFromCache(s.id, year, m, cache), 0)
   }, 0)
 
   return {
@@ -425,27 +484,31 @@ export const getDashboardStats = (year, month) => {
 }
 
 // ─── Export / Import ─────────────────────────────────────
+
+// Internal helper: snapshot all collections as a plain JS object
+const exportDataAsObject = () => ({
+  version: 3,
+  exportedAt: new Date().toISOString(),
+  students: getStudents(),
+  classes: getClasses(),
+  enrollments: getEnrollments(),
+  sessions: getSessions(),
+  attendance: getAttendance(),
+  homeworks: getHomeworks(),
+  fees: getFees(),
+  schedule: getSchedule(),
+  reviews: getReviews(),
+  sessionReviews: getSessionReviews(),
+  settings: getSettings(),
+  mockTests: getMockTests(),
+  mockTestResults: getMockTestResults(),
+  payments: getPayments(),
+  hwAssignments: getHwAssignments(),
+  submissions: getSubmissions(),
+})
+
 export const exportData = () => {
-  const data = {
-    version: 3,
-    exportedAt: new Date().toISOString(),
-    students: getStudents(),
-    classes: getClasses(),
-    enrollments: getEnrollments(),
-    sessions: getSessions(),
-    attendance: getAttendance(),
-    homeworks: getHomeworks(),
-    fees: getFees(),
-    schedule: getSchedule(),
-    reviews: getReviews(),
-    sessionReviews: getSessionReviews(),
-    settings: getSettings(),
-    mockTests: getMockTests(),
-    mockTestResults: getMockTestResults(),
-    payments: getPayments(),
-    hwAssignments: getHwAssignments(),
-    submissions: getSubmissions(),
-  }
+  const data = exportDataAsObject()
   const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' })
   const url = URL.createObjectURL(blob)
   const a = document.createElement('a')
@@ -458,22 +521,51 @@ export const exportData = () => {
 export const importData = (jsonString) => {
   const data = JSON.parse(jsonString)
   if (!data.version) throw new Error('File không hợp lệ')
-  if (data.students) saveStudents(data.students)
-  if (data.classes) saveClasses(data.classes)
-  if (data.enrollments) saveEnrollments(data.enrollments)
-  if (data.sessions) saveSessions(data.sessions)
-  if (data.attendance) saveAttendance(data.attendance)
-  if (data.homeworks) saveHomeworks(data.homeworks)
-  if (data.fees) saveFees(data.fees)
-  if (data.schedule) saveSchedule(data.schedule)
-  if (data.reviews) saveReviews(data.reviews)
-  if (data.sessionReviews) saveSessionReviews(data.sessionReviews)
-  if (data.settings) saveSettings(data.settings)
-  if (data.mockTests) saveMockTests(data.mockTests)
-  if (data.mockTestResults) saveMockTestResults(data.mockTestResults)
-  if (data.payments) savePayments(data.payments)
-  if (data.hwAssignments) saveHwAssignments(data.hwAssignments)
-  if (data.submissions) saveSubmissions(data.submissions)
+
+  // Snapshot current data as backup before overwriting
+  const backup = exportDataAsObject()
+
+  const restoreBackup = () => {
+    if (backup.students)       saveStudents(backup.students)
+    if (backup.classes)        saveClasses(backup.classes)
+    if (backup.enrollments)    saveEnrollments(backup.enrollments)
+    if (backup.sessions)       saveSessions(backup.sessions)
+    if (backup.attendance)     saveAttendance(backup.attendance)
+    if (backup.homeworks)      saveHomeworks(backup.homeworks)
+    if (backup.fees)           saveFees(backup.fees)
+    if (backup.schedule)       saveSchedule(backup.schedule)
+    if (backup.reviews)        saveReviews(backup.reviews)
+    if (backup.sessionReviews) saveSessionReviews(backup.sessionReviews)
+    if (backup.settings)       saveSettings(backup.settings)
+    if (backup.mockTests)      saveMockTests(backup.mockTests)
+    if (backup.mockTestResults) saveMockTestResults(backup.mockTestResults)
+    if (backup.payments)       savePayments(backup.payments)
+    if (backup.hwAssignments)  saveHwAssignments(backup.hwAssignments)
+    if (backup.submissions)    saveSubmissions(backup.submissions)
+  }
+
+  try {
+    if (data.students)       saveStudents(data.students)
+    if (data.classes)        saveClasses(data.classes)
+    if (data.enrollments)    saveEnrollments(data.enrollments)
+    if (data.sessions)       saveSessions(data.sessions)
+    if (data.attendance)     saveAttendance(data.attendance)
+    if (data.homeworks)      saveHomeworks(data.homeworks)
+    if (data.fees)           saveFees(data.fees)
+    if (data.schedule)       saveSchedule(data.schedule)
+    if (data.reviews)        saveReviews(data.reviews)
+    if (data.sessionReviews) saveSessionReviews(data.sessionReviews)
+    if (data.settings)       saveSettings(data.settings)
+    if (data.mockTests)      saveMockTests(data.mockTests)
+    if (data.mockTestResults) saveMockTestResults(data.mockTestResults)
+    if (data.payments)       savePayments(data.payments)
+    if (data.hwAssignments)  saveHwAssignments(data.hwAssignments)
+    if (data.submissions)    saveSubmissions(data.submissions)
+  } catch (err) {
+    // Rollback to backup if any write fails mid-import
+    restoreBackup()
+    throw new Error('Import thất bại, dữ liệu đã được phục hồi.')
+  }
 }
 
 // ─── Mock Tests ──────────────────────────────────────────
@@ -530,12 +622,15 @@ export const getMockTestResultsByTest = (mockTestId) =>
 
 // 0.9
 export const getResultsByStudent = (studentId, classId) => {
-  const testIds = new Set(getMockTestsByClass(classId).map(t => t.id))
+  // Cache classTests once — eliminates ~46 localStorage parses inside sort comparator
+  const classTests = getMockTestsByClass(classId)
+  const testIds = new Set(classTests.map(t => t.id))
+  const testMap = new Map(classTests.map(t => [t.id, t]))
   return getMockTestResults()
     .filter(r => r.studentId === studentId && testIds.has(r.mockTestId))
     .sort((a, b) => {
-      const testA = getMockTests().find(t => t.id === a.mockTestId)
-      const testB = getMockTests().find(t => t.id === b.mockTestId)
+      const testA = testMap.get(a.mockTestId)
+      const testB = testMap.get(b.mockTestId)
       return new Date(testA?.date) - new Date(testB?.date)
     })
 }
@@ -576,7 +671,7 @@ export const getPaidAmountByStudentPeriod = (studentId, period) =>
 
 export const createPayment = (data) => {
   const payments = getPayments()
-  const payment = { id: uid(), createdAt: Date.now(), ...data }
+  const payment = { id: uid(), createdAt: new Date().toISOString(), ...data }
   savePayments([...payments, payment])
   return payment
 }
@@ -597,7 +692,7 @@ export const getHwAssignmentsByClass = (classId) =>
 
 export const createHwAssignment = (data) => {
   const all = getHwAssignments()
-  const entry = { id: uid(), createdAt: Date.now(), ...data }
+  const entry = { id: uid(), createdAt: new Date().toISOString(), ...data }
   saveHwAssignments([...all, entry])
   return entry
 }
@@ -625,7 +720,7 @@ export const getSubmissionsByStudent = (studentId) =>
 export const upsertSubmission = (data) => {
   const all = getSubmissions()
   const idx = all.findIndex(s => s.hwAssignmentId === data.hwAssignmentId && s.studentId === data.studentId)
-  const now = Date.now()
+  const now = new Date().toISOString()
   const entry = idx >= 0
     ? { ...all[idx], ...data, gradedAt: now }
     : { id: uid(), ...data, gradedAt: now }
