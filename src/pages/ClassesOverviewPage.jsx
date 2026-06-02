@@ -1,52 +1,114 @@
 import { useState, useEffect } from 'react'
 import { Card, Button, Empty, toast } from '@/components/ui'
 import { Plus, BookOpen } from 'lucide-react'
-import { getClasses, addClass, updateClass, deleteClass, getEnrollmentsByClass } from '@/store/db'
+import { classService, teacherService } from '@/services/classService'
+import { enrollmentService } from '@/services/enrollmentService'
 import { ClassModal } from '@/components/classes/ClassModal'
 import { ClassCard } from '@/components/classes/ClassCard'
+import { useAuth } from '@/hooks/useAuth'
 
 export const ClassesOverviewPage = ({ onSelectClass }) => {
+  const { teacher } = useAuth()
+  const isAdmin = teacher?.is_admin === true
+
   const [classes, setClasses] = useState([])
-  const [students, setStudents] = useState([])
+  const [enrollments, setEnrollments] = useState([])
+  const [teachers, setTeachers] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(null)
   const [classModalOpen, setClassModalOpen] = useState(false)
   const [editingClass, setEditingClass] = useState(null)
 
-  const loadData = () => {
-    setClasses(getClasses())
+  const loadData = async () => {
+    setLoading(true)
+    setError(null)
+    try {
+      const promises = [classService.getAll(), enrollmentService.getAll()]
+      if (isAdmin) promises.push(teacherService.getAll())
+      const [cls, enr, tchs] = await Promise.all(promises)
+      setClasses(cls)
+      setEnrollments(enr)
+      if (tchs) setTeachers(tchs)
+    } catch (err) {
+      setError(err.message)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
     loadData()
   }, [])
 
-  const handleSaveClass = (data) => {
-    if (editingClass) {
-      updateClass(editingClass.id, data)
-    } else {
-      addClass(data)
+  const handleSaveClass = async (data) => {
+    try {
+      if (editingClass) {
+        await classService.update(editingClass.id, data)
+      } else {
+        await classService.create(data)
+      }
+      setClassModalOpen(false)
+      setEditingClass(null)
+      await loadData()
+    } catch (err) {
+      toast.error('Lỗi: ' + err.message)
     }
-    setClassModalOpen(false)
-    setEditingClass(null)
-    loadData()
   }
 
-  const handleDeleteClass = (id) => {
-    const hasActiveStudents = getEnrollmentsByClass(id).some(e => e.status !== 'dropped')
+  const handleDeleteClass = async (id) => {
+    const hasActiveStudents = enrollments
+      .filter(e => e.classId === id)
+      .some(e => e.status !== 'dropped')
     if (hasActiveStudents) {
       toast.error('Không thể xóa lớp đang có học viên theo học. Vui lòng chuyển học viên sang lớp khác hoặc đổi trạng thái thành "Đã nghỉ" trước.')
       return
     }
 
     if (window.confirm('Bạn có chắc chắn muốn xóa lớp học này không?')) {
-      deleteClass(id)
-      toast.success('Đã xóa lớp học')
-      loadData()
+      try {
+        await classService.remove(id)
+        toast.success('Đã xóa lớp học')
+        await loadData()
+      } catch (err) {
+        toast.error('Lỗi: ' + err.message)
+      }
     }
   }
 
   const openClassModal = (classItem = null) => {
     setEditingClass(classItem)
     setClassModalOpen(true)
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-6 animate-fade-in">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-display font-bold text-navy-900">Lớp Học</h1>
+            <p className="text-sm text-navy-400 mt-0.5">Đang tải...</p>
+          </div>
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+          {[1, 2, 3].map(i => (
+            <div key={i} className="h-40 bg-navy-50 rounded-2xl animate-pulse" />
+          ))}
+        </div>
+      </div>
+    )
+  }
+
+  if (error) {
+    return (
+      <div className="flex flex-col gap-4 animate-fade-in">
+        <h1 className="text-2xl font-display font-bold text-navy-900">Lớp Học</h1>
+        <Card className="p-8 text-center">
+          <p className="text-red-600 font-medium">Lỗi tải dữ liệu</p>
+          <p className="text-sm text-navy-400 mt-1">{error}</p>
+          <Button onClick={loadData} className="mt-4">Thử lại</Button>
+        </Card>
+      </div>
+    )
   }
 
   return (
@@ -57,22 +119,26 @@ export const ClassesOverviewPage = ({ onSelectClass }) => {
           <p className="text-sm text-navy-400 mt-0.5">Quản lý danh sách lớp học</p>
         </div>
 
-        <Button onClick={() => openClassModal()} className="shrink-0 flex items-center gap-2">
-          <Plus size={18} /> Thêm lớp học
-        </Button>
+        {isAdmin && (
+          <Button onClick={() => openClassModal()} className="shrink-0 flex items-center gap-2">
+            <Plus size={18} /> Thêm lớp học
+          </Button>
+        )}
       </div>
 
       {classes.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {classes.map(cls => {
-            const studentCount = getEnrollmentsByClass(cls.id).filter(e => e.status === 'active').length
+            const studentCount = enrollments
+              .filter(e => e.classId === cls.id && e.status === 'active').length
             return (
               <div key={cls.id} onClick={() => onSelectClass(cls.id)} className="cursor-pointer">
                 <ClassCard
                   cls={cls}
                   studentCount={studentCount}
                   onEdit={() => openClassModal(cls)}
-                  onDelete={() => handleDeleteClass(cls.id)}
+                  onDelete={isAdmin ? () => handleDeleteClass(cls.id) : undefined}
+                  showTeacher={isAdmin}
                 />
               </div>
             )
@@ -82,13 +148,15 @@ export const ClassesOverviewPage = ({ onSelectClass }) => {
         <Card className="p-12">
           <Empty
             icon={<BookOpen />}
-            title="Không có lớp học nào"
-            desc="Bấm nút Thêm lớp học để tạo lớp mới"
-            action={
+            title="Chưa có lớp nào được giao"
+            desc={isAdmin
+              ? 'Bấm nút Thêm lớp học để tạo lớp mới'
+              : 'Liên hệ quản trị viên để được tạo và giao lớp'}
+            action={isAdmin && (
               <Button onClick={() => openClassModal()} className="mt-4 flex items-center gap-2">
                 <Plus size={18} /> Thêm lớp học
               </Button>
-            }
+            )}
           />
         </Card>
       )}
@@ -98,6 +166,8 @@ export const ClassesOverviewPage = ({ onSelectClass }) => {
         onClose={() => setClassModalOpen(false)}
         classItem={editingClass}
         onSave={handleSaveClass}
+        isAdmin={isAdmin}
+        teachers={teachers}
       />
     </div>
   )

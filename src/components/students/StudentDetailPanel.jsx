@@ -6,10 +6,11 @@ import {
 import { clsx } from 'clsx'
 import { Badge, Button, Skeleton } from '@/components/ui'
 import {
-  getSessionReviewsByStudent, addSessionReview, upsertEnrollment,
+  getSessionReviewsByStudent, addSessionReview,
   getAttendanceRate, getSessionsByClass, getAttendanceByStudent,
   getHomeworkStats, getHomeworkByStudent, getResultsByStudent, getMockTestsByClass,
 } from '@/store/db'
+import { enrollmentService } from '@/services/enrollmentService'
 import { getInitials } from '@/utils/helpers'
 
 const STATUS_CONFIG = {
@@ -132,9 +133,13 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
     if (editingGoal) goalInputRef.current?.focus()
   }, [editingGoal])
 
-  const handleSaveGoal = () => {
+  const handleSaveGoal = async () => {
     if (!enrollment) return
-    upsertEnrollment({ ...enrollment, goal: goalText })
+    try {
+      await enrollmentService.upsert({ ...enrollment, goal: goalText })
+    } catch {
+      // ignore — data will reload on next refresh
+    }
     setEditingGoal(false)
     onStatusChange?.()
   }

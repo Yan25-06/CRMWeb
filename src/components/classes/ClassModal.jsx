@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Modal, Input, Button, toast } from '@/components/ui'
 
-export const ClassModal = ({ open, onClose, classItem = null, onSave }) => {
+export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = false, teachers = [] }) => {
   const [formData, setFormData] = useState({
     name: '',
     level: '',
@@ -10,6 +10,7 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave }) => {
     scheduleDays: '',
     scheduleTime: '',
     startDate: '',
+    teacherId: '',
   })
   const [errors, setErrors] = useState({})
 
@@ -24,6 +25,7 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave }) => {
           scheduleDays: classItem.scheduleDays || '',
           scheduleTime: classItem.scheduleTime || '',
           startDate: classItem.startDate || '',
+          teacherId: classItem.teacherId || '',
         })
       } else {
         setFormData({
@@ -34,6 +36,7 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave }) => {
           scheduleDays: '',
           scheduleTime: '',
           startDate: '',
+          teacherId: '',
         })
       }
       setErrors({})
@@ -53,10 +56,10 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave }) => {
 
   const handleSubmit = (e) => {
     e.preventDefault()
-    
-    // Validation
+
     const newErrors = {}
     if (!formData.name.trim()) newErrors.name = 'Tên lớp là bắt buộc'
+    if (isAdmin && !classItem && !formData.teacherId) newErrors.teacherId = 'Vui lòng chọn giáo viên'
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
@@ -67,6 +70,8 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave }) => {
     toast.success(classItem ? 'Đã cập nhật lớp học!' : 'Đã thêm lớp học!')
     onClose()
   }
+
+  const isNew = !classItem
 
   return (
     <Modal
@@ -81,6 +86,32 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave }) => {
       }
     >
       <div className="flex flex-col gap-4">
+
+        {/* Teacher selector — admin only, new class only */}
+        {isAdmin && isNew && (
+          <div className="flex flex-col gap-1">
+            <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
+              Giáo viên phụ trách <span className="text-red-400 normal-case">*</span>
+            </label>
+            <select
+              name="teacherId"
+              value={formData.teacherId}
+              onChange={handleChange}
+              className={`select${errors.teacherId ? ' border-red-400 ring-1 ring-red-200' : ''}`}
+            >
+              <option value="">— Chọn giáo viên —</option>
+              {teachers.map(t => (
+                <option key={t.id} value={t.id}>
+                  {t.name || t.email}
+                </option>
+              ))}
+            </select>
+            {errors.teacherId && (
+              <p className="text-xs text-red-500">{errors.teacherId}</p>
+            )}
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4">
           <Input
             label="Tên lớp"
@@ -90,7 +121,7 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave }) => {
             error={errors.name}
             placeholder="VD: IELTS 02"
           />
-          
+
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Phân loại (Tag)</label>
             <select

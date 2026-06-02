@@ -1,21 +1,31 @@
-import { useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Users, TrendingUp, Calendar, DollarSign,
   BookOpen, Clock,
 } from 'lucide-react'
 import { StatCard, Card, Badge } from '@/components/ui'
 import {
-  getDashboardStats, getStudents, getClasses,
+  getDashboardStats,
   getAttendanceByDate,
 } from '@/store/db'
+import { studentService } from '@/services/studentService'
+import { classService } from '@/services/classService'
 
 const fmt = (n) =>
   new Intl.NumberFormat('vi-VN').format(n) + 'đ'
 
 export const DashboardPage = ({ year, month, onNavigate }) => {
-  const stats    = useMemo(() => getDashboardStats(year, month), [year, month])
-  const students = useMemo(() => getStudents(), [])
-  const classes  = useMemo(() => getClasses(), [])
+  const [students, setStudents] = useState([])
+  const [classes, setClasses] = useState([])
+
+  useEffect(() => {
+    Promise.all([studentService.getAll(), classService.getAll()])
+      .then(([s, c]) => { setStudents(s); setClasses(c) })
+      .catch(() => {})
+  }, [])
+
+  // Revenue/attendance stats still come from localStorage (sessions/attendance not migrated yet)
+  const stats = useMemo(() => getDashboardStats(year, month), [year, month])
 
   const today = new Date().toISOString().split('T')[0]
   const todayAtt = useMemo(() => getAttendanceByDate(today), [today])
@@ -37,15 +47,15 @@ export const DashboardPage = ({ year, month, onNavigate }) => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Học Sinh"
-          value={stats.totalStudents}
-          sub={`${stats.totalClasses} lớp`}
+          value={students.length || stats.totalStudents}
+          sub={`${classes.length || stats.totalClasses} lớp`}
           icon={<Users size={16} />}
           accent="navy"
         />
         <StatCard
           label="Có Mặt Hôm Nay"
           value={todayAtt.filter(a => a.present).length}
-          sub={`trong ${students.length} học sinh`}
+          sub={`trong ${students.length || stats.totalStudents} học sinh`}
           icon={<Calendar size={16} />}
           accent="success"
         />
@@ -83,21 +93,17 @@ export const DashboardPage = ({ year, month, onNavigate }) => {
             </div>
           ) : (
             <div className="divide-y divide-navy-50">
-              {students.slice(0, 6).map(s => {
-                const cls = classes.find(c => c.id === s.classId)
-                return (
-                  <div key={s.id} className="flex items-center gap-3 px-5 py-3 hover:bg-navy-50 transition-colors cursor-pointer" onClick={() => onNavigate('students')}>
-                    <div className="w-8 h-8 rounded-full bg-navy-100 flex items-center justify-center text-navy-700 font-semibold text-sm shrink-0">
-                      {s.name.split(' ').pop()?.[0]}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-navy-800 truncate">{s.name}</div>
-                      <div className="text-xs text-navy-400">{s.grade}</div>
-                    </div>
-                    {cls && <Badge variant="navy">{cls.name}</Badge>}
+              {students.slice(0, 6).map(s => (
+                <div key={s.id} className="flex items-center gap-3 px-5 py-3 hover:bg-navy-50 transition-colors cursor-pointer" onClick={() => onNavigate('students')}>
+                  <div className="w-8 h-8 rounded-full bg-navy-100 flex items-center justify-center text-navy-700 font-semibold text-sm shrink-0">
+                    {s.name.split(' ').pop()?.[0]}
                   </div>
-                )
-              })}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-navy-800 truncate">{s.name}</div>
+                    <div className="text-xs text-navy-400">{s.grade}</div>
+                  </div>
+                </div>
+              ))}
             </div>
           )}
         </Card>
@@ -119,25 +125,22 @@ export const DashboardPage = ({ year, month, onNavigate }) => {
             </div>
           ) : (
             <div className="divide-y divide-navy-50">
-              {classes.map(cls => {
-                const count = students.filter(s => s.classId === cls.id).length
-                return (
-                  <div
-                    key={cls.id}
-                    className="flex items-center gap-3 px-5 py-3 hover:bg-navy-50 transition-colors cursor-pointer"
-                    onClick={() => onNavigate('classes')}
-                  >
-                    <div className="w-8 h-8 rounded-xl bg-navy-800 flex items-center justify-center text-white shrink-0">
-                      <BookOpen size={14} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="text-sm font-medium text-navy-800">{cls.name}</div>
-                      {cls.level && <div className="text-xs text-navy-400">Trình độ: {cls.level}</div>}
-                    </div>
-                    <span className="text-sm font-semibold text-navy-600">{count} HS</span>
+              {classes.map(cls => (
+                <div
+                  key={cls.id}
+                  className="flex items-center gap-3 px-5 py-3 hover:bg-navy-50 transition-colors cursor-pointer"
+                  onClick={() => onNavigate('classes')}
+                >
+                  <div className="w-8 h-8 rounded-xl bg-navy-800 flex items-center justify-center text-white shrink-0">
+                    <BookOpen size={14} />
                   </div>
-                )
-              })}
+                  <div className="flex-1 min-w-0">
+                    <div className="text-sm font-medium text-navy-800">{cls.name}</div>
+                    {cls.level && <div className="text-xs text-navy-400">Trình độ: {cls.level}</div>}
+                  </div>
+                  <Badge variant="navy">{cls.courseType || ''}</Badge>
+                </div>
+              ))}
             </div>
           )}
         </Card>
@@ -148,10 +151,10 @@ export const DashboardPage = ({ year, month, onNavigate }) => {
         <h2 className="text-sm font-semibold text-navy-600 uppercase tracking-wide mb-3">Thao Tác Nhanh</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'Điểm Danh Hôm Nay', icon: CalendarIcon, page: 'attendance', accent: 'bg-navy-800 text-white' },
-            { label: 'Nhập Học Phí',       icon: BookIcon,     page: 'fees',       accent: 'bg-emerald-700 text-white' },
-            { label: 'Nhận Xét HS',        icon: StarIcon,     page: 'reviews',    accent: 'bg-amber-600 text-white' },
-            { label: 'Xem Lịch Dạy',       icon: ClockIcon,    page: 'schedule',   accent: 'bg-navy-600 text-white' },
+            { label: 'Điểm Danh Hôm Nay', page: 'attendance', accent: 'bg-navy-800 text-white' },
+            { label: 'Nhập Học Phí',       page: 'fees',       accent: 'bg-emerald-700 text-white' },
+            { label: 'Nhận Xét HS',        page: 'reviews',    accent: 'bg-amber-600 text-white' },
+            { label: 'Xem Lịch Dạy',       page: 'schedule',   accent: 'bg-navy-600 text-white' },
           ].map(({ label, page, accent }) => (
             <button
               key={page}
@@ -166,8 +169,3 @@ export const DashboardPage = ({ year, month, onNavigate }) => {
     </div>
   )
 }
-
-const CalendarIcon = () => <Calendar size={18} />
-const BookIcon     = () => <BookOpen  size={18} />
-const StarIcon     = () => <TrendingUp size={18} />
-const ClockIcon    = () => <Clock size={18} />

@@ -2,9 +2,10 @@ import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { clsx } from 'clsx'
 import { Button } from '@/components/ui'
-import { upsertEnrollment, getStudents, getEnrollmentsByClass, addStudent } from '@/store/db'
 import { toast as uiToast } from '@/components/ui'
 import { getInitials } from '@/utils/helpers'
+import { studentService } from '@/services/studentService'
+import { enrollmentService } from '@/services/enrollmentService'
 
 const STATUS_OPTIONS = [
   { value: 'active', label: 'Đang học' },
@@ -17,38 +18,45 @@ const EMPTY_NEW = { name: '', phone: '', grade: '', feePerSession: '', note: '' 
 export const EnrollmentModal = ({
   open,
   onClose,
-  mode = 'add',   // 'add' | 'edit'
+  mode = 'add',
   classId,
-  enrollment,     // existing enrollment (for edit mode)
-  student,        // existing student (for edit mode)
+  enrollment,
+  student,
   onSaved,
 }) => {
-  // ── add sub-mode toggle ──
-  const [addSubMode, setAddSubMode] = useState('existing') // 'existing' | 'new'
+  const [addSubMode, setAddSubMode] = useState('existing')
 
-  // ── existing student selection ──
   const [availableStudents, setAvailableStudents] = useState([])
   const [selectedStudentId, setSelectedStudentId] = useState('')
   const [studentSearch, setStudentSearch] = useState('')
 
-  // ── new student form ──
   const [newForm, setNewForm] = useState(EMPTY_NEW)
   const [newErrors, setNewErrors] = useState({})
 
-  // ── shared / edit ──
   const [status, setStatus] = useState('active')
   const [feePerSession, setFeePerSession] = useState('')
   const [goal, setGoal] = useState('')
   const [note, setNote] = useState('')
   const [confirmDrop, setConfirmDrop] = useState(false)
   const [pendingStatus, setPendingStatus] = useState(null)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (!open) return
     if (mode === 'add') {
-      const allStudents = getStudents()
-      const enrolled = getEnrollmentsByClass(classId).map(e => e.studentId)
-      setAvailableStudents(allStudents.filter(s => !enrolled.includes(s.id)))
+      const load = async () => {
+        try {
+          const [allStudents, classEnrollments] = await Promise.all([
+            studentService.getAll(),
+            enrollmentService.getByClass(classId),
+          ])
+          const enrolled = classEnrollments.map(e => e.studentId)
+          setAvailableStudents(allStudents.filter(s => !enrolled.includes(s.id)))
+        } catch {
+          setAvailableStudents([])
+        }
+      }
+      load()
       setSelectedStudentId('')
       setStudentSearch('')
       setAddSubMode('existing')
@@ -90,59 +98,65 @@ export const EnrollmentModal = ({
     return Object.keys(errs).length === 0
   }
 
-  const handleSubmit = () => {
-    if (mode === 'add') {
-      if (addSubMode === 'existing') {
-        if (!selectedStudentId) return
-        upsertEnrollment({
-          studentId: selectedStudentId,
-          classId,
-          status: 'active',
-          feePerSession: Number(feePerSession) || 0,
-          goal,
-          note,
-          enrolledAt: new Date().toISOString(),
-        })
-        uiToast.success('Đã thêm học viên vào lớp')
+  const handleSubmit = async () => {
+    setSaving(true)
+    try {
+      if (mode === 'add') {
+        if (addSubMode === 'existing') {
+          if (!selectedStudentId) return
+          await enrollmentService.upsert({
+            studentId: selectedStudentId,
+            classId,
+            status: 'active',
+            feePerSession: Number(feePerSession) || 0,
+            goal,
+            note,
+            enrolledAt: new Date().toISOString(),
+          })
+          uiToast.success('Đã thêm học viên vào lớp')
+        } else {
+          if (!validateNew()) return
+          const fee = Number(newForm.feePerSession) || 0
+          const created = await studentService.create({
+            name: newForm.name.trim(),
+            phone: newForm.phone.trim(),
+            grade: newForm.grade.trim(),
+          })
+          await enrollmentService.upsert({
+            studentId: created.id,
+            classId,
+            status: 'active',
+            feePerSession: fee,
+            goal,
+            note: '',
+            enrolledAt: new Date().toISOString(),
+          })
+          uiToast.success(`Đã tạo và thêm "${created.name}" vào lớp`)
+        }
       } else {
-        if (!validateNew()) return
-        const fee = Number(newForm.feePerSession) || 0
-        const created = addStudent({
-          name: newForm.name.trim(),
-          phone: newForm.phone.trim(),
-          grade: newForm.grade.trim(),
-          note: newForm.note.trim(),
-        })
-        upsertEnrollment({
-          studentId: created.id,
-          classId,
-          status: 'active',
-          feePerSession: fee,
-          goal,
-          note: '',
-          enrolledAt: new Date().toISOString(),
-        })
-        uiToast.success(`Đã tạo và thêm "${created.name}" vào lớp`)
+        const now = new Date().toISOString()
+        const updated = { ...enrollment, status, feePerSession: Number(feePerSession) || 0, goal, note }
+        if (status === 'paused' && enrollment.status !== 'paused') {
+          updated.pausedAt = now
+          uiToast.info('Đã tạm ngưng học viên')
+        } else if (status === 'dropped') {
+          updated.droppedAt = now
+          uiToast.info('Đã ghi nhận học viên đã nghỉ')
+        } else if (status === 'active' && enrollment.status !== 'active') {
+          updated.pausedAt = null; updated.droppedAt = null
+          uiToast.success('Học viên đã quay lại lớp')
+        } else {
+          uiToast.success('Đã cập nhật thông tin')
+        }
+        await enrollmentService.upsert(updated)
       }
-    } else {
-      const now = new Date().toISOString()
-      const updated = { ...enrollment, status, feePerSession: Number(feePerSession) || 0, goal, note }
-      if (status === 'paused' && enrollment.status !== 'paused') {
-        updated.pausedAt = now
-        uiToast.info('Đã tạm ngưng học viên')
-      } else if (status === 'dropped') {
-        updated.droppedAt = now
-        uiToast.info('Đã ghi nhận học viên đã nghỉ')
-      } else if (status === 'active' && enrollment.status !== 'active') {
-        updated.pausedAt = null; updated.droppedAt = null
-        uiToast.success('Học viên đã quay lại lớp')
-      } else {
-        uiToast.success('Đã cập nhật thông tin')
-      }
-      upsertEnrollment(updated)
+      onSaved?.()
+      onClose?.()
+    } catch (err) {
+      uiToast.error('Lỗi: ' + err.message)
+    } finally {
+      setSaving(false)
     }
-    onSaved?.()
-    onClose?.()
   }
 
   if (!open) return null
@@ -152,8 +166,9 @@ export const EnrollmentModal = ({
   )
 
   const submitDisabled =
-    mode === 'add' &&
-    (addSubMode === 'existing' ? !selectedStudentId : !newForm.name.trim())
+    saving ||
+    (mode === 'add' &&
+      (addSubMode === 'existing' ? !selectedStudentId : !newForm.name.trim()))
 
   const submitLabel =
     mode !== 'add' ? 'Lưu thay đổi' :
@@ -182,7 +197,6 @@ export const EnrollmentModal = ({
         {/* ── Body ── */}
         <div className="px-6 py-5 flex flex-col gap-4 max-h-[72vh] overflow-y-auto">
 
-          {/* ─ Add mode: sub-mode toggle ─ */}
           {mode === 'add' && (
             <div className="flex gap-1 p-1 bg-navy-50 rounded-xl">
               <button
@@ -210,7 +224,6 @@ export const EnrollmentModal = ({
             </div>
           )}
 
-          {/* ─ Sub-mode: existing ─ */}
           {mode === 'add' && addSubMode === 'existing' && (
             <div className="flex flex-col gap-2">
               <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
@@ -260,7 +273,6 @@ export const EnrollmentModal = ({
                       ))
                     )}
                   </div>
-                  {/* Học phí khi thêm học viên có sẵn */}
                   {selectedStudentId && (
                     <div className="flex flex-col gap-1 pt-1">
                       <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
@@ -282,14 +294,12 @@ export const EnrollmentModal = ({
             </div>
           )}
 
-          {/* ─ Sub-mode: new student ─ */}
           {mode === 'add' && addSubMode === 'new' && (
             <div className="flex flex-col gap-3">
               <p className="text-xs text-navy-400">
                 Tạo học viên mới và tự động thêm vào lớp này
               </p>
 
-              {/* Họ và tên */}
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
                   Họ và tên <span className="text-red-400 normal-case">*</span>
@@ -306,7 +316,6 @@ export const EnrollmentModal = ({
                 {newErrors.name && <p className="text-xs text-red-500">{newErrors.name}</p>}
               </div>
 
-              {/* Phone + Grade */}
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1">
                   <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
@@ -336,7 +345,6 @@ export const EnrollmentModal = ({
                 </div>
               </div>
 
-              {/* Học phí/buổi */}
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
                   Học phí / buổi (VNĐ)
@@ -353,7 +361,6 @@ export const EnrollmentModal = ({
                 />
               </div>
 
-              {/* Ghi chú */}
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
                   Ghi chú
@@ -372,7 +379,6 @@ export const EnrollmentModal = ({
             </div>
           )}
 
-          {/* ─ Edit mode: student info (readonly) ─ */}
           {mode === 'edit' && student && (
             <div className="flex items-center gap-3 p-3 bg-navy-50 rounded-xl">
               <div className="w-9 h-9 rounded-full bg-navy-800 text-white text-sm font-bold flex items-center justify-center shrink-0">
@@ -385,7 +391,6 @@ export const EnrollmentModal = ({
             </div>
           )}
 
-          {/* ─ Status (edit only) ─ */}
           {mode === 'edit' && (
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
@@ -403,7 +408,6 @@ export const EnrollmentModal = ({
             </div>
           )}
 
-          {/* ─ Học phí/buổi (edit only) ─ */}
           {mode === 'edit' && (
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
@@ -422,7 +426,6 @@ export const EnrollmentModal = ({
             </div>
           )}
 
-          {/* ─ Mục tiêu ─ */}
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
               Mục tiêu
@@ -436,7 +439,6 @@ export const EnrollmentModal = ({
             />
           </div>
 
-          {/* ─ Ghi chú nội bộ (edit + existing only) ─ */}
           {(mode === 'edit' || addSubMode === 'existing') && (
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
@@ -452,7 +454,6 @@ export const EnrollmentModal = ({
             </div>
           )}
 
-          {/* ─ Confirm drop ─ */}
           {confirmDrop && (
             <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 flex flex-col gap-3">
               <p className="text-sm text-amber-800 font-medium">
@@ -483,7 +484,7 @@ export const EnrollmentModal = ({
             onClick={handleSubmit}
             disabled={submitDisabled}
           >
-            {submitLabel}
+            {saving ? 'Đang lưu...' : submitLabel}
           </Button>
         </div>
       </div>

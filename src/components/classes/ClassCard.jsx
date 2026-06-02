@@ -1,9 +1,9 @@
-import { MoreVertical, Calendar, Clock, GraduationCap, Users, Edit2, Trash2 } from 'lucide-react'
+import { MoreVertical, Calendar, Clock, GraduationCap, Users, Edit2, Trash2, UserCircle } from 'lucide-react'
 import { Card } from '@/components/ui'
 import { useState, useRef, useEffect } from 'react'
 import { clsx } from 'clsx'
 
-export const ClassCard = ({ cls, studentCount, onEdit, onDelete }) => {
+export const ClassCard = ({ cls, studentCount, onEdit, onDelete, showTeacher = false }) => {
   const [menuOpen, setMenuOpen] = useState(false)
   const menuRef = useRef(null)
 
@@ -37,8 +37,8 @@ export const ClassCard = ({ cls, studentCount, onEdit, onDelete }) => {
           </span>
           
           {/* Action Menu */}
-          <div className="relative" ref={menuRef}>
-            <button 
+          <div className="relative" ref={menuRef} onClick={e => e.stopPropagation()}>
+            <button
               onClick={() => setMenuOpen(!menuOpen)}
               className="p-1 text-navy-400 hover:text-navy-700 rounded-lg hover:bg-navy-50 transition-colors -mr-1"
             >
@@ -52,12 +52,14 @@ export const ClassCard = ({ cls, studentCount, onEdit, onDelete }) => {
                 >
                   <Edit2 size={14} /> Sửa
                 </button>
-                <button 
-                  onClick={() => { setMenuOpen(false); onDelete() }}
-                  className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                >
-                  <Trash2 size={14} /> Xóa
-                </button>
+                {onDelete && (
+                  <button
+                    onClick={() => { setMenuOpen(false); onDelete() }}
+                    className="w-full text-left px-3 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
+                  >
+                    <Trash2 size={14} /> Xóa
+                  </button>
+                )}
               </div>
             )}
           </div>
@@ -79,6 +81,12 @@ export const ClassCard = ({ cls, studentCount, onEdit, onDelete }) => {
             <div className="flex items-center gap-2 text-sm text-navy-600">
               <Clock size={14} className="text-navy-400" />
               <span>{cls.scheduleTime}</span>
+            </div>
+          )}
+          {showTeacher && cls.teacherName && (
+            <div className="flex items-center gap-2 text-sm text-navy-500 mt-1">
+              <UserCircle size={14} className="text-navy-400 shrink-0" />
+              <span className="truncate">{cls.teacherName}</span>
             </div>
           )}
           {cls.startDate && (

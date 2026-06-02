@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { ChevronLeft, Users } from 'lucide-react'
 import { clsx } from 'clsx'
-import { getClasses, getEnrollmentsByClass } from '@/store/db'
+import { classService } from '@/services/classService'
+import { enrollmentService } from '@/services/enrollmentService'
 import { StudentsTab } from './tabs/StudentsTab'
 import { AttendanceTab } from './tabs/AttendanceTab'
 import { HomeworkTab } from './tabs/HomeworkTab'
@@ -18,18 +19,36 @@ export const ClassDetailPage = ({ classId, onBack }) => {
   const [activeTab, setActiveTab] = useState('students')
   const [currentClass, setCurrentClass] = useState(null)
   const [studentCount, setStudentCount] = useState(0)
+  const [loading, setLoading] = useState(true)
 
-  const loadHeader = () => {
-    const classes = getClasses()
-    const cls = classes.find(c => c.id === classId)
-    setCurrentClass(cls)
-    const enrollments = getEnrollmentsByClass(classId)
-    setStudentCount(enrollments.filter(e => e.status === 'active').length)
+  const loadHeader = async () => {
+    try {
+      const [cls, enrollments] = await Promise.all([
+        classService.getById(classId),
+        enrollmentService.getByClass(classId),
+      ])
+      setCurrentClass(cls)
+      setStudentCount(enrollments.filter(e => e.status === 'active').length)
+    } catch {
+      setCurrentClass(null)
+    } finally {
+      setLoading(false)
+    }
   }
 
   useEffect(() => {
+    setLoading(true)
     loadHeader()
   }, [classId])
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-4 animate-pulse p-4">
+        <div className="h-8 w-48 bg-navy-100 rounded-xl" />
+        <div className="h-4 w-32 bg-navy-50 rounded" />
+      </div>
+    )
+  }
 
   if (!currentClass) {
     return (
@@ -97,7 +116,6 @@ export const ClassDetailPage = ({ classId, onBack }) => {
                 <span className="absolute bottom-0 left-0 w-full h-0.5 bg-navy-800 rounded-t-full" />
               )}
             </button>
-            {/* Tooltip for disabled tabs */}
             {tab.disabled && tab.tooltip && (
               <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 px-2 py-1 bg-navy-800 text-white text-xs rounded-lg whitespace-nowrap opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none z-10">
                 {tab.tooltip}

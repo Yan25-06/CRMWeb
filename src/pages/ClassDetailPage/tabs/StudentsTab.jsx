@@ -5,9 +5,8 @@ import { Skeleton, Card, Button } from '@/components/ui'
 import { StudentSidebar } from '@/components/students/StudentSidebar'
 import { StudentDetailPanel } from '@/components/students/StudentDetailPanel'
 import { EnrollmentModal } from '@/components/students/EnrollmentModal'
-import {
-  getStudents, getEnrollmentsByClass, getEnrollment
-} from '@/store/db'
+import { studentService } from '@/services/studentService'
+import { enrollmentService } from '@/services/enrollmentService'
 
 export const StudentsTab = ({ classId, onEnrollmentChange }) => {
   const [loading, setLoading] = useState(true)
@@ -15,27 +14,31 @@ export const StudentsTab = ({ classId, onEnrollmentChange }) => {
   const [enrollments, setEnrollments] = useState([])
   const [selectedStudentId, setSelectedStudentId] = useState(null)
 
-  // Mobile: show detail panel
   const [mobileShowDetail, setMobileShowDetail] = useState(false)
 
-  // EnrollmentModal state
   const [modalOpen, setModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState('add')
 
-  const loadData = useCallback(() => {
+  const loadData = useCallback(async () => {
     setLoading(true)
-    const allStudents = getStudents()
-    const classEnrollments = getEnrollmentsByClass(classId)
-    setStudents(allStudents)
-    setEnrollments(classEnrollments)
+    try {
+      const [allStudents, classEnrollments] = await Promise.all([
+        studentService.getAll(),
+        enrollmentService.getByClass(classId),
+      ])
+      setStudents(allStudents)
+      setEnrollments(classEnrollments)
 
-    // Default: select first enrolled student
-    if (!selectedStudentId || !classEnrollments.find(e => e.studentId === selectedStudentId)) {
-      const firstActive = classEnrollments.find(e => e.status === 'active')
-      const first = firstActive || classEnrollments[0]
-      setSelectedStudentId(first?.studentId || null)
+      if (!selectedStudentId || !classEnrollments.find(e => e.studentId === selectedStudentId)) {
+        const firstActive = classEnrollments.find(e => e.status === 'active')
+        const first = firstActive || classEnrollments[0]
+        setSelectedStudentId(first?.studentId || null)
+      }
+    } catch {
+      // errors surfaced by empty state
+    } finally {
+      setLoading(false)
     }
-    setLoading(false)
     onEnrollmentChange?.()
   }, [classId])
 
@@ -67,7 +70,6 @@ export const StudentsTab = ({ classId, onEnrollmentChange }) => {
     ? enrollments.find(e => e.studentId === selectedStudentId) || null
     : null
 
-  // Empty state — no enrollments at all
   if (!loading && enrollments.length === 0) {
     return (
       <>
@@ -88,7 +90,6 @@ export const StudentsTab = ({ classId, onEnrollmentChange }) => {
     )
   }
 
-  // Loading skeleton
   if (loading) {
     return (
       <div className="flex gap-4 h-[600px]">
@@ -141,7 +142,6 @@ export const StudentsTab = ({ classId, onEnrollmentChange }) => {
 
       {/* ─── Mobile layout: list → slide-in detail ─── */}
       <div className="md:hidden relative overflow-hidden">
-        {/* Student list (full width) */}
         <div
           className={clsx(
             'transition-transform duration-300 ease-in-out',
@@ -157,14 +157,12 @@ export const StudentsTab = ({ classId, onEnrollmentChange }) => {
           />
         </div>
 
-        {/* Detail panel (slides in from right) */}
         <div
           className={clsx(
             'transition-transform duration-300 ease-in-out',
             mobileShowDetail ? 'translate-x-0' : 'translate-x-full absolute inset-0'
           )}
         >
-          {/* Back button */}
           <div className="flex items-center gap-2 mb-4">
             <button
               onClick={() => setMobileShowDetail(false)}
