@@ -117,7 +117,8 @@ src/
 Project quản lý thay đổi qua OpenSpec (`openspec/`). Có skill tích hợp: `openspec-propose`, `openspec-apply-change`, `openspec-archive-change`, `openspec-explore`.
 - `openspec/specs/` — spec hiện hành (đã build). `openspec/changes/` — change đang làm; `openspec/changes/archive/` — đã xong.
 - `openspec/ROADMAP.md` — lộ trình migration Supabase multi-teacher (nguồn chân lý cho thứ tự các change service layer).
-- Change đang mở (chưa archive): `add-supabase-multi-teacher` (reference gốc), `add-service-reviews`, `add-service-tests-settings`, `add-admin-panel`.
+- Change đang mở (chưa archive): `add-supabase-multi-teacher` (reference gốc), `add-service-tests-settings`, `add-admin-panel`.
+- Đã archive: `add-service-fees` (2026-06-02), `add-service-reviews` (2026-06-02).
 - Một change gồm `proposal.md`, `design.md`, `specs/`, `tasks.md`. Implement theo tasks, check `[x]` khi xong, không làm ngoài scope.
 
 ## Quyết định kiến trúc đã chốt (từ ROADMAP)

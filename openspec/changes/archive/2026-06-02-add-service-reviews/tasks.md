@@ -27,11 +27,11 @@
 
 - [x] 5.1 Chạy `openspec validate add-service-reviews` và rà từng requirement đã được task/test nào phủ
 - [x] 5.2 Tổng kết cho người dùng: những gì change này đã làm (service layer cho reviews/session_reviews/general_comments, upsert idempotent, xử lý cột tags mảng, UI nạp async) và những gì CHƯA thuộc phạm vi (mock-test/settings + banner offline + xóa `db.js` ở #9)
-- [ ] 5.3 Viết hướng dẫn test thủ công cho người dùng và cùng chạy qua:
+- [x] 5.3 Viết hướng dẫn test thủ công cho người dùng và cùng chạy qua:
   - Đăng nhập teacher A → mở `ReviewsPage` → đánh giá của lớp A nạp từ Supabase
   - Lưu một đánh giá có nhiều tag + điểm 4 kỹ năng → lưu lại cùng học sinh/ngày → không tạo bản ghi trùng (kiểm Supabase Table Editor); tags hiển thị đúng dạng mảng
   - `GeneralCommentPanel`: lưu nhận xét chung → lưu lại → cập nhật cùng bản ghi, không trùng
   - Thêm nhận xét theo buổi → hiện trong `StudentDetailPanel`; xóa buổi học liên quan → nhận xét vẫn hiển thị (session_id null, không lỗi)
   - `ReportCardModal`: mở phiếu nhận xét → điểm/tags/nhận xét hiển thị đúng
   - Đăng nhập teacher B → đánh giá và nhận xét của A không xuất hiện
-- [ ] 5.4 Ghi lại kết quả test + vấn đề tồn đọng; xác nhận với người dùng trước khi sang #9 (cutover: mock-test/settings + xóa `db.js`)
+- [x] 5.4 Ghi lại kết quả test + vấn đề tồn đọng; xác nhận với người dùng trước khi sang #9 (cutover: mock-test/settings + xóa `db.js`)
