@@ -2,11 +2,12 @@ import { clsx } from 'clsx'
 import {
   LayoutDashboard, CalendarCheck, BookOpen,
   Calendar, Users, Settings, Menu, X, Download,
-  GraduationCap, BarChart2,
+  GraduationCap, BarChart2, LogOut,
 } from 'lucide-react'
 import { useState } from 'react'
 import { exportData } from '@/store/db'
 import { toast } from '@/components/ui'
+import { useAuth } from '@/hooks/useAuth'
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -19,6 +20,12 @@ const NAV_ITEMS = [
 
 export const Navbar = ({ activePage, onNavigate, centerName }) => {
   const [menuOpen, setMenuOpen] = useState(false)
+  const { user, teacher, logout } = useAuth()
+
+  const handleLogout = async () => {
+    await logout()
+    toast.success('Đã đăng xuất!')
+  }
 
   const handleExport = () => {
     exportData()
@@ -62,6 +69,13 @@ export const Navbar = ({ activePage, onNavigate, centerName }) => {
 
         {/* Bottom actions */}
         <div className="px-3 py-4 border-t border-navy-800 flex flex-col gap-1">
+          {/* User info */}
+          {user && (
+            <div className="px-3 py-2 mb-1">
+              <p className="text-xs font-medium text-white truncate">{teacher?.name || user.email}</p>
+              {teacher?.name && <p className="text-xs text-navy-400 truncate">{user.email}</p>}
+            </div>
+          )}
           <button
             onClick={handleExport}
             className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-navy-400 hover:text-white hover:bg-white/8 transition-all duration-200 w-full"
@@ -80,6 +94,13 @@ export const Navbar = ({ activePage, onNavigate, centerName }) => {
           >
             <Settings size={16} />
             Cài Đặt
+          </button>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-navy-400 hover:text-red-400 hover:bg-white/8 transition-all duration-200 w-full"
+          >
+            <LogOut size={16} />
+            Đăng Xuất
           </button>
         </div>
       </aside>
@@ -127,6 +148,13 @@ export const Navbar = ({ activePage, onNavigate, centerName }) => {
                   {label}
                 </button>
               ))}
+              <button
+                onClick={() => { handleLogout(); setMenuOpen(false) }}
+                className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-navy-300 hover:text-red-400 hover:bg-white/8 transition-all w-full text-left"
+              >
+                <LogOut size={17} />
+                Đăng Xuất
+              </button>
             </nav>
           </div>
         </div>

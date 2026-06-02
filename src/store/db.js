@@ -1019,7 +1019,7 @@ export const seedDemoData = () => {
   sessionRevs.forEach(sr => {
     const session = allSessions[sr.classId]?.[sr.sIdx]
     if (session) {
-      upsertSessionReview({
+      addSessionReview({
         studentId: sIds[sr.si], classId: sr.classId,
         sessionId: session.id, text: sr.text,
       })
