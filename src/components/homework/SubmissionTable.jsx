@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { clsx } from 'clsx'
-import { upsertSubmission } from '@/store/db'
+import { upsertSubmission } from '@/services/submissionService'
 import { getInitials } from '@/utils/helpers'
 import { Check } from 'lucide-react'
 
@@ -29,8 +29,8 @@ const SubmissionRow = ({ student, submission, hwAssignmentId, onUpdate }) => {
 
   const flash = () => { setSaved(true); setTimeout(() => setSaved(false), 1500) }
 
-  const save = useCallback((data) => {
-    upsertSubmission({ hwAssignmentId, studentId: student.id, ...data })
+  const save = useCallback(async (data) => {
+    await upsertSubmission({ hwAssignmentId, studentId: student.id, ...data })
     flash()
     onUpdate?.()
   }, [hwAssignmentId, student.id, onUpdate])

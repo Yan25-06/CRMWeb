@@ -1,46 +1,56 @@
 import { useState, useEffect } from 'react'
 import { Card, Button, Empty, toast } from '@/components/ui'
 import { Plus, BookOpen } from 'lucide-react'
-import { getClasses, addClass, updateClass, deleteClass, getEnrollmentsByClass } from '@/store/db'
+import { getClasses, addClass, updateClass, deleteClass } from '@/services/classService'
+import { getEnrollmentsByClass } from '@/services/enrollmentService'
 import { ClassModal } from '@/components/classes/ClassModal'
 import { ClassCard } from '@/components/classes/ClassCard'
 
 export const ClassesOverviewPage = ({ onSelectClass }) => {
   const [classes, setClasses] = useState([])
-  const [students, setStudents] = useState([])
+  const [enrollmentCounts, setEnrollmentCounts] = useState({})
   const [classModalOpen, setClassModalOpen] = useState(false)
   const [editingClass, setEditingClass] = useState(null)
 
-  const loadData = () => {
-    setClasses(getClasses())
+  const loadData = async () => {
+    const cls = await getClasses()
+    setClasses(cls)
+    const counts = {}
+    await Promise.all(cls.map(async c => {
+      const enrollments = await getEnrollmentsByClass(c.id)
+      counts[c.id] = enrollments.filter(e => e.status === 'active').length
+    }))
+    setEnrollmentCounts(counts)
   }
 
-  useEffect(() => {
-    loadData()
-  }, [])
+  useEffect(() => { loadData() }, [])
 
-  const handleSaveClass = (data) => {
-    if (editingClass) {
-      updateClass(editingClass.id, data)
-    } else {
-      addClass(data)
+  const handleSaveClass = async (data) => {
+    try {
+      if (editingClass) {
+        await updateClass(editingClass.id, data)
+      } else {
+        await addClass(data)
+      }
+      setClassModalOpen(false)
+      setEditingClass(null)
+      await loadData()
+    } catch (err) {
+      toast.error(err.message)
     }
-    setClassModalOpen(false)
-    setEditingClass(null)
-    loadData()
   }
 
-  const handleDeleteClass = (id) => {
-    const hasActiveStudents = getEnrollmentsByClass(id).some(e => e.status !== 'dropped')
+  const handleDeleteClass = async (id) => {
+    const enrollments = await getEnrollmentsByClass(id)
+    const hasActiveStudents = enrollments.some(e => e.status !== 'dropped')
     if (hasActiveStudents) {
       toast.error('Không thể xóa lớp đang có học viên theo học. Vui lòng chuyển học viên sang lớp khác hoặc đổi trạng thái thành "Đã nghỉ" trước.')
       return
     }
-
     if (window.confirm('Bạn có chắc chắn muốn xóa lớp học này không?')) {
-      deleteClass(id)
+      await deleteClass(id)
       toast.success('Đã xóa lớp học')
-      loadData()
+      await loadData()
     }
   }
 
@@ -56,7 +66,6 @@ export const ClassesOverviewPage = ({ onSelectClass }) => {
           <h1 className="text-2xl font-display font-bold text-navy-900">Lớp Học</h1>
           <p className="text-sm text-navy-400 mt-0.5">Quản lý danh sách lớp học</p>
         </div>
-
         <Button onClick={() => openClassModal()} className="shrink-0 flex items-center gap-2">
           <Plus size={18} /> Thêm lớp học
         </Button>
@@ -64,19 +73,16 @@ export const ClassesOverviewPage = ({ onSelectClass }) => {
 
       {classes.length > 0 ? (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {classes.map(cls => {
-            const studentCount = getEnrollmentsByClass(cls.id).filter(e => e.status === 'active').length
-            return (
-              <div key={cls.id} onClick={() => onSelectClass(cls.id)} className="cursor-pointer">
-                <ClassCard
-                  cls={cls}
-                  studentCount={studentCount}
-                  onEdit={() => openClassModal(cls)}
-                  onDelete={() => handleDeleteClass(cls.id)}
-                />
-              </div>
-            )
-          })}
+          {classes.map(cls => (
+            <div key={cls.id} onClick={() => onSelectClass(cls.id)} className="cursor-pointer">
+              <ClassCard
+                cls={cls}
+                studentCount={enrollmentCounts[cls.id] ?? 0}
+                onEdit={() => openClassModal(cls)}
+                onDelete={() => handleDeleteClass(cls.id)}
+              />
+            </div>
+          ))}
         </div>
       ) : (
         <Card className="p-12">

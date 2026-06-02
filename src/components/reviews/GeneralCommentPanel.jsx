@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { MessageSquare, Check } from 'lucide-react'
-import { getGeneralComment, upsertGeneralComment } from '@/store/db'
+import { getGeneralComment, upsertGeneralComment } from '@/services/generalCommentService'
 
 /**
  * GeneralCommentPanel — free-form teacher comment per student-class.
@@ -13,23 +13,21 @@ export const GeneralCommentPanel = ({ studentId, classId }) => {
   const timerRef = useRef(null)
   const savedTimerRef = useRef(null)
 
-  // Load comment whenever student/class changes
   useEffect(() => {
-    const rec = getGeneralComment(studentId, classId)
-    setText(rec?.text ?? '')
     setSaved(false)
+    getGeneralComment(studentId, classId).then(rec => setText(rec?.text ?? ''))
   }, [studentId, classId])
 
   const handleChange = (e) => {
     const val = e.target.value
     setText(val)
-    // Debounce 800ms
     clearTimeout(timerRef.current)
     timerRef.current = setTimeout(() => {
-      upsertGeneralComment(studentId, classId, val)
-      setSaved(true)
-      clearTimeout(savedTimerRef.current)
-      savedTimerRef.current = setTimeout(() => setSaved(false), 1500)
+      upsertGeneralComment(studentId, classId, val).then(() => {
+        setSaved(true)
+        clearTimeout(savedTimerRef.current)
+        savedTimerRef.current = setTimeout(() => setSaved(false), 1500)
+      })
     }, 800)
   }
 

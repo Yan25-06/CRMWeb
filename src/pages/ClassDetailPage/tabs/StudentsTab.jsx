@@ -5,31 +5,27 @@ import { Skeleton, Card, Button } from '@/components/ui'
 import { StudentSidebar } from '@/components/students/StudentSidebar'
 import { StudentDetailPanel } from '@/components/students/StudentDetailPanel'
 import { EnrollmentModal } from '@/components/students/EnrollmentModal'
-import {
-  getStudents, getEnrollmentsByClass, getEnrollment
-} from '@/store/db'
+import { getStudents } from '@/services/studentService'
+import { getEnrollmentsByClass } from '@/services/enrollmentService'
 
 export const StudentsTab = ({ classId, onEnrollmentChange }) => {
   const [loading, setLoading] = useState(true)
   const [students, setStudents] = useState([])
   const [enrollments, setEnrollments] = useState([])
   const [selectedStudentId, setSelectedStudentId] = useState(null)
-
-  // Mobile: show detail panel
   const [mobileShowDetail, setMobileShowDetail] = useState(false)
-
-  // EnrollmentModal state
   const [modalOpen, setModalOpen] = useState(false)
   const [modalMode, setModalMode] = useState('add')
 
-  const loadData = useCallback(() => {
+  const loadData = useCallback(async () => {
     setLoading(true)
-    const allStudents = getStudents()
-    const classEnrollments = getEnrollmentsByClass(classId)
+    const [allStudents, classEnrollments] = await Promise.all([
+      getStudents(),
+      getEnrollmentsByClass(classId),
+    ])
     setStudents(allStudents)
     setEnrollments(classEnrollments)
 
-    // Default: select first enrolled student
     if (!selectedStudentId || !classEnrollments.find(e => e.studentId === selectedStudentId)) {
       const firstActive = classEnrollments.find(e => e.status === 'active')
       const first = firstActive || classEnrollments[0]
@@ -39,27 +35,11 @@ export const StudentsTab = ({ classId, onEnrollmentChange }) => {
     onEnrollmentChange?.()
   }, [classId])
 
-  useEffect(() => {
-    loadData()
-  }, [classId])
+  useEffect(() => { loadData() }, [classId])
 
   const handleSelectStudent = (studentId) => {
     setSelectedStudentId(studentId)
     setMobileShowDetail(true)
-  }
-
-  const handleAddStudent = () => {
-    setModalMode('add')
-    setModalOpen(true)
-  }
-
-  const handleEditEnrollment = () => {
-    setModalMode('edit')
-    setModalOpen(true)
-  }
-
-  const handleModalSaved = () => {
-    loadData()
   }
 
   const selectedStudent = students.find(s => s.id === selectedStudentId) || null
@@ -67,7 +47,6 @@ export const StudentsTab = ({ classId, onEnrollmentChange }) => {
     ? enrollments.find(e => e.studentId === selectedStudentId) || null
     : null
 
-  // Empty state — no enrollments at all
   if (!loading && enrollments.length === 0) {
     return (
       <>
@@ -75,20 +54,13 @@ export const StudentsTab = ({ classId, onEnrollmentChange }) => {
           <Users size={48} className="text-navy-200" />
           <p className="font-semibold text-navy-700">Lớp chưa có học viên nào</p>
           <p className="text-sm text-navy-400">Bấm nút bên dưới để thêm học viên đầu tiên</p>
-          <Button onClick={handleAddStudent} className="mt-2">+ Thêm học viên</Button>
+          <Button onClick={() => { setModalMode('add'); setModalOpen(true) }} className="mt-2">+ Thêm học viên</Button>
         </Card>
-        <EnrollmentModal
-          open={modalOpen}
-          onClose={() => setModalOpen(false)}
-          mode="add"
-          classId={classId}
-          onSaved={handleModalSaved}
-        />
+        <EnrollmentModal open={modalOpen} onClose={() => setModalOpen(false)} mode="add" classId={classId} onSaved={loadData} />
       </>
     )
   }
 
-  // Loading skeleton
   if (loading) {
     return (
       <div className="flex gap-4 h-[600px]">
@@ -111,7 +83,6 @@ export const StudentsTab = ({ classId, onEnrollmentChange }) => {
 
   return (
     <>
-      {/* ─── Desktop layout: sidebar w-72 + panel flex-1 ─── */}
       <div className="hidden md:flex gap-4 h-full min-h-[600px]">
         <div className="w-72 shrink-0 h-full">
           <StudentSidebar
@@ -119,16 +90,15 @@ export const StudentsTab = ({ classId, onEnrollmentChange }) => {
             students={students}
             activeId={selectedStudentId}
             onSelect={handleSelectStudent}
-            onAddStudent={handleAddStudent}
+            onAddStudent={() => { setModalMode('add'); setModalOpen(true) }}
           />
         </div>
-
         <div className="flex-1 overflow-hidden">
           {selectedStudent && selectedEnrollment ? (
             <StudentDetailPanel
               student={selectedStudent}
               enrollment={selectedEnrollment}
-              onEdit={handleEditEnrollment}
+              onEdit={() => { setModalMode('edit'); setModalOpen(true) }}
               onStatusChange={loadData}
             />
           ) : (
@@ -139,52 +109,31 @@ export const StudentsTab = ({ classId, onEnrollmentChange }) => {
         </div>
       </div>
 
-      {/* ─── Mobile layout: list → slide-in detail ─── */}
       <div className="md:hidden relative overflow-hidden">
-        {/* Student list (full width) */}
-        <div
-          className={clsx(
-            'transition-transform duration-300 ease-in-out',
-            mobileShowDetail ? '-translate-x-full absolute inset-0' : 'translate-x-0'
-          )}
-        >
+        <div className={clsx('transition-transform duration-300 ease-in-out', mobileShowDetail ? '-translate-x-full absolute inset-0' : 'translate-x-0')}>
           <StudentSidebar
             enrollments={enrollments}
             students={students}
             activeId={selectedStudentId}
             onSelect={handleSelectStudent}
-            onAddStudent={handleAddStudent}
+            onAddStudent={() => { setModalMode('add'); setModalOpen(true) }}
           />
         </div>
-
-        {/* Detail panel (slides in from right) */}
-        <div
-          className={clsx(
-            'transition-transform duration-300 ease-in-out',
-            mobileShowDetail ? 'translate-x-0' : 'translate-x-full absolute inset-0'
-          )}
-        >
-          {/* Back button */}
+        <div className={clsx('transition-transform duration-300 ease-in-out', mobileShowDetail ? 'translate-x-0' : 'translate-x-full absolute inset-0')}>
           <div className="flex items-center gap-2 mb-4">
-            <button
-              onClick={() => setMobileShowDetail(false)}
-              className="flex items-center gap-1.5 text-sm text-navy-600 hover:text-navy-900 transition-colors"
-            >
-              ← Danh sách
-            </button>
+            <button onClick={() => setMobileShowDetail(false)} className="flex items-center gap-1.5 text-sm text-navy-600 hover:text-navy-900 transition-colors">← Danh sách</button>
           </div>
           {selectedStudent && selectedEnrollment ? (
             <StudentDetailPanel
               student={selectedStudent}
               enrollment={selectedEnrollment}
-              onEdit={handleEditEnrollment}
+              onEdit={() => { setModalMode('edit'); setModalOpen(true) }}
               onStatusChange={loadData}
             />
           ) : null}
         </div>
       </div>
 
-      {/* ─── EnrollmentModal ─── */}
       <EnrollmentModal
         open={modalOpen}
         onClose={() => setModalOpen(false)}
@@ -192,7 +141,7 @@ export const StudentsTab = ({ classId, onEnrollmentChange }) => {
         classId={classId}
         enrollment={modalMode === 'edit' ? selectedEnrollment : undefined}
         student={modalMode === 'edit' ? selectedStudent : undefined}
-        onSaved={handleModalSaved}
+        onSaved={loadData}
       />
     </>
   )

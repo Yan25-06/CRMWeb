@@ -1,15 +1,15 @@
 import { Modal, Badge } from '@/components/ui'
 import { fmtVND, fmtDate } from '@/utils/helpers'
 import { Banknote, ArrowLeftRight, Trash2 } from 'lucide-react'
-import { deletePayment } from '@/store/db'
+import { deletePayment } from '@/services/paymentService'
 import { toast } from '@/components/ui'
 
 const METHOD_LABEL = { cash: 'Tiền mặt', transfer: 'Chuyển khoản' }
 
 export const StudentPaymentHistoryPanel = ({ open, onClose, student, payments, onDeleted }) => {
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (!confirm('Xoá khoản thanh toán này?')) return
-    deletePayment(id)
+    await deletePayment(id)
     toast.success('Đã xoá')
     onDeleted?.()
   }

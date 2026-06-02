@@ -70,7 +70,11 @@ Không sync engine. Service trả Promise; UI cập nhật optimistic cho thao t
 
 Rollback: giữ nhánh git trước cutover; vì dữ liệu là mock nên rollback = checkout nhánh cũ.
 
+## Decisions (đã chốt thêm)
+
+**8. Reset mật khẩu qua luồng "Quên mật khẩu" của Supabase.**
+Giáo viên tự reset qua `supabase.auth.resetPasswordForEmail()` — Supabase gửi email reset, không cần admin can thiệp. Không build cơ chế reset riêng.
+
 ## Open Questions
 
-- Có cần cron giữ project khỏi pause ngay từ đầu, hay đợi xem có phiền không?
-- Reset mật khẩu giáo viên: tự làm qua "Quên mật khẩu" của Supabase, hay admin trigger lại invite?
+- Cron giữ project khỏi pause: KHÔNG làm ngay (task 7.4 để tùy chọn). 5 giáo viên dùng gần như hằng ngày nên hiếm khi chạm mốc 7 ngày im lặng; chỉ cân nhắc nếu có kỳ nghỉ dài cả trung tâm ngừng dùng.

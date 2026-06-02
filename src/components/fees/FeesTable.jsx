@@ -3,7 +3,7 @@ import { clsx } from 'clsx'
 import { Badge } from '@/components/ui'
 import { ChevronUp, ChevronDown, History, Plus } from 'lucide-react'
 import { fmtVND } from '@/utils/helpers'
-import { getPaymentsByStudent } from '@/store/db'
+import { getPaymentsByStudent } from '@/services/paymentService'
 import { StudentPaymentHistoryPanel } from './StudentPaymentHistoryPanel'
 
 const statusInfo = (paid, expected) => {
@@ -21,8 +21,8 @@ export const FeesTable = ({ rows, period, onAddPayment, onRefresh }) => {
     sortAsc ? a.name.localeCompare(b.name, 'vi') : b.name.localeCompare(a.name, 'vi')
   )
 
-  const openHistory = (row) => {
-    setHistoryPayments(getPaymentsByStudent(row.studentId))
+  const openHistory = async (row) => {
+    setHistoryPayments(await getPaymentsByStudent(row.studentId))
     setHistoryFor(row)
   }
 
@@ -102,8 +102,8 @@ export const FeesTable = ({ rows, period, onAddPayment, onRefresh }) => {
         onClose={closeHistory}
         student={historyFor}
         payments={historyPayments}
-        onDeleted={() => {
-          setHistoryPayments(getPaymentsByStudent(historyFor?.studentId))
+        onDeleted={async () => {
+          setHistoryPayments(await getPaymentsByStudent(historyFor?.studentId))
           onRefresh?.()
         }}
       />

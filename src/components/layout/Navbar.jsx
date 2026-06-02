@@ -1,11 +1,11 @@
 import { clsx } from 'clsx'
 import {
-  LayoutDashboard, CalendarCheck, BookOpen,
-  Calendar, Users, Settings, Menu, X, Download,
-  GraduationCap, BarChart2,
+  LayoutDashboard, BookOpen,
+  Calendar, Users, Settings, Menu, X,
+  GraduationCap, BarChart2, LogOut, ShieldCheck,
 } from 'lucide-react'
 import { useState } from 'react'
-import { exportData } from '@/store/db'
+import { useAuth } from '@/contexts/AuthContext'
 import { toast } from '@/components/ui'
 
 const NAV_ITEMS = [
@@ -17,12 +17,13 @@ const NAV_ITEMS = [
   { id: 'classes', label: 'Lớp Học', icon: Users },
 ]
 
-export const Navbar = ({ activePage, onNavigate, centerName }) => {
+export const Navbar = ({ activePage, onNavigate, centerName, isAdmin }) => {
+  const { logout, teacher } = useAuth()
   const [menuOpen, setMenuOpen] = useState(false)
 
-  const handleExport = () => {
-    exportData()
-    toast.success('Đã xuất file backup!')
+  const handleLogout = async () => {
+    await logout()
+    toast.success('Đã đăng xuất')
   }
 
   return (
@@ -62,24 +63,44 @@ export const Navbar = ({ activePage, onNavigate, centerName }) => {
 
         {/* Bottom actions */}
         <div className="px-3 py-4 border-t border-navy-800 flex flex-col gap-1">
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-navy-400 hover:text-white hover:bg-white/8 transition-all duration-200 w-full"
-          >
-            <Download size={16} />
-            Xuất Backup
-          </button>
+          {/* Teacher info */}
+          {teacher && (
+            <div className="px-3 py-2 mb-1">
+              <p className="text-xs text-navy-500 truncate">{teacher.email}</p>
+              <p className="text-xs text-navy-300 font-medium truncate">{teacher.name || 'Giáo viên'}</p>
+            </div>
+          )}
+
+          {isAdmin && (
+            <button
+              onClick={() => onNavigate('admin')}
+              className={clsx(
+                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 w-full',
+                activePage === 'admin' ? 'bg-white/15 text-white' : 'text-navy-400 hover:text-white hover:bg-white/8'
+              )}
+            >
+              <ShieldCheck size={16} />
+              Quản Lý
+            </button>
+          )}
+
           <button
             onClick={() => onNavigate('settings')}
             className={clsx(
               'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 w-full',
-              activePage === 'settings'
-                ? 'bg-white/15 text-white'
-                : 'text-navy-400 hover:text-white hover:bg-white/8'
+              activePage === 'settings' ? 'bg-white/15 text-white' : 'text-navy-400 hover:text-white hover:bg-white/8'
             )}
           >
             <Settings size={16} />
             Cài Đặt
+          </button>
+
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-navy-400 hover:text-red-400 hover:bg-white/8 transition-all duration-200 w-full"
+          >
+            <LogOut size={16} />
+            Đăng Xuất
           </button>
         </div>
       </aside>
@@ -114,7 +135,11 @@ export const Navbar = ({ activePage, onNavigate, centerName }) => {
               </button>
             </div>
             <nav className="flex-1 px-3 py-4 flex flex-col gap-1 overflow-y-auto">
-              {[...NAV_ITEMS, { id: 'settings', label: 'Cài Đặt', icon: Settings }].map(({ id, label, icon: Icon }) => (
+              {[
+                ...NAV_ITEMS,
+                ...(isAdmin ? [{ id: 'admin', label: 'Quản Lý', icon: ShieldCheck }] : []),
+                { id: 'settings', label: 'Cài Đặt', icon: Settings },
+              ].map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
                   onClick={() => { onNavigate(id); setMenuOpen(false) }}
@@ -127,6 +152,13 @@ export const Navbar = ({ activePage, onNavigate, centerName }) => {
                   {label}
                 </button>
               ))}
+              <button
+                onClick={() => { handleLogout(); setMenuOpen(false) }}
+                className="flex items-center gap-3 px-3 py-3 rounded-xl text-sm font-medium text-navy-400 hover:text-red-400 hover:bg-white/8 transition-all w-full text-left mt-2"
+              >
+                <LogOut size={17} />
+                Đăng Xuất
+              </button>
             </nav>
           </div>
         </div>

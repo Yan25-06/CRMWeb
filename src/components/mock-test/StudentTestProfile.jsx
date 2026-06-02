@@ -4,7 +4,7 @@ import { clsx } from 'clsx'
 import { Line } from 'react-chartjs-2'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler } from 'chart.js'
 import { getInitials } from '@/utils/helpers'
-import { upsertMockTestResult } from '@/store/db'
+import { upsertMockTestResult } from '@/services/mockTestService'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler)
 
@@ -31,8 +31,7 @@ const TestCard = ({ mockTest, result, onNoteChange, extraAction }) => {
         studentId: result?.studentId,
         scores: result?.scores ?? {},
         teacherNote: val,
-      })
-      onNoteChange?.()
+      }).then(() => onNoteChange?.())
     }, 800)
   }
 

@@ -4,34 +4,36 @@ import { toast } from '@/components/ui'
 import { Banknote, Users, AlertCircle, Plus } from 'lucide-react'
 import { PaymentModal } from '@/components/fees/PaymentModal'
 import { FeesTable } from '@/components/fees/FeesTable'
-import {
-  getStudents, getClasses, getEnrollments,
-  calcFee, getPaidAmountByStudentPeriod, createPayment,
-} from '@/store/db'
+import { getStudents } from '@/services/studentService'
+import { getClasses } from '@/services/classService'
+import { getEnrollments } from '@/services/enrollmentService'
+import { calcFee } from '@/services/feeService'
+import { getPaidAmountByStudentPeriod, createPayment } from '@/services/paymentService'
 import { fmtVND, monthISO } from '@/utils/helpers'
 
-const buildRows = (period) => {
-  const students = getStudents()
-  const classes = getClasses()
-  const enrollments = getEnrollments().filter(e => e.status !== 'dropped')
-
+const buildRows = async (period) => {
+  const [students, classes, enrollments] = await Promise.all([
+    getStudents(),
+    getClasses(),
+    getEnrollments(),
+  ])
+  const activeEnrollments = enrollments.filter(e => e.status !== 'dropped')
   const [year, month] = period.split('-').map(Number)
 
-  return students
-    .filter(s => enrollments.some(e => e.studentId === s.id))
-    .map(s => {
-      const enrollment = enrollments.find(e => e.studentId === s.id)
-      const cls = classes.find(c => c.id === enrollment?.classId)
-      const expected = calcFee(s.id, year, month)
-      const paid = getPaidAmountByStudentPeriod(s.id, period)
-      return {
-        studentId: s.id,
-        name: s.name,
-        className: cls?.name ?? '—',
-        expected,
-        paid,
-      }
-    })
+  const rowData = await Promise.all(
+    students
+      .filter(s => activeEnrollments.some(e => e.studentId === s.id))
+      .map(async s => {
+        const enrollment = activeEnrollments.find(e => e.studentId === s.id)
+        const cls = classes.find(c => c.id === enrollment?.classId)
+        const [expected, paid] = await Promise.all([
+          calcFee(s.id, year, month),
+          getPaidAmountByStudentPeriod(s.id, period),
+        ])
+        return { studentId: s.id, name: s.name, className: cls?.name ?? '—', expected, paid }
+      })
+  )
+  return rowData
 }
 
 export const FeesPage = ({ year, month }) => {
@@ -40,14 +42,18 @@ export const FeesPage = ({ year, month }) => {
   const [modalOpen, setModalOpen] = useState(false)
   const [defaultStudentId, setDefaultStudentId] = useState(null)
 
-  const refresh = useCallback(() => setRows(buildRows(currentPeriod)), [currentPeriod])
+  const refresh = useCallback(async () => {
+    const data = await buildRows(currentPeriod)
+    setRows(data)
+  }, [currentPeriod])
+
   useEffect(() => { refresh() }, [refresh])
 
-  const handleSave = (data) => {
+  const handleSave = async (data) => {
     try {
-      createPayment({ ...data, period: data.period })
+      await createPayment({ ...data, period: data.period })
       toast.success('Đã ghi nhận thanh toán!')
-      refresh()
+      await refresh()
     } catch {
       toast.error('Lưu không thành công, vui lòng thử lại.')
     }
@@ -66,70 +72,32 @@ export const FeesPage = ({ year, month }) => {
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
-      {/* Header */}
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-display font-bold text-navy-900">Học Phí</h1>
-          <p className="text-sm text-navy-400 mt-0.5">
-            Tháng {month}/{year}
-          </p>
+          <p className="text-sm text-navy-400 mt-0.5">Tháng {month}/{year}</p>
         </div>
         <Button onClick={() => openAdd()} className="shrink-0">
-          <Plus size={15} className="mr-1.5" />
-          Ghi nhận thanh toán
+          <Plus size={15} className="mr-1.5" /> Ghi nhận thanh toán
         </Button>
       </div>
 
-      {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Tổng thu tháng này"
-          value={fmtVND(totalPaid)}
-          icon={<Banknote size={16} />}
-          accent="success"
-        />
-        <StatCard
-          label="Kỳ vọng"
-          value={fmtVND(totalExpected)}
-          icon={<Banknote size={16} />}
-          accent="navy"
-        />
-        <StatCard
-          label="Đã đóng đủ"
-          value={`${paidCount}/${rows.length}`}
-          sub="học viên"
-          icon={<Users size={16} />}
-          accent="navy"
-        />
-        <StatCard
-          label="Còn nợ"
-          value={fmtVND(totalDebt)}
-          sub={debtCount > 0 ? `${debtCount} học viên` : 'Không có nợ'}
-          icon={<AlertCircle size={16} />}
-          accent={debtCount > 0 ? 'danger' : 'success'}
-        />
+        <StatCard label="Tổng thu tháng này" value={fmtVND(totalPaid)} icon={<Banknote size={16} />} accent="success" />
+        <StatCard label="Kỳ vọng" value={fmtVND(totalExpected)} icon={<Banknote size={16} />} accent="navy" />
+        <StatCard label="Đã đóng đủ" value={`${paidCount}/${rows.length}`} sub="học viên" icon={<Users size={16} />} accent="navy" />
+        <StatCard label="Còn nợ" value={fmtVND(totalDebt)} sub={debtCount > 0 ? `${debtCount} học viên` : 'Không có nợ'} icon={<AlertCircle size={16} />} accent={debtCount > 0 ? 'danger' : 'success'} />
       </div>
 
-      {/* Table or empty state */}
       {rows.length === 0 ? (
         <Empty
           icon="💰"
           title="Chưa có học viên nào trong tháng này"
           desc="Thêm học viên vào lớp để bắt đầu theo dõi học phí"
-          action={
-            <Button onClick={() => openAdd()}>
-              <Plus size={15} className="mr-1.5" />
-              Ghi nhận thanh toán đầu tiên
-            </Button>
-          }
+          action={<Button onClick={() => openAdd()}><Plus size={15} className="mr-1.5" />Ghi nhận thanh toán đầu tiên</Button>}
         />
       ) : (
-        <FeesTable
-          rows={rows}
-          period={currentPeriod}
-          onAddPayment={openAdd}
-          onRefresh={refresh}
-        />
+        <FeesTable rows={rows} period={currentPeriod} onAddPayment={openAdd} onRefresh={refresh} />
       )}
 
       <PaymentModal

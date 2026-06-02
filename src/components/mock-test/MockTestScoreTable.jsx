@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { clsx } from 'clsx'
-import { upsertMockTestResult } from '@/store/db'
+import { upsertMockTestResult } from '@/services/mockTestService'
 import { getInitials } from '@/utils/helpers'
 import { toast } from '@/components/ui'
 
@@ -63,10 +63,10 @@ export const MockTestScoreTable = ({ mockTest, results = [], students = [], onRe
   }))
   const orphanArr = [...orphanIds]
 
-  const handleScoreChange = (student, sectionId, val) => {
+  const handleScoreChange = async (student, sectionId, val) => {
     const result = results.find(r => r.studentId === student.id)
     const newScores = { ...(result?.scores ?? {}), [sectionId]: val }
-    const updated = upsertMockTestResult({
+    const updated = await upsertMockTestResult({
       mockTestId: mockTest.id,
       studentId: student.id,
       scores: newScores,
@@ -85,8 +85,7 @@ export const MockTestScoreTable = ({ mockTest, results = [], students = [], onRe
         studentId,
         scores: result?.scores ?? {},
         teacherNote: val,
-      })
-      onResultChange?.()
+      }).then(() => onResultChange?.())
     }, 800)
   }
 

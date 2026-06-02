@@ -1,23 +1,22 @@
-import { useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { CheckCircle2, XCircle, CalendarCheck } from 'lucide-react'
-import { getAttendanceByRange } from '@/store/db'
+import { getAttendanceByRange } from '@/services/attendanceService'
 
 const fmtDate = (d) => {
   const dt = new Date(d)
   return `${dt.getDate()}/${dt.getMonth() + 1}/${dt.getFullYear()}`
 }
 
-/**
- * AttendancePanel — list of sessions + attendance % for a student within dateRange.
- * Props: studentId, classId, dateRange = { fromDate, toDate }
- */
 export const AttendancePanel = ({ studentId, classId, dateRange }) => {
   const { fromDate, toDate } = dateRange
+  const [records, setRecords] = useState([])
 
-  const records = useMemo(
-    () => getAttendanceByRange(studentId, classId, fromDate, toDate),
-    [studentId, classId, fromDate, toDate]
-  )
+  useEffect(() => {
+    let cancelled = false
+    getAttendanceByRange(studentId, classId, fromDate, toDate)
+      .then(r => !cancelled && setRecords(r))
+    return () => { cancelled = true }
+  }, [studentId, classId, fromDate, toDate])
 
   const total   = records.length
   const present = records.filter(r => r.present).length
@@ -34,7 +33,6 @@ export const AttendancePanel = ({ studentId, classId, dateRange }) => {
 
   return (
     <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm overflow-hidden">
-      {/* Header */}
       <div className="px-4 py-3 border-b border-navy-50 flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold text-navy-800">Điểm Danh</p>
@@ -45,7 +43,6 @@ export const AttendancePanel = ({ studentId, classId, dateRange }) => {
         </span>
       </div>
 
-      {/* Session list */}
       <div className="divide-y divide-navy-50 max-h-52 overflow-y-auto">
         {records.map(rec => (
           <div key={rec.id} className="flex items-center gap-3 px-4 py-2.5">

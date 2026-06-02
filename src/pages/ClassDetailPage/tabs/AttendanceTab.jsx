@@ -6,10 +6,11 @@ import { SessionSelector } from '@/components/classes/SessionSelector'
 import { SessionModal } from '@/components/classes/SessionModal'
 import { AttendanceToggle } from '@/components/attendance/AttendanceToggle'
 import { StudentAttendancePanel } from '@/components/attendance/StudentAttendancePanel'
-import {
-  getSessionsByClass, getAttendanceBySession, getAttendance,
-  upsertAttendanceBySession, deleteSession, getEnrollmentsByClass, getStudents
-} from '@/store/db'
+import { getSessionsByClass } from '@/services/sessionService'
+import { deleteSession } from '@/services/sessionService'
+import { getAttendanceBySession, upsertAttendanceBySession } from '@/services/attendanceService'
+import { getEnrollmentsByClass } from '@/services/enrollmentService'
+import { getStudents } from '@/services/studentService'
 import { getInitials } from '@/utils/helpers'
 
 export const AttendanceTab = ({ classId }) => {
@@ -18,53 +19,62 @@ export const AttendanceTab = ({ classId }) => {
   const [students, setStudents] = useState([])
   const [enrollments, setEnrollments] = useState([])
   const [attendance, setAttendance] = useState([])
-  
+  const [attendanceRates, setAttendanceRates] = useState({})
   const [sessionModalOpen, setSessionModalOpen] = useState(false)
-  const [editingSession, setEditingSession] = useState(null)  // null = closed
+  const [editingSession, setEditingSession] = useState(null)
   const [selectedStudent, setSelectedStudent] = useState(null)
 
-  // Effect to load initial data
-  useEffect(() => {
-    const classSessions = getSessionsByClass(classId)
+  const loadClass = async () => {
+    const [classSessions, allStudents, classEnrolls] = await Promise.all([
+      getSessionsByClass(classId),
+      getStudents(),
+      getEnrollmentsByClass(classId),
+    ])
     setSessions(classSessions)
+    const activeEnrolls = classEnrolls.filter(e => e.status !== 'dropped')
+    setEnrollments(activeEnrolls)
+    const relevantStudents = allStudents.filter(s => activeEnrolls.some(e => e.studentId === s.id))
+    setStudents(relevantStudents)
     if (!activeSessionId && classSessions.length > 0) {
       setActiveSessionId(classSessions[0].id)
     }
-    
-    const loadStudents = () => {
-      const allStudents = getStudents()
-      const classEnrolls = getEnrollmentsByClass(classId).filter(e => e.status !== 'dropped')
-      const relevantStudents = allStudents.filter(s => classEnrolls.some(e => e.studentId === s.id))
-      setStudents(relevantStudents)
-      setEnrollments(classEnrolls)
+    // Compute attendance rates: present/total past sessions per student
+    const today = new Date().toISOString().split('T')[0]
+    const pastSessions = classSessions.filter(s => s.date <= today)
+    if (pastSessions.length > 0) {
+      const allAtts = await Promise.all(pastSessions.map(s => getAttendanceBySession(s.id)))
+      const flatAtts = allAtts.flat()
+      const rates = {}
+      relevantStudents.forEach(student => {
+        const studentAtts = flatAtts.filter(a => a.studentId === student.id)
+        const presentCount = studentAtts.filter(a => a.present === true).length
+        rates[student.id] = Math.round((presentCount / pastSessions.length) * 100)
+      })
+      setAttendanceRates(rates)
     }
-    loadStudents()
+  }
 
-  }, [classId])
+  useEffect(() => { loadClass() }, [classId])
 
   useEffect(() => {
-    if (activeSessionId) {
-      setAttendance(getAttendanceBySession(activeSessionId))
-    } else {
-      setAttendance([])
-    }
+    if (!activeSessionId) { setAttendance([]); return }
+    getAttendanceBySession(activeSessionId).then(setAttendance)
   }, [activeSessionId])
 
-  const handleSessionSaved = (newId) => {
-    const classSessions = getSessionsByClass(classId)
+  const handleSessionSaved = async (newId) => {
+    const classSessions = await getSessionsByClass(classId)
     setSessions(classSessions)
     setActiveSessionId(newId)
   }
 
-  const handleDeleteSession = () => {
+  const handleDeleteSession = async () => {
     if (!activeSessionId) return
-    if (window.confirm('Bạn có chắc chắn muốn xóa buổi học này không? Mọi dữ liệu điểm danh của buổi này sẽ bị xóa.')) {
-      deleteSession(activeSessionId)
-      toast.success('Đã xóa buổi học')
-      const classSessions = getSessionsByClass(classId)
-      setSessions(classSessions)
-      setActiveSessionId(classSessions.length > 0 ? classSessions[0].id : '')
-    }
+    if (!window.confirm('Bạn có chắc chắn muốn xóa buổi học này không? Mọi dữ liệu điểm danh của buổi này sẽ bị xóa.')) return
+    await deleteSession(activeSessionId)
+    toast.success('Đã xóa buổi học')
+    const classSessions = await getSessionsByClass(classId)
+    setSessions(classSessions)
+    setActiveSessionId(classSessions.length > 0 ? classSessions[0].id : '')
   }
 
   const handleEditSession = () => {
@@ -72,54 +82,29 @@ export const AttendanceTab = ({ classId }) => {
     if (session) setEditingSession(session)
   }
 
-  const handleSessionUpdated = () => {
-    // Refresh session list, stay on the same active session
-    setSessions(getSessionsByClass(classId))
+  const handleSessionUpdated = async () => {
+    setSessions(await getSessionsByClass(classId))
   }
 
-  const handleToggle = (studentId, present) => {
+  const handleToggle = async (studentId, present) => {
     if (!activeSessionId) return
-    // Pass undefined (not '') so existing note is NOT overwritten
-    upsertAttendanceBySession(activeSessionId, studentId, present, undefined)
-    setAttendance(getAttendanceBySession(activeSessionId))
+    await upsertAttendanceBySession(activeSessionId, studentId, present, undefined)
+    setAttendance(await getAttendanceBySession(activeSessionId))
   }
 
-
-  const handleNoteChange = (studentId, note) => {
+  const handleNoteChange = async (studentId, note) => {
     if (!activeSessionId) return
     const att = attendance.find(a => a.studentId === studentId)
-    // Don't create a ghost record if there's no existing attendance and the note is empty
     if (!att && !note.trim()) return
-    upsertAttendanceBySession(activeSessionId, studentId, att ? att.present : null, note)
-    setAttendance(getAttendanceBySession(activeSessionId))
+    await upsertAttendanceBySession(activeSessionId, studentId, att ? att.present : null, note)
+    setAttendance(await getAttendanceBySession(activeSessionId))
   }
-
-  // Pre-compute attendance rates for all students in one pass
-  // (avoids N×2 localStorage reads from calling getAttendanceRate per row)
-  const attendanceRates = useMemo(() => {
-    if (students.length === 0) return {}
-    const today = new Date().toISOString().split('T')[0]
-    const classSessions = getSessionsByClass(classId).filter(s => s.date <= today)
-    if (classSessions.length === 0) {
-      return Object.fromEntries(students.map(s => [s.id, null]))
-    }
-    const sessionIdSet = new Set(classSessions.map(s => s.id))
-    // Single read of all attendance records for this class's sessions
-    const classAtts = getAttendance().filter(a => sessionIdSet.has(a.sessionId))
-    return Object.fromEntries(students.map(student => {
-      const presentCount = classAtts.filter(
-        a => a.studentId === student.id && a.present === true
-      ).length
-      return [student.id, Math.round((presentCount / classSessions.length) * 100)]
-    }))
-  }, [students, classId, attendance]) // recompute when attendance changes
 
   const presentCount = attendance.filter(a => a.present === true).length
   const totalActive = enrollments.filter(e => e.status === 'active').length
 
   return (
     <div className="flex flex-col gap-6 relative">
-      {/* Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-navy-100 shadow-navy-sm">
         <SessionSelector
           sessions={sessions}
@@ -127,39 +112,27 @@ export const AttendanceTab = ({ classId }) => {
           onSelect={setActiveSessionId}
           onAddNew={() => setSessionModalOpen(true)}
         />
-        
         {activeSessionId && (
           <div className="flex items-center gap-2">
-              <div className="px-3 py-1.5 bg-navy-50 rounded-xl text-sm font-medium text-navy-800 border border-navy-100">
-                Có mặt: <span className="text-emerald-600">{presentCount}</span> / {totalActive}
-              </div>
-              <button
-                onClick={handleEditSession}
-                className="p-1.5 text-navy-400 hover:text-navy-700 hover:bg-navy-50 rounded-lg transition-colors"
-                title="Chỉnh sửa buổi này"
-              >
-                <Pencil size={16} />
-              </button>
-              <button
-                onClick={handleDeleteSession}
-                className="p-1.5 text-navy-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-                title="Xóa buổi này"
-              >
-                <Trash2 size={18} />
-              </button>
+            <div className="px-3 py-1.5 bg-navy-50 rounded-xl text-sm font-medium text-navy-800 border border-navy-100">
+              Có mặt: <span className="text-emerald-600">{presentCount}</span> / {totalActive}
             </div>
+            <button onClick={handleEditSession} className="p-1.5 text-navy-400 hover:text-navy-700 hover:bg-navy-50 rounded-lg transition-colors" title="Chỉnh sửa buổi này">
+              <Pencil size={16} />
+            </button>
+            <button onClick={handleDeleteSession} className="p-1.5 text-navy-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors" title="Xóa buổi này">
+              <Trash2 size={18} />
+            </button>
+          </div>
         )}
       </div>
 
-      {/* Main Content */}
       {!activeSessionId ? (
         <Card className="p-16 flex flex-col items-center justify-center text-center gap-3">
           <FileText size={48} className="text-navy-200" />
           <p className="font-semibold text-navy-700">Chưa có buổi học nào</p>
           <p className="text-sm text-navy-400">Tạo buổi đầu tiên để bắt đầu điểm danh</p>
-          <Button onClick={() => setSessionModalOpen(true)} className="mt-2">
-            + Tạo buổi học
-          </Button>
+          <Button onClick={() => setSessionModalOpen(true)} className="mt-2">+ Tạo buổi học</Button>
         </Card>
       ) : (
         <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm overflow-hidden">
@@ -183,45 +156,27 @@ export const AttendanceTab = ({ classId }) => {
                   const rate = attendanceRates[student.id] ?? null
 
                   return (
-                    <tr 
-                      key={student.id} 
-                      className={clsx(
-                        "transition-colors hover:bg-navy-50/30",
-                        isPaused && "opacity-50 bg-gray-50/50 hover:bg-gray-50/50"
-                      )}
-                    >
+                    <tr key={student.id} className={clsx('transition-colors hover:bg-navy-50/30', isPaused && 'opacity-50 bg-gray-50/50 hover:bg-gray-50/50')}>
                       <td className="px-6 py-3">
-                        <button 
-                          className="flex items-center gap-3 text-left w-full group"
-                          onClick={() => setSelectedStudent(student)}
-                        >
+                        <button className="flex items-center gap-3 text-left w-full group" onClick={() => setSelectedStudent(student)}>
                           <div className="w-9 h-9 rounded-full bg-navy-800 text-white text-xs font-bold flex items-center justify-center shrink-0">
                             {getInitials(student.name)}
                           </div>
                           <div>
-                            <p className="font-medium text-navy-900 group-hover:text-navy-600 transition-colors">
-                              {student.name}
-                            </p>
+                            <p className="font-medium text-navy-900 group-hover:text-navy-600 transition-colors">{student.name}</p>
                             {isPaused && <p className="text-xs text-amber-600 font-medium mt-0.5">Tạm ngưng</p>}
                           </div>
                         </button>
                       </td>
                       <td className="px-6 py-3 text-center">
-                        <div className="flex flex-col items-center">
-                          <span className={clsx(
-                            "text-sm font-semibold",
-                            isPaused ? "text-navy-300" : rate === null ? "text-navy-300" : rate >= 80 ? "text-emerald-600" : rate >= 50 ? "text-amber-600" : "text-red-600"
-                          )}>
-                            {rate === null ? '—' : `${rate}%`}
-                          </span>
-                        </div>
+                        <span className={clsx('text-sm font-semibold',
+                          isPaused ? 'text-navy-300' : rate === null ? 'text-navy-300' : rate >= 80 ? 'text-emerald-600' : rate >= 50 ? 'text-amber-600' : 'text-red-600'
+                        )}>
+                          {rate === null ? '—' : `${rate}%`}
+                        </span>
                       </td>
                       <td className="px-6 py-3 text-center">
-                        <AttendanceToggle
-                          present={present}
-                          disabled={isPaused}
-                          onChange={(val) => handleToggle(student.id, val)}
-                        />
+                        <AttendanceToggle present={present} disabled={isPaused} onChange={(val) => handleToggle(student.id, val)} />
                       </td>
                       <td className="px-6 py-3">
                         {!isPaused && (
@@ -233,9 +188,7 @@ export const AttendanceTab = ({ classId }) => {
                             onChange={(e) => handleNoteChange(student.id, e.target.value)}
                           />
                         )}
-                        {isPaused && (
-                          <span className="text-xs text-navy-400 italic">Không áp dụng</span>
-                        )}
+                        {isPaused && <span className="text-xs text-navy-400 italic">Không áp dụng</span>}
                       </td>
                     </tr>
                   )
@@ -246,28 +199,11 @@ export const AttendanceTab = ({ classId }) => {
         </div>
       )}
 
-      <SessionModal
-        open={sessionModalOpen}
-        onClose={() => setSessionModalOpen(false)}
-        classId={classId}
-        onSaved={handleSessionSaved}
-      />
-
-      {/* Edit session modal */}
-      <SessionModal
-        open={!!editingSession}
-        onClose={() => setEditingSession(null)}
-        classId={classId}
-        session={editingSession}
-        onSaved={handleSessionUpdated}
-      />
+      <SessionModal open={sessionModalOpen} onClose={() => setSessionModalOpen(false)} classId={classId} onSaved={handleSessionSaved} />
+      <SessionModal open={!!editingSession} onClose={() => setEditingSession(null)} classId={classId} session={editingSession} onSaved={handleSessionUpdated} />
 
       {selectedStudent && (
-        <StudentAttendancePanel
-          student={selectedStudent}
-          classId={classId}
-          onClose={() => setSelectedStudent(null)}
-        />
+        <StudentAttendancePanel student={selectedStudent} classId={classId} onClose={() => setSelectedStudent(null)} />
       )}
     </div>
   )

@@ -1,12 +1,10 @@
 import { Trash2, ChevronUp, ChevronDown } from 'lucide-react'
 import { clsx } from 'clsx'
-import { uid } from '@/store/db'
-
 export const DEFAULT_SECTIONS = () => [
-  { id: uid(), name: 'Listening', maxScore: 40, order: 0 },
-  { id: uid(), name: 'Reading',   maxScore: 40, order: 1 },
-  { id: uid(), name: 'Writing',   maxScore: 40, order: 2 },
-  { id: uid(), name: 'Speaking',  maxScore: 40, order: 3 },
+  { id: crypto.randomUUID(), name: 'Listening', maxScore: 40, order: 0 },
+  { id: crypto.randomUUID(), name: 'Reading',   maxScore: 40, order: 1 },
+  { id: crypto.randomUUID(), name: 'Writing',   maxScore: 40, order: 2 },
+  { id: crypto.randomUUID(), name: 'Speaking',  maxScore: 40, order: 3 },
 ]
 
 export const MockTestSectionBuilder = ({ sections = [], onChange }) => {
@@ -21,7 +19,7 @@ export const MockTestSectionBuilder = ({ sections = [], onChange }) => {
   }
 
   const add = () => {
-    onChange([...sections, { id: uid(), name: '', maxScore: 40, order: sections.length }])
+    onChange([...sections, { id: crypto.randomUUID(), name: '', maxScore: 40, order: sections.length }])
   }
 
   const move = (idx, dir) => {

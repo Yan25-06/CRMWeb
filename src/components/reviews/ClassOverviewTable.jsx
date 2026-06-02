@@ -1,29 +1,11 @@
-import { useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import * as XLSX from 'xlsx'
 import { FileSpreadsheet, Users } from 'lucide-react'
 import { Button } from '@/components/ui'
-import {
-  getActiveStudents, getReviewsByStudent,
-  getAttendanceByRange, getHomeworkByRange,
-} from '@/store/db'
-
-const calcAttendancePct = (studentId, classId, fromDate, toDate) => {
-  const recs = getAttendanceByRange(studentId, classId, fromDate, toDate)
-  if (recs.length === 0) return null
-  const present = recs.filter(r => r.present).length
-  return Math.round((present / recs.length) * 1000) / 10
-}
-
-const calcHomeworkPct = (studentId, classId, fromDate, toDate) => {
-  const records = getHomeworkByRange(studentId, classId, fromDate, toDate)
-  if (records.length === 0) return null
-  let done = 0, inProg = 0
-  records.forEach(r => {
-    if (r.progress === 'done' || r.progress === 100) done++
-    else if (r.progress === 'in_progress' || r.progress === 50) inProg++
-  })
-  return Math.round((done * 100 + inProg * 50) / records.length)
-}
+import { getActiveStudents } from '@/services/enrollmentService'
+import { getReviewsByStudent } from '@/services/reviewService'
+import { getAttendanceByRange } from '@/services/attendanceService'
+import { getHomeworkByRange } from '@/services/homeworkService'
 
 const PctBadge = ({ pct }) => {
   if (pct == null) return <span className="text-xs text-navy-300">—</span>
@@ -39,31 +21,47 @@ const fmtDateVN = (d) => {
   return `${day}/${m}/${y}`
 }
 
-/**
- * ClassOverviewTable — summary table of all students in a class.
- * Props: classId, cls (object), dateRange = { fromDate, toDate }
- */
 export const ClassOverviewTable = ({ classId, cls, dateRange }) => {
-  const rows = useMemo(() => {
-    if (!classId) return []
-    const students = getActiveStudents(classId)
-    return students.map(s => {
-      const reviews      = getReviewsByStudent(s.id, classId)
-        .filter(r => r.date >= dateRange.fromDate && r.date <= dateRange.toDate)
-      const latestReview = reviews[0] ?? null
-      const attPct       = calcAttendancePct(s.id, classId, dateRange.fromDate, dateRange.toDate)
-      const hwPct        = calcHomeworkPct(s.id, classId, dateRange.fromDate, dateRange.toDate)
-      const lastRemark   = latestReview?.remark || latestReview?.tags?.[0] || '—'
-      return { student: s, attPct, hwPct, lastRemark }
-    })
+  const [rows, setRows] = useState([])
+
+  useEffect(() => {
+    if (!classId) { setRows([]); return }
+    let cancelled = false
+
+    const load = async () => {
+      const students = await getActiveStudents(classId)
+      const rowData = await Promise.all(students.map(async s => {
+        const [reviews, attRecs, hwRecs] = await Promise.all([
+          getReviewsByStudent(s.id, classId),
+          getAttendanceByRange(s.id, classId, dateRange.fromDate, dateRange.toDate),
+          getHomeworkByRange(s.id, classId, dateRange.fromDate, dateRange.toDate),
+        ])
+        const filteredReviews = reviews.filter(r => r.date >= dateRange.fromDate && r.date <= dateRange.toDate)
+        const latestReview = filteredReviews[0] ?? null
+
+        const attPct = attRecs.length > 0
+          ? Math.round((attRecs.filter(r => r.present).length / attRecs.length) * 1000) / 10
+          : null
+
+        const total = hwRecs.length
+        const doneCount = hwRecs.filter(r => r.progress === 'done' || r.progress === 100).length
+        const inProgCount = hwRecs.filter(r => r.progress === 'in_progress' || r.progress === 50).length
+        const hwPct = total > 0 ? Math.round((doneCount * 100 + inProgCount * 50) / total) : null
+
+        const lastRemark = latestReview?.remark || latestReview?.tags?.[0] || '—'
+        return { student: s, attPct, hwPct, lastRemark }
+      }))
+      if (!cancelled) setRows(rowData)
+    }
+
+    load()
+    return () => { cancelled = true }
   }, [classId, dateRange.fromDate, dateRange.toDate])
 
   const handleExportExcel = () => {
     if (!rows.length) return
-
     const fromVN = fmtDateVN(dateRange.fromDate)
     const toVN   = fmtDateVN(dateRange.toDate)
-
     const header = ['Họ tên', '% Chuyên cần', '% Bài tập', 'Nhận xét gần nhất']
     const data = rows.map(({ student, attPct, hwPct, lastRemark }) => [
       student.name,
@@ -71,20 +69,16 @@ export const ClassOverviewTable = ({ classId, cls, dateRange }) => {
       hwPct  != null ? `${hwPct}%`  : '—',
       lastRemark,
     ])
-
-    // Title row for context
-    const titleRow  = [`Tổng quan lớp: ${cls?.name ?? ''}`]
-    const rangeRow  = [`Khoảng thời gian: ${fromVN} – ${toVN}`]
-    const emptyRow  = []
-
-    const ws = XLSX.utils.aoa_to_sheet([titleRow, rangeRow, emptyRow, header, ...data])
-
-    // Column widths
+    const ws = XLSX.utils.aoa_to_sheet([
+      [`Tổng quan lớp: ${cls?.name ?? ''}`],
+      [`Khoảng thời gian: ${fromVN} – ${toVN}`],
+      [],
+      header,
+      ...data,
+    ])
     ws['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 12 }, { wch: 40 }]
-
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Tổng Quan Lớp')
-
     const className = cls?.name?.replace(/\s+/g, '-') ?? 'lop'
     XLSX.writeFile(wb, `tong-quan-${className}-${dateRange.fromDate}-${dateRange.toDate}.xlsx`)
   }
@@ -109,7 +103,6 @@ export const ClassOverviewTable = ({ classId, cls, dateRange }) => {
 
   return (
     <div className="flex flex-col gap-4">
-      {/* Header + export button */}
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="font-semibold text-navy-800">{cls?.name} · {rows.length} học viên</p>
@@ -120,12 +113,10 @@ export const ClassOverviewTable = ({ classId, cls, dateRange }) => {
           disabled={rows.length === 0}
           className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium text-emerald-700 bg-emerald-50 hover:bg-emerald-100 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          <FileSpreadsheet size={14} />
-          Xuất Excel
+          <FileSpreadsheet size={14} /> Xuất Excel
         </button>
       </div>
 
-      {/* Table */}
       <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm overflow-hidden">
         <div className="overflow-x-auto">
           <table className="w-full text-sm">

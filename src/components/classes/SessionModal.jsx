@@ -1,9 +1,8 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { Button, Input, toast } from '@/components/ui'
-import { createSession, updateSession, getSessionsByClass } from '@/store/db'
+import { createSession, updateSession, getSessionsByClass } from '@/services/sessionService'
 
-// session prop = null → create mode | session object → edit mode
 export const SessionModal = ({ open, onClose, classId, session = null, onSaved }) => {
   const isEdit = !!session
 
@@ -13,6 +12,7 @@ export const SessionModal = ({ open, onClose, classId, session = null, onSaved }
   const [topic, setTopic] = useState('')
   const [note, setNote] = useState('')
   const [confirmSameDay, setConfirmSameDay] = useState(false)
+  const [loading, setLoading] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -32,32 +32,39 @@ export const SessionModal = ({ open, onClose, classId, session = null, onSaved }
     setConfirmSameDay(false)
   }, [open, session])
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!date) { toast.error('Vui lòng chọn ngày học'); return }
     if (startTime >= endTime) { toast.error('Giờ kết thúc phải sau giờ bắt đầu'); return }
 
-    if (isEdit) {
-      updateSession(session.id, { date, startTime, endTime, topic, note })
-      toast.success('Đã cập nhật buổi học')
-      onSaved?.(session.id)
+    setLoading(true)
+    try {
+      if (isEdit) {
+        await updateSession(session.id, { date, startTime, endTime, topic, note })
+        toast.success('Đã cập nhật buổi học')
+        onSaved?.(session.id)
+        onClose?.()
+        return
+      }
+
+      const existingSessions = await getSessionsByClass(classId)
+      const hasSameDay = existingSessions.some(s => s.date === date)
+      if (hasSameDay && !confirmSameDay) {
+        toast.warning('Đã có buổi học trong ngày này. Bạn có chắc muốn tạo thêm?')
+        setConfirmSameDay(true)
+        setLoading(false)
+        return
+      }
+
+      const newSession = await createSession({ classId, date, startTime, endTime, topic, note })
+      const dateFormatted = new Date(date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
+      toast.success(`Đã tạo buổi ${dateFormatted}!`)
+      onSaved?.(newSession.id)
       onClose?.()
-      return
+    } catch (err) {
+      toast.error(err.message)
+    } finally {
+      setLoading(false)
     }
-
-    // Create mode: warn if same day (excluding this session itself for edit)
-    const existingSessions = getSessionsByClass(classId)
-    const hasSameDay = existingSessions.some(s => s.date === date)
-    if (hasSameDay && !confirmSameDay) {
-      toast.warning('Đã có buổi học trong ngày này. Bạn có chắc muốn tạo thêm?')
-      setConfirmSameDay(true)
-      return
-    }
-
-    const newSession = createSession({ classId, date, startTime, endTime, topic, note })
-    const dateFormatted = new Date(date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
-    toast.success(`Đã tạo buổi ${dateFormatted}!`)
-    onSaved?.(newSession.id)
-    onClose?.()
   }
 
   if (!open) return null
@@ -68,40 +75,20 @@ export const SessionModal = ({ open, onClose, classId, session = null, onSaved }
       onClick={(e) => e.target === e.currentTarget && onClose?.()}
     >
       <div className="bg-white rounded-3xl shadow-navy-xl w-full max-w-md animate-slide-up overflow-hidden">
-        {/* Header */}
         <div className="px-6 pt-6 pb-4 border-b border-navy-50 flex items-center justify-between">
           <h2 className="text-base font-semibold text-navy-900">
             {isEdit ? 'Chỉnh sửa buổi học' : 'Tạo buổi học mới'}
           </h2>
-          <button
-            onClick={onClose}
-            className="p-1.5 text-navy-400 hover:text-navy-700 hover:bg-navy-100 rounded-lg transition-colors"
-          >
+          <button onClick={onClose} className="p-1.5 text-navy-400 hover:text-navy-700 hover:bg-navy-100 rounded-lg transition-colors">
             <X size={16} />
           </button>
         </div>
 
-        {/* Body */}
         <div className="px-6 py-5 flex flex-col gap-4 max-h-[70vh] overflow-y-auto">
-          <Input
-            label="Ngày học"
-            type="date"
-            value={date}
-            onChange={(e) => setDate(e.target.value)}
-          />
+          <Input label="Ngày học" type="date" value={date} onChange={(e) => setDate(e.target.value)} />
           <div className="flex gap-4">
-            <Input
-              label="Giờ bắt đầu"
-              type="time"
-              value={startTime}
-              onChange={(e) => setStartTime(e.target.value)}
-            />
-            <Input
-              label="Giờ kết thúc"
-              type="time"
-              value={endTime}
-              onChange={(e) => setEndTime(e.target.value)}
-            />
+            <Input label="Giờ bắt đầu" type="time" value={startTime} onChange={(e) => setStartTime(e.target.value)} />
+            <Input label="Giờ kết thúc" type="time" value={endTime} onChange={(e) => setEndTime(e.target.value)} />
           </div>
           <Input
             label="Chủ đề buổi học (không bắt buộc)"
@@ -111,9 +98,7 @@ export const SessionModal = ({ open, onClose, classId, session = null, onSaved }
             onChange={(e) => setTopic(e.target.value)}
           />
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
-              Ghi chú GV (không bắt buộc)
-            </label>
+            <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Ghi chú GV (không bắt buộc)</label>
             <textarea
               className="input resize-none"
               rows={3}
@@ -125,16 +110,15 @@ export const SessionModal = ({ open, onClose, classId, session = null, onSaved }
 
           {!isEdit && confirmSameDay && (
             <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm p-3 rounded-xl mt-2">
-              <strong>Cảnh báo:</strong> Đã có buổi học trong ngày này. Bạn có chắc muốn tạo thêm? Bấm &ldquo;Tạo buổi học&rdquo; lần nữa để xác nhận.
+              <strong>Cảnh báo:</strong> Đã có buổi học trong ngày này. Bấm &ldquo;Tạo buổi học&rdquo; lần nữa để xác nhận.
             </div>
           )}
         </div>
 
-        {/* Footer */}
         <div className="px-6 py-4 bg-navy-50 flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose}>Hủy</Button>
-          <Button variant="primary" onClick={handleSubmit}>
-            {isEdit ? 'Lưu thay đổi' : 'Tạo buổi học'}
+          <Button variant="primary" onClick={handleSubmit} disabled={loading}>
+            {loading ? 'Đang lưu...' : isEdit ? 'Lưu thay đổi' : 'Tạo buổi học'}
           </Button>
         </div>
       </div>

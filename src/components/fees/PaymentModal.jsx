@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Modal, Button, Input, Select } from '@/components/ui'
-import { getStudents, getClasses, getEnrollments } from '@/store/db'
+import { getStudents } from '@/services/studentService'
+import { getEnrollments } from '@/services/enrollmentService'
 import { todayISO, monthISO } from '@/utils/helpers'
 
 const METHODS = [
@@ -22,21 +23,21 @@ export const PaymentModal = ({ open, onClose, onSave, defaultStudentId, defaultP
   const [students, setStudents] = useState([])
 
   useEffect(() => {
-    if (open) {
-      const allStudents = getStudents()
-      const enrollments = getEnrollments().filter(e => e.status !== 'dropped')
-      const enrolledIds = new Set(enrollments.map(e => e.studentId))
+    if (!open) return
+    Promise.all([getStudents(), getEnrollments()]).then(([allStudents, enrollments]) => {
+      const activeEnrollments = enrollments.filter(e => e.status !== 'dropped')
+      const enrolledIds = new Set(activeEnrollments.map(e => e.studentId))
       setStudents(allStudents.filter(s => enrolledIds.has(s.id)))
-      setForm({
-        studentId: defaultStudentId ?? '',
-        amount: '',
-        paidAt: today,
-        method: 'cash',
-        period: defaultPeriod ?? monthISO(),
-        note: '',
-      })
-      setErrors({})
-    }
+    })
+    setForm({
+      studentId: defaultStudentId ?? '',
+      amount: '',
+      paidAt: today,
+      method: 'cash',
+      period: defaultPeriod ?? monthISO(),
+      note: '',
+    })
+    setErrors({})
   }, [open, defaultStudentId, defaultPeriod])
 
   const set = (field, val) => setForm(f => ({ ...f, [field]: val }))

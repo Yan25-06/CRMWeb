@@ -1,15 +1,18 @@
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Bar, Line } from 'react-chartjs-2'
 import {
   Chart as ChartJS, CategoryScale, LinearScale, BarElement,
   LineElement, PointElement, Title, Tooltip, Legend, Filler
 } from 'chart.js'
 import { ReportCard } from '@/components/reports/ReportCard'
-import {
-  getStudents, getClasses, getEnrollments, getEnrollmentsByClass,
-  getSessionsByClass, getAttendance, getMockTests, getMockTestResults,
-  getMockTestsByClass, getPayments, calcFee,
-} from '@/store/db'
+import { getClasses } from '@/services/classService'
+import { getStudents } from '@/services/studentService'
+import { getEnrollments, getEnrollmentsByClass } from '@/services/enrollmentService'
+import { getSessionsByClass } from '@/services/sessionService'
+import { getAttendanceByClass } from '@/services/attendanceService'
+import { getMockTestsByClass, getMockTestResultsByClass } from '@/services/mockTestService'
+import { getAllPayments } from '@/services/paymentService'
+import { calcFee } from '@/services/feeService'
 import { fmtVND, fmtDate } from '@/utils/helpers'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend, Filler)
@@ -43,33 +46,42 @@ const sixMonthsAgo = () => {
 }
 
 // ─── Attendance card ──────────────────────────────────────
-const AttendanceCard = () => {
-  const classes = getClasses()
+const AttendanceCard = ({ classes }) => {
   const [classId, setClassId] = useState(classes[0]?.id ?? '')
   const [fromMonth, setFromMonth] = useState(sixMonthsAgo())
   const [toMonth, setToMonth] = useState(currentMonth())
+  const [sessions, setSessions] = useState([])
+  const [attendance, setAttendance] = useState([])
+  const [enrolledStudentIds, setEnrolledStudentIds] = useState([])
+
+  useEffect(() => { setClassId(classes[0]?.id ?? '') }, [classes])
+
+  useEffect(() => {
+    if (!classId) return
+    Promise.all([
+      getSessionsByClass(classId),
+      getAttendanceByClass(classId),
+      getEnrollmentsByClass(classId),
+    ]).then(([sess, att, enrollments]) => {
+      setSessions(sess)
+      setAttendance(att)
+      setEnrolledStudentIds(enrollments.filter(e => e.status !== 'dropped').map(e => e.studentId))
+    })
+  }, [classId])
 
   const { chartData, tableRows, hasData } = useMemo(() => {
     if (!classId) return { chartData: null, tableRows: [], hasData: false }
     const months = monthsBetween(fromMonth, toMonth)
-    const sessions = getSessionsByClass(classId)
-    const att = getAttendance()
-    const enrollments = getEnrollmentsByClass(classId).filter(e => e.status !== 'dropped')
-    const students = getStudents().filter(s => enrollments.some(e => e.studentId === s.id))
-
-    const labels = months.map(m => {
-      const [y, mo] = m.split('-')
-      return `${mo}/${y}`
-    })
+    const labels = months.map(m => { const [y, mo] = m.split('-'); return `${mo}/${y}` })
 
     const dataByMonth = months.map(m => {
       const monthSessions = sessions.filter(s => s.date.startsWith(m))
       if (!monthSessions.length) return null
       const sessionIds = new Set(monthSessions.map(s => s.id))
       let present = 0, total = 0
-      students.forEach(s => {
+      enrolledStudentIds.forEach(studentId => {
         monthSessions.forEach(ses => {
-          const a = att.find(a => a.sessionId === ses.id && a.studentId === s.id)
+          const a = attendance.find(a => a.sessionId === ses.id && a.studentId === studentId)
           total++
           if (a?.present) present++
         })
@@ -78,33 +90,20 @@ const AttendanceCard = () => {
     })
 
     const hasData = dataByMonth.some(d => d !== null)
-
-    const tableRows = months.map((m, i) => ({
-      month: labels[i],
-      rate: dataByMonth[i] != null ? `${dataByMonth[i]}%` : '—',
-    }))
-
+    const tableRows = months.map((m, i) => ({ month: labels[i], rate: dataByMonth[i] != null ? `${dataByMonth[i]}%` : '—' }))
     const chartData = {
       labels,
-      datasets: [{
-        data: dataByMonth,
-        backgroundColor: 'rgba(30,64,175,0.7)',
-        borderRadius: 6,
-        spanGaps: true,
-      }],
+      datasets: [{ data: dataByMonth, backgroundColor: 'rgba(30,64,175,0.7)', borderRadius: 6, spanGaps: true }],
     }
-
     return { chartData, tableRows, hasData }
-  }, [classId, fromMonth, toMonth])
-
-  const excelCols = [{ key: 'month', label: 'Tháng' }, { key: 'rate', label: 'Tỉ lệ có mặt' }]
+  }, [classId, fromMonth, toMonth, sessions, attendance, enrolledStudentIds])
 
   return (
     <ReportCard
       title="Điểm Danh theo tháng"
       hasData={hasData}
       excelRows={tableRows}
-      excelColumns={excelCols}
+      excelColumns={[{ key: 'month', label: 'Tháng' }, { key: 'rate', label: 'Tỉ lệ có mặt' }]}
       excelFilename="bao-cao-diem-danh"
       pdfFilename="bao-cao-diem-danh"
       filters={
@@ -127,71 +126,60 @@ const AttendanceCard = () => {
 }
 
 // ─── Mock Test card ───────────────────────────────────────
-const MockTestCard = () => {
-  const classes = getClasses()
-  const students = getStudents()
+const MockTestCard = ({ classes, students }) => {
   const [classId, setClassId] = useState(classes[0]?.id ?? '')
   const [studentId, setStudentId] = useState('')
+  const [mockTests, setMockTests] = useState([])
+  const [results, setResults] = useState([])
+  const [classStudents, setClassStudents] = useState([])
 
-  const classStudents = useMemo(() => {
-    if (!classId) return []
-    const enrollments = getEnrollmentsByClass(classId).filter(e => e.status !== 'dropped')
-    return students.filter(s => enrollments.some(e => e.studentId === s.id))
-  }, [classId])
+  useEffect(() => { setClassId(classes[0]?.id ?? '') }, [classes])
 
-  const { chartData, tableRows, hasData } = useMemo(() => {
-    if (!classId) return { chartData: null, tableRows: [], hasData: false }
-    const tests = getMockTestsByClass(classId).slice().reverse()
-    const results = getMockTestResults()
+  useEffect(() => {
+    if (!classId) return
+    setStudentId('')
+    Promise.all([
+      getMockTestsByClass(classId),
+      getMockTestResultsByClass(classId),
+      getEnrollmentsByClass(classId),
+    ]).then(([tests, res, enrollments]) => {
+      setMockTests(tests)
+      setResults(res)
+      const activeIds = new Set(enrollments.filter(e => e.status !== 'dropped').map(e => e.studentId))
+      setClassStudents(students.filter(s => activeIds.has(s.id)))
+    })
+  }, [classId, students])
 
-    const targetStudents = studentId
-      ? classStudents.filter(s => s.id === studentId)
-      : classStudents.slice(0, 5)
+  const { chartData, tableRows, hasData, excelCols } = useMemo(() => {
+    if (!classId) return { chartData: null, tableRows: [], hasData: false, excelCols: [] }
+    const orderedTests = [...mockTests].reverse()
+    const targetStudents = studentId ? classStudents.filter(s => s.id === studentId) : classStudents.slice(0, 5)
+    if (orderedTests.length < 2) return { chartData: null, tableRows: [], hasData: false, excelCols: [] }
 
-    if (tests.length < 2) return { chartData: null, tableRows: [], hasData: false }
-
-    const labels = tests.map(t => fmtDate(t.date))
+    const labels = orderedTests.map(t => fmtDate(t.date))
     const datasets = targetStudents.map((s, i) => {
       const colors = ['#1e40af','#059669','#d97706','#dc2626','#7c3aed']
       const color = colors[i % colors.length]
       return {
         label: s.name,
-        data: tests.map(t => {
+        data: orderedTests.map(t => {
           const r = results.find(r => r.mockTestId === t.id && r.studentId === s.id)
           return r ? r.totalScore : null
         }),
-        borderColor: color,
-        backgroundColor: color + '20',
-        tension: 0.3,
-        spanGaps: true,
-        pointRadius: 4,
+        borderColor: color, backgroundColor: color + '20', tension: 0.3, spanGaps: true, pointRadius: 4,
       }
     })
 
-    const tableRows = tests.map((t, i) => ({
+    const tableRows = orderedTests.map((t, i) => ({
       date: labels[i],
       ...Object.fromEntries(targetStudents.map(s => {
         const r = results.find(r => r.mockTestId === t.id && r.studentId === s.id)
         return [s.name, r ? r.totalScore : '—']
       }))
     }))
-
-    const excelCols = [
-      { key: 'date', label: 'Ngày' },
-      ...targetStudents.map(s => ({ key: s.name, label: s.name }))
-    ]
-
-    return {
-      chartData: { labels, datasets },
-      tableRows,
-      hasData: true,
-      excelCols,
-    }
-  }, [classId, studentId, classStudents])
-
-  const excelCols = hasData
-    ? [{ key: 'date', label: 'Ngày' }, ...classStudents.map(s => ({ key: s.name, label: s.name }))]
-    : []
+    const excelCols = [{ key: 'date', label: 'Ngày' }, ...targetStudents.map(s => ({ key: s.name, label: s.name }))]
+    return { chartData: { labels, datasets }, tableRows, hasData: true, excelCols }
+  }, [classId, studentId, mockTests, results, classStudents])
 
   return (
     <ReportCard
@@ -222,61 +210,43 @@ const MockTestCard = () => {
 }
 
 // ─── Fees card ────────────────────────────────────────────
-const FeesReportCard = () => {
+const FeesReportCard = ({ students, enrollments, payments }) => {
   const [fromMonth, setFromMonth] = useState(sixMonthsAgo())
   const [toMonth, setToMonth] = useState(currentMonth())
+  const [debtRows, setDebtRows] = useState([])
 
-  const { chartData, tableRows, debtRows, hasData } = useMemo(() => {
+  const { chartData, tableRows, hasData } = useMemo(() => {
     const months = monthsBetween(fromMonth, toMonth)
-    const payments = getPayments()
-    const students = getStudents()
-    const enrollments = getEnrollments().filter(e => e.status !== 'dropped')
-
-    const labels = months.map(m => {
-      const [y, mo] = m.split('-')
-      return `${mo}/${y}`
-    })
-
-    const totals = months.map(m =>
-      payments.filter(p => p.period === m).reduce((s, p) => s + (p.amount ?? 0), 0)
-    )
-
+    const labels = months.map(m => { const [y, mo] = m.split('-'); return `${mo}/${y}` })
+    const activeEnrollments = enrollments.filter(e => e.status !== 'dropped')
+    const totals = months.map(m => payments.filter(p => p.period === m).reduce((s, p) => s + (p.amount ?? 0), 0))
     const hasData = totals.some(t => t > 0)
-
     const tableRows = months.map((m, i) => ({ month: labels[i], total: fmtVND(totals[i]) }))
-
-    const latestMonth = toMonth
-    const [ly, lm] = latestMonth.split('-').map(Number)
-    const debtRows = students
-      .filter(s => enrollments.some(e => e.studentId === s.id))
-      .map(s => {
-        const paid = payments.filter(p => p.studentId === s.id && p.period === latestMonth).reduce((sum, p) => sum + p.amount, 0)
-        const expected = calcFee(s.id, ly, lm)
-        const debt = Math.max(0, expected - paid)
-        return { name: s.name, paid: fmtVND(paid), expected: fmtVND(expected), debt: fmtVND(debt), _debt: debt }
-      })
-      .filter(r => r._debt > 0)
-
     const chartData = {
       labels,
-      datasets: [{
-        data: totals,
-        backgroundColor: 'rgba(5,150,105,0.7)',
-        borderRadius: 6,
-      }],
+      datasets: [{ data: totals, backgroundColor: 'rgba(5,150,105,0.7)', borderRadius: 6 }],
     }
+    return { chartData, tableRows, hasData }
+  }, [fromMonth, toMonth, payments, enrollments])
 
-    return { chartData, tableRows, debtRows, hasData }
-  }, [fromMonth, toMonth])
-
-  const excelCols = [{ key: 'month', label: 'Tháng' }, { key: 'total', label: 'Tổng thu' }]
+  useEffect(() => {
+    const [ly, lm] = toMonth.split('-').map(Number)
+    const activeEnrollments = enrollments.filter(e => e.status !== 'dropped')
+    const eligible = students.filter(s => activeEnrollments.some(e => e.studentId === s.id))
+    Promise.all(eligible.map(async s => {
+      const paid = payments.filter(p => p.studentId === s.id && p.period === toMonth).reduce((sum, p) => sum + p.amount, 0)
+      const expected = await calcFee(s.id, ly, lm)
+      const debt = Math.max(0, expected - paid)
+      return { name: s.name, paid: fmtVND(paid), expected: fmtVND(expected), debt: fmtVND(debt), _debt: debt }
+    })).then(rows => setDebtRows(rows.filter(r => r._debt > 0)))
+  }, [toMonth, students, enrollments, payments])
 
   return (
     <ReportCard
       title="Tổng thu Học Phí"
       hasData={hasData}
       excelRows={tableRows}
-      excelColumns={excelCols}
+      excelColumns={[{ key: 'month', label: 'Tháng' }, { key: 'total', label: 'Tổng thu' }]}
       excelFilename="bao-cao-hoc-phi"
       pdfFilename="bao-cao-hoc-phi"
       filters={
@@ -309,16 +279,29 @@ const FeesReportCard = () => {
 }
 
 // ─── ReportsPage ──────────────────────────────────────────
-export const ReportsPage = () => (
-  <div className="flex flex-col gap-6 animate-fade-in">
-    <div>
-      <h1 className="text-2xl font-display font-bold text-navy-900">Báo Cáo</h1>
-      <p className="text-sm text-navy-400 mt-0.5">Tổng hợp điểm danh, Mock Test và học phí</p>
+export const ReportsPage = () => {
+  const [classes, setClasses]       = useState([])
+  const [students, setStudents]     = useState([])
+  const [enrollments, setEnrollments] = useState([])
+  const [payments, setPayments]     = useState([])
+
+  useEffect(() => {
+    Promise.all([getClasses(), getStudents(), getEnrollments(), getAllPayments()]).then(
+      ([cls, stu, enr, pay]) => { setClasses(cls); setStudents(stu); setEnrollments(enr); setPayments(pay) }
+    )
+  }, [])
+
+  return (
+    <div className="flex flex-col gap-6 animate-fade-in">
+      <div>
+        <h1 className="text-2xl font-display font-bold text-navy-900">Báo Cáo</h1>
+        <p className="text-sm text-navy-400 mt-0.5">Tổng hợp điểm danh, Mock Test và học phí</p>
+      </div>
+      <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
+        <AttendanceCard classes={classes} />
+        <MockTestCard classes={classes} students={students} />
+      </div>
+      <FeesReportCard students={students} enrollments={enrollments} payments={payments} />
     </div>
-    <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
-      <AttendanceCard />
-      <MockTestCard />
-    </div>
-    <FeesReportCard />
-  </div>
-)
+  )
+}
