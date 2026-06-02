@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { FileText, Plus, ArrowLeft, ClipboardList, Calendar, Pencil } from 'lucide-react'
-import { Button, Card, Badge, toast } from '@/components/ui'
+import { Button, Card, Badge, toast, Skeleton } from '@/components/ui'
 import { SessionSelector } from '@/components/classes/SessionSelector'
 import { SessionModal } from '@/components/classes/SessionModal'
 import { ProgressBadge } from '@/components/homework/ProgressBadge'
@@ -148,7 +148,31 @@ export const HomeworkTab = ({ classId }) => {
   }, [students, sessions, classHomeworks])
 
   if (loading) {
-    return <div className="flex items-center justify-center p-16 text-navy-400 text-sm">Đang tải...</div>
+    return (
+      <div className="flex flex-col gap-6">
+        <div className="flex gap-2">
+          <Skeleton className="h-8 w-28 rounded-lg" />
+          <Skeleton className="h-8 w-28 rounded-lg" />
+        </div>
+        <Skeleton className="h-14 w-full rounded-2xl" />
+        <div className="bg-white rounded-2xl border border-navy-100 overflow-hidden">
+          <div className="grid grid-cols-4 gap-4 px-6 py-4 border-b border-navy-100">
+            {[1,2,3,4].map(i => <Skeleton key={i} className="h-4 rounded" />)}
+          </div>
+          {[1,2,3,4,5].map(i => (
+            <div key={i} className="grid grid-cols-4 gap-4 px-6 py-3 border-b border-navy-50 items-center">
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+                <Skeleton className="h-4 w-28" />
+              </div>
+              <Skeleton className="h-5 w-10 mx-auto rounded" />
+              <Skeleton className="h-7 w-20 mx-auto rounded-full" />
+              <Skeleton className="h-7 w-full rounded-lg" />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
   }
 
   return (
@@ -423,7 +447,27 @@ const AssignView = ({ classId }) => {
   const isOverdue = (a) => a.dueDate && a.dueDate < new Date().toISOString().split('T')[0]
 
   if (loading) {
-    return <div className="flex items-center justify-center p-16 text-navy-400 text-sm">Đang tải...</div>
+    return (
+      <div className="flex flex-col gap-4">
+        <div className="flex justify-end">
+          <Skeleton className="h-8 w-28 rounded-lg" />
+        </div>
+        <div className="bg-white rounded-2xl border border-navy-100 overflow-hidden">
+          <div className="grid grid-cols-5 gap-4 px-5 py-3 border-b border-navy-100">
+            {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-4 rounded" />)}
+          </div>
+          {[1,2,3].map(i => (
+            <div key={i} className="grid grid-cols-5 gap-4 px-5 py-3 border-b border-navy-50 items-center">
+              <Skeleton className="h-4 w-3/4" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-4 w-20" />
+              <Skeleton className="h-6 w-12 mx-auto rounded-full" />
+              <Skeleton className="h-5 w-10 mx-auto rounded" />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
   }
 
   return (

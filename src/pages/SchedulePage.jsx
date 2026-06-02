@@ -1,7 +1,7 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import { clsx } from 'clsx'
 import { Plus, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
-import { Button, toast, Empty } from '@/components/ui'
+import { Button, toast, Empty, Skeleton } from '@/components/ui'
 import { WeeklyGrid } from '@/components/schedule/WeeklyGrid'
 import { DailyAgenda } from '@/components/schedule/DailyAgenda'
 import { ScheduleModal } from '@/components/schedule/ScheduleModal'
@@ -192,8 +192,17 @@ export const SchedulePage = ({ onNavigate }) => {
         {/* Grid area */}
         <div className="flex-1 min-w-0">
           {loading ? (
-            <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-12 flex items-center justify-center">
-              <p className="text-sm text-navy-400">Đang tải lịch dạy…</p>
+            <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-4">
+              <div className="grid grid-cols-7 gap-2 mb-3">
+                {[1,2,3,4,5,6,7].map(i => <Skeleton key={i} className="h-6 rounded-lg" />)}
+              </div>
+              {[1,2,3].map(row => (
+                <div key={row} className="grid grid-cols-7 gap-2 mb-2">
+                  {[1,2,3,4,5,6,7].map(col => (
+                    <Skeleton key={col} className="h-16 rounded-xl" />
+                  ))}
+                </div>
+              ))}
             </div>
           ) : error ? (
             <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-12">

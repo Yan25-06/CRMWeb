@@ -3,7 +3,7 @@ import {
   Users, TrendingUp, Calendar, DollarSign,
   BookOpen, Clock,
 } from 'lucide-react'
-import { StatCard, Card, Badge } from '@/components/ui'
+import { StatCard, Card, Badge, Skeleton } from '@/components/ui'
 import {
   getDashboardStats,
   getAttendanceByDate,
@@ -17,11 +17,13 @@ const fmt = (n) =>
 export const DashboardPage = ({ year, month, onNavigate }) => {
   const [students, setStudents] = useState([])
   const [classes, setClasses] = useState([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     Promise.all([studentService.getAll(), classService.getAll()])
       .then(([s, c]) => { setStudents(s); setClasses(c) })
       .catch(() => {})
+      .finally(() => setLoading(false))
   }, [])
 
   // Revenue/attendance stats still come from localStorage (sessions/attendance not migrated yet)
@@ -31,6 +33,41 @@ export const DashboardPage = ({ year, month, onNavigate }) => {
   const todayAtt = useMemo(() => getAttendanceByDate(today), [today])
 
   const monthName = new Date(year, month - 1).toLocaleString('vi-VN', { month: 'long' })
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-6 animate-fade-in">
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-8 w-36" />
+          <Skeleton className="h-4 w-64" />
+        </div>
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[1,2,3,4].map(i => <Skeleton key={i} className="h-24 rounded-2xl" />)}
+        </div>
+        <div className="grid lg:grid-cols-2 gap-6">
+          {[1,2].map(card => (
+            <div key={card} className="rounded-2xl border border-navy-100 overflow-hidden">
+              <div className="px-5 py-4 border-b border-navy-50 flex items-center justify-between">
+                <Skeleton className="h-4 w-36" />
+                <Skeleton className="h-4 w-16" />
+              </div>
+              <div className="divide-y divide-navy-50">
+                {[1,2,3,4].map(i => (
+                  <div key={i} className="flex items-center gap-3 px-5 py-3">
+                    <Skeleton className="h-8 w-8 rounded-full shrink-0" />
+                    <div className="flex-1 flex flex-col gap-1.5">
+                      <Skeleton className="h-4 w-32" />
+                      <Skeleton className="h-3 w-20" />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-6 animate-fade-in">

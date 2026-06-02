@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react'
 import { ChevronLeft, Users } from 'lucide-react'
 import { clsx } from 'clsx'
+import { Skeleton } from '@/components/ui'
 import { classService } from '@/services/classService'
 import { enrollmentService } from '@/services/enrollmentService'
 import { StudentsTab } from './tabs/StudentsTab'
@@ -43,9 +44,18 @@ export const ClassDetailPage = ({ classId, onBack }) => {
 
   if (loading) {
     return (
-      <div className="flex flex-col gap-4 animate-pulse p-4">
-        <div className="h-8 w-48 bg-navy-100 rounded-xl" />
-        <div className="h-4 w-32 bg-navy-50 rounded" />
+      <div className="flex flex-col gap-4 p-4">
+        <div className="flex items-center gap-3">
+          <Skeleton className="h-8 w-8 rounded-lg" />
+          <div className="flex flex-col gap-2 flex-1">
+            <Skeleton className="h-6 w-48" />
+            <Skeleton className="h-3 w-32" />
+          </div>
+          <Skeleton className="h-8 w-16 rounded-xl" />
+        </div>
+        <div className="flex gap-4 border-b border-navy-100 pb-0">
+          {[1,2,3,4].map(i => <Skeleton key={i} className="h-8 w-20 rounded-t-lg" />)}
+        </div>
       </div>
     )
   }

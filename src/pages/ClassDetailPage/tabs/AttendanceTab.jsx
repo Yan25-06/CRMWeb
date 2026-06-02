@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { Trash2, FileText, Pencil } from 'lucide-react'
-import { Button, Card, toast } from '@/components/ui'
+import { Button, Card, toast, Skeleton } from '@/components/ui'
 import { SessionSelector } from '@/components/classes/SessionSelector'
 import { SessionModal } from '@/components/classes/SessionModal'
 import { AttendanceToggle } from '@/components/attendance/AttendanceToggle'
@@ -35,9 +35,11 @@ export const AttendanceTab = ({ classId }) => {
   const [sessionModalOpen, setSessionModalOpen] = useState(false)
   const [editingSession, setEditingSession] = useState(null)  // null = closed
   const [selectedStudent, setSelectedStudent] = useState(null)
+  const [loading, setLoading] = useState(true)
 
   // Load sessions, roster, and class-wide attendance (for the chuyên cần column)
   const loadData = useCallback(async () => {
+    setLoading(true)
     try {
       const [classSessions, allStudents, classEnrolls, classAtts] = await Promise.all([
         sessionService.getByClass(classId),
@@ -57,6 +59,8 @@ export const AttendanceTab = ({ classId }) => {
       )
     } catch {
       toast.error('Không thể tải dữ liệu điểm danh')
+    } finally {
+      setLoading(false)
     }
   }, [classId])
 
@@ -175,6 +179,30 @@ export const AttendanceTab = ({ classId }) => {
     return attendance.find(a => a.studentId === st.id)?.present === false
   }).length
   const presentCount = totalActive - absentCount
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-6">
+        <Skeleton className="h-14 w-full rounded-2xl" />
+        <div className="bg-white rounded-2xl border border-navy-100 overflow-hidden">
+          <div className="grid grid-cols-4 gap-4 px-6 py-4 bg-navy-50/50 border-b border-navy-100">
+            {[1,2,3,4].map(i => <Skeleton key={i} className="h-4 rounded" />)}
+          </div>
+          {[1,2,3,4,5].map(i => (
+            <div key={i} className="grid grid-cols-4 gap-4 px-6 py-3 border-b border-navy-50 items-center">
+              <div className="flex items-center gap-3">
+                <Skeleton className="h-9 w-9 rounded-full shrink-0" />
+                <Skeleton className="h-4 w-28" />
+              </div>
+              <Skeleton className="h-5 w-12 mx-auto rounded" />
+              <Skeleton className="h-8 w-20 mx-auto rounded-xl" />
+              <Skeleton className="h-8 w-full rounded-lg" />
+            </div>
+          ))}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-6 relative">

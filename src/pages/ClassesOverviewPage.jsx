@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Card, Button, Empty, toast } from '@/components/ui'
+import { Card, Button, Empty, toast, Skeleton } from '@/components/ui'
 import { Plus, BookOpen } from 'lucide-react'
 import { classService, teacherService } from '@/services/classService'
 import { enrollmentService } from '@/services/enrollmentService'
@@ -83,15 +83,31 @@ export const ClassesOverviewPage = ({ onSelectClass }) => {
   if (loading) {
     return (
       <div className="flex flex-col gap-6 animate-fade-in">
-        <div className="flex justify-between items-center">
-          <div>
-            <h1 className="text-2xl font-display font-bold text-navy-900">Lớp Học</h1>
-            <p className="text-sm text-navy-400 mt-0.5">Đang tải...</p>
-          </div>
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-8 w-32" />
+          <Skeleton className="h-4 w-48" />
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="h-40 bg-navy-50 rounded-2xl animate-pulse" />
+          {[1,2,3,4].map(i => (
+            <div key={i} className="rounded-2xl border border-navy-100 overflow-hidden flex flex-col">
+              <div className="p-5 flex flex-col gap-4 flex-1">
+                <div className="flex justify-between items-start">
+                  <Skeleton className="h-5 w-20 rounded-lg" />
+                  <Skeleton className="h-5 w-5 rounded" />
+                </div>
+                <div className="flex flex-col gap-2">
+                  <Skeleton className="h-6 w-3/4" />
+                  <Skeleton className="h-4 w-1/2" />
+                </div>
+                <div className="flex flex-col gap-2 mt-2">
+                  <Skeleton className="h-4 w-full" />
+                  <Skeleton className="h-4 w-2/3" />
+                </div>
+              </div>
+              <div className="border-t border-navy-100 p-4 px-5">
+                <Skeleton className="h-4 w-24" />
+              </div>
+            </div>
           ))}
         </div>
       </div>
