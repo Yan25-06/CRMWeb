@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { Button, Input, toast } from '@/components/ui'
-import { createSession, updateSession, getSessionsByClass } from '@/store/db'
+import { sessionService } from '@/services/sessionService'
 
 // session prop = null → create mode | session object → edit mode
 export const SessionModal = ({ open, onClose, classId, session = null, onSaved }) => {
@@ -13,6 +13,7 @@ export const SessionModal = ({ open, onClose, classId, session = null, onSaved }
   const [topic, setTopic] = useState('')
   const [note, setNote] = useState('')
   const [confirmSameDay, setConfirmSameDay] = useState(false)
+  const [saving, setSaving] = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -32,32 +33,53 @@ export const SessionModal = ({ open, onClose, classId, session = null, onSaved }
     setConfirmSameDay(false)
   }, [open, session])
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
+    if (saving) return
     if (!date) { toast.error('Vui lòng chọn ngày học'); return }
     if (startTime >= endTime) { toast.error('Giờ kết thúc phải sau giờ bắt đầu'); return }
 
     if (isEdit) {
-      updateSession(session.id, { date, startTime, endTime, topic, note })
-      toast.success('Đã cập nhật buổi học')
-      onSaved?.(session.id)
+      setSaving(true)
+      try {
+        await sessionService.update(session.id, { date, startTime, endTime, topic, note })
+        toast.success('Đã cập nhật buổi học')
+        onSaved?.(session.id)
+        onClose?.()
+      } catch {
+        toast.error('Không thể cập nhật buổi học')
+      } finally {
+        setSaving(false)
+      }
+      return
+    }
+
+    // Create mode: warn if same day before creating
+    if (!confirmSameDay) {
+      try {
+        const existingSessions = await sessionService.getByClass(classId)
+        if (existingSessions.some(s => s.date === date)) {
+          toast.warning('Đã có buổi học trong ngày này. Bạn có chắc muốn tạo thêm?')
+          setConfirmSameDay(true)
+          return
+        }
+      } catch {
+        toast.error('Không thể kiểm tra buổi học hiện có')
+        return
+      }
+    }
+
+    setSaving(true)
+    try {
+      const newSession = await sessionService.create({ classId, date, startTime, endTime, topic, note })
+      const dateFormatted = new Date(date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
+      toast.success(`Đã tạo buổi ${dateFormatted}!`)
+      onSaved?.(newSession.id)
       onClose?.()
-      return
+    } catch {
+      toast.error('Không thể tạo buổi học')
+    } finally {
+      setSaving(false)
     }
-
-    // Create mode: warn if same day (excluding this session itself for edit)
-    const existingSessions = getSessionsByClass(classId)
-    const hasSameDay = existingSessions.some(s => s.date === date)
-    if (hasSameDay && !confirmSameDay) {
-      toast.warning('Đã có buổi học trong ngày này. Bạn có chắc muốn tạo thêm?')
-      setConfirmSameDay(true)
-      return
-    }
-
-    const newSession = createSession({ classId, date, startTime, endTime, topic, note })
-    const dateFormatted = new Date(date).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit' })
-    toast.success(`Đã tạo buổi ${dateFormatted}!`)
-    onSaved?.(newSession.id)
-    onClose?.()
   }
 
   if (!open) return null
@@ -132,9 +154,9 @@ export const SessionModal = ({ open, onClose, classId, session = null, onSaved }
 
         {/* Footer */}
         <div className="px-6 py-4 bg-navy-50 flex justify-end gap-3">
-          <Button variant="secondary" onClick={onClose}>Hủy</Button>
-          <Button variant="primary" onClick={handleSubmit}>
-            {isEdit ? 'Lưu thay đổi' : 'Tạo buổi học'}
+          <Button variant="secondary" onClick={onClose} disabled={saving}>Hủy</Button>
+          <Button variant="primary" onClick={handleSubmit} disabled={saving}>
+            {saving ? 'Đang lưu…' : isEdit ? 'Lưu thay đổi' : 'Tạo buổi học'}
           </Button>
         </div>
       </div>

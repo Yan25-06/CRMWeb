@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { Trash2, FileText, Pencil } from 'lucide-react'
 import { Button, Card, toast } from '@/components/ui'
@@ -6,11 +6,23 @@ import { SessionSelector } from '@/components/classes/SessionSelector'
 import { SessionModal } from '@/components/classes/SessionModal'
 import { AttendanceToggle } from '@/components/attendance/AttendanceToggle'
 import { StudentAttendancePanel } from '@/components/attendance/StudentAttendancePanel'
-import {
-  getSessionsByClass, getAttendanceBySession, getAttendance,
-  upsertAttendanceBySession, deleteSession, getEnrollmentsByClass, getStudents
-} from '@/store/db'
+import { sessionService } from '@/services/sessionService'
+import { attendanceService } from '@/services/attendanceService'
+import { studentService } from '@/services/studentService'
+import { enrollmentService } from '@/services/enrollmentService'
 import { getInitials } from '@/utils/helpers'
+
+// Update-or-insert one student's attendance cell in a local record array.
+const patchCell = (records, sessionId, studentId, patch) => {
+  const idx = records.findIndex(a => a.studentId === studentId)
+  if (idx >= 0) {
+    const next = [...records]
+    next[idx] = { ...next[idx], ...patch }
+    return next
+  }
+  // Default present: a student with no record yet is treated as "Có mặt".
+  return [...records, { sessionId, studentId, present: true, note: '', ...patch }]
+}
 
 export const AttendanceTab = ({ classId }) => {
   const [sessions, setSessions] = useState([])
@@ -18,52 +30,63 @@ export const AttendanceTab = ({ classId }) => {
   const [students, setStudents] = useState([])
   const [enrollments, setEnrollments] = useState([])
   const [attendance, setAttendance] = useState([])
-  
+  const [classAttendance, setClassAttendance] = useState([])
+
   const [sessionModalOpen, setSessionModalOpen] = useState(false)
   const [editingSession, setEditingSession] = useState(null)  // null = closed
   const [selectedStudent, setSelectedStudent] = useState(null)
 
-  // Effect to load initial data
-  useEffect(() => {
-    const classSessions = getSessionsByClass(classId)
-    setSessions(classSessions)
-    if (!activeSessionId && classSessions.length > 0) {
-      setActiveSessionId(classSessions[0].id)
+  // Load sessions, roster, and class-wide attendance (for the chuyên cần column)
+  const loadData = useCallback(async () => {
+    try {
+      const [classSessions, allStudents, classEnrolls, classAtts] = await Promise.all([
+        sessionService.getByClass(classId),
+        studentService.getAll(),
+        enrollmentService.getByClass(classId),
+        attendanceService.getByClass(classId),
+      ])
+      const relevantEnrolls = classEnrolls.filter(e => e.status !== 'dropped')
+      setSessions(classSessions)
+      setStudents(allStudents.filter(s => relevantEnrolls.some(e => e.studentId === s.id)))
+      setEnrollments(relevantEnrolls)
+      setClassAttendance(classAtts)
+      setActiveSessionId(prev =>
+        prev && classSessions.some(s => s.id === prev)
+          ? prev
+          : (classSessions[0]?.id || '')
+      )
+    } catch {
+      toast.error('Không thể tải dữ liệu điểm danh')
     }
-    
-    const loadStudents = () => {
-      const allStudents = getStudents()
-      const classEnrolls = getEnrollmentsByClass(classId).filter(e => e.status !== 'dropped')
-      const relevantStudents = allStudents.filter(s => classEnrolls.some(e => e.studentId === s.id))
-      setStudents(relevantStudents)
-      setEnrollments(classEnrolls)
-    }
-    loadStudents()
-
   }, [classId])
 
+  useEffect(() => { loadData() }, [loadData])
+
+  // Load the active session's attendance grid
   useEffect(() => {
-    if (activeSessionId) {
-      setAttendance(getAttendanceBySession(activeSessionId))
-    } else {
-      setAttendance([])
-    }
+    let cancelled = false
+    if (!activeSessionId) { setAttendance([]); return }
+    attendanceService.getBySession(activeSessionId)
+      .then(recs => { if (!cancelled) setAttendance(recs) })
+      .catch(() => { if (!cancelled) toast.error('Không thể tải điểm danh buổi học') })
+    return () => { cancelled = true }
   }, [activeSessionId])
 
   const handleSessionSaved = (newId) => {
-    const classSessions = getSessionsByClass(classId)
-    setSessions(classSessions)
     setActiveSessionId(newId)
+    loadData()
   }
 
-  const handleDeleteSession = () => {
+  const handleDeleteSession = async () => {
     if (!activeSessionId) return
-    if (window.confirm('Bạn có chắc chắn muốn xóa buổi học này không? Mọi dữ liệu điểm danh của buổi này sẽ bị xóa.')) {
-      deleteSession(activeSessionId)
+    if (!window.confirm('Bạn có chắc chắn muốn xóa buổi học này không? Mọi dữ liệu điểm danh của buổi này sẽ bị xóa.')) return
+    try {
+      await sessionService.remove(activeSessionId)
       toast.success('Đã xóa buổi học')
-      const classSessions = getSessionsByClass(classId)
-      setSessions(classSessions)
-      setActiveSessionId(classSessions.length > 0 ? classSessions[0].id : '')
+      setActiveSessionId('')
+      await loadData()
+    } catch {
+      toast.error('Không thể xóa buổi học')
     }
   }
 
@@ -74,48 +97,84 @@ export const AttendanceTab = ({ classId }) => {
 
   const handleSessionUpdated = () => {
     // Refresh session list, stay on the same active session
-    setSessions(getSessionsByClass(classId))
+    loadData()
+  }
+
+  // Optimistic: flip the cell immediately, then persist. On failure, roll back
+  // only this (session, student) cell to its prior value — concurrent cells are
+  // untouched because each call captures and restores its own snapshot.
+  const persistCell = async (studentId, patch) => {
+    const session = sessions.find(s => s.id === activeSessionId)
+    if (!session) return
+    const prev = attendance.find(a => a.studentId === studentId)
+    const snapshot = { present: prev ? prev.present : true, note: prev ? (prev.note ?? '') : '' }
+    const optimistic = { ...snapshot, ...patch }
+    setAttendance(curr => patchCell(curr, activeSessionId, studentId, optimistic))
+    try {
+      await attendanceService.upsert({
+        sessionId: activeSessionId,
+        studentId,
+        date: session.date,
+        present: optimistic.present,
+        ...(patch.note !== undefined ? { note: optimistic.note } : {}),
+      })
+    } catch {
+      setAttendance(curr => patchCell(curr, activeSessionId, studentId, snapshot))
+      toast.error('Không thể lưu điểm danh, đã hoàn tác')
+    }
   }
 
   const handleToggle = (studentId, present) => {
     if (!activeSessionId) return
-    // Pass undefined (not '') so existing note is NOT overwritten
-    upsertAttendanceBySession(activeSessionId, studentId, present, undefined)
-    setAttendance(getAttendanceBySession(activeSessionId))
+    persistCell(studentId, { present })
   }
 
+  // Edit note locally as the teacher types; persist (optimistically) on blur.
+  const handleNoteInput = (studentId, note) => {
+    setAttendance(curr => patchCell(curr, activeSessionId, studentId, { note }))
+  }
 
-  const handleNoteChange = (studentId, note) => {
+  const handleNoteCommit = (studentId) => {
     if (!activeSessionId) return
     const att = attendance.find(a => a.studentId === studentId)
-    // Don't create a ghost record if there's no existing attendance and the note is empty
-    if (!att && !note.trim()) return
-    upsertAttendanceBySession(activeSessionId, studentId, att ? att.present : null, note)
-    setAttendance(getAttendanceBySession(activeSessionId))
+    persistCell(studentId, { present: att ? att.present : true, note: att ? (att.note ?? '') : '' })
   }
 
-  // Pre-compute attendance rates for all students in one pass
-  // (avoids N×2 localStorage reads from calling getAttendanceRate per row)
+  // Per-student attendance rate over past sessions, computed from the class-wide
+  // fetch with the active session overridden by the (possibly optimistic) grid.
   const attendanceRates = useMemo(() => {
     if (students.length === 0) return {}
     const today = new Date().toISOString().split('T')[0]
-    const classSessions = getSessionsByClass(classId).filter(s => s.date <= today)
-    if (classSessions.length === 0) {
+    const pastSessions = sessions.filter(s => s.date <= today)
+    if (pastSessions.length === 0) {
       return Object.fromEntries(students.map(s => [s.id, null]))
     }
-    const sessionIdSet = new Set(classSessions.map(s => s.id))
-    // Single read of all attendance records for this class's sessions
-    const classAtts = getAttendance().filter(a => sessionIdSet.has(a.sessionId))
+    const sessionIdSet = new Set(pastSessions.map(s => s.id))
+    const presentMap = new Map() // `${sessionId}|${studentId}` -> present
+    classAttendance.forEach(a => {
+      if (sessionIdSet.has(a.sessionId)) presentMap.set(`${a.sessionId}|${a.studentId}`, a.present)
+    })
+    if (sessionIdSet.has(activeSessionId)) {
+      attendance.forEach(a => presentMap.set(`${activeSessionId}|${a.studentId}`, a.present))
+    }
     return Object.fromEntries(students.map(student => {
-      const presentCount = classAtts.filter(
-        a => a.studentId === student.id && a.present === true
-      ).length
-      return [student.id, Math.round((presentCount / classSessions.length) * 100)]
+      let presentCount = 0
+      pastSessions.forEach(s => {
+        // Missing record = có mặt; only an explicit `false` counts as vắng.
+        if (presentMap.get(`${s.id}|${student.id}`) !== false) presentCount++
+      })
+      return [student.id, Math.round((presentCount / pastSessions.length) * 100)]
     }))
-  }, [students, classId, attendance]) // recompute when attendance changes
+  }, [students, sessions, classAttendance, attendance, activeSessionId])
 
-  const presentCount = attendance.filter(a => a.present === true).length
   const totalActive = enrollments.filter(e => e.status === 'active').length
+  // Mặc định có mặt: chỉ trừ những HS đang hoạt động bị tick "Vắng".
+  const absentCount = students.filter(st => {
+    const enroll = enrollments.find(e => e.studentId === st.id)
+    if (enroll?.status !== 'active') return false
+    return attendance.find(a => a.studentId === st.id)?.present === false
+  }).length
+  const presentCount = totalActive - absentCount
 
   return (
     <div className="flex flex-col gap-6 relative">
@@ -178,7 +237,7 @@ export const AttendanceTab = ({ classId }) => {
                   const enroll = enrollments.find(e => e.studentId === student.id)
                   const isPaused = enroll?.status === 'paused'
                   const att = attendance.find(a => a.studentId === student.id)
-                  const present = att ? att.present : null
+                  const present = att ? att.present : true  // mặc định có mặt
                   const note = att ? att.note : ''
                   const rate = attendanceRates[student.id] ?? null
 
@@ -230,7 +289,8 @@ export const AttendanceTab = ({ classId }) => {
                             placeholder="Nhập ghi chú..."
                             className="input h-8 text-xs bg-navy-50/30 border-navy-100 focus:border-navy-300 focus:ring-navy-100 w-full max-w-xs"
                             value={note || ''}
-                            onChange={(e) => handleNoteChange(student.id, e.target.value)}
+                            onChange={(e) => handleNoteInput(student.id, e.target.value)}
+                            onBlur={() => handleNoteCommit(student.id)}
                           />
                         )}
                         {isPaused && (

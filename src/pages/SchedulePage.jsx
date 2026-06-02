@@ -1,14 +1,13 @@
-import { useState, useMemo, useCallback } from 'react'
+import { useState, useMemo, useCallback, useEffect } from 'react'
 import { clsx } from 'clsx'
 import { Plus, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
 import { Button, toast, Empty } from '@/components/ui'
 import { WeeklyGrid } from '@/components/schedule/WeeklyGrid'
 import { DailyAgenda } from '@/components/schedule/DailyAgenda'
 import { ScheduleModal } from '@/components/schedule/ScheduleModal'
-import {
-  getSchedule, getClasses, getEnrollmentsByClass,
-  addScheduleItem, updateScheduleItem, deleteScheduleItem,
-} from '@/store/db'
+import { scheduleService } from '@/services/scheduleService'
+import { classService } from '@/services/classService'
+import { enrollmentService } from '@/services/enrollmentService'
 
 // ─── Helpers ────────────────────────────────────────────────
 const getWeekStart = (date) => {
@@ -41,19 +40,43 @@ export const SchedulePage = ({ onNavigate }) => {
   const [editingItem, setEditingItem] = useState(null)
   const [defaultDay, setDefaultDay]   = useState(null)
 
-  // Data (re-read on every render so changes are reflected)
-  const schedule = getSchedule()
-  const classes  = getClasses()
+  // Data loaded from services
+  const [schedule, setSchedule] = useState([])
+  const [classes, setClasses] = useState([])
+  const [enrollments, setEnrollments] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState(false)
+
+  const loadData = useCallback(async () => {
+    setLoading(true)
+    setError(false)
+    try {
+      const [scheduleItems, allClasses, allEnrollments] = await Promise.all([
+        scheduleService.getAll(),
+        classService.getAll(),
+        enrollmentService.getAll(),
+      ])
+      setSchedule(scheduleItems)
+      setClasses(allClasses)
+      setEnrollments(allEnrollments)
+    } catch {
+      setError(true)
+    } finally {
+      setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => { loadData() }, [loadData])
 
   // Build student count map (classId → active student count)
   const studentCounts = useMemo(() => {
     const map = new Map()
     for (const cls of classes) {
-      const active = getEnrollmentsByClass(cls.id).filter(e => e.status === 'active').length
+      const active = enrollments.filter(e => e.classId === cls.id && e.status === 'active').length
       map.set(cls.id, active)
     }
     return map
-  }, [classes.length])
+  }, [classes, enrollments])
 
   // Today's items
   const todayDow = new Date().getDay()
@@ -72,23 +95,30 @@ export const SchedulePage = ({ onNavigate }) => {
     setModalOpen(true)
   }, [])
 
-  const handleSave = useCallback(({ data, isEdit, id }) => {
-    if (isEdit) {
-      updateScheduleItem(id, data)
-      toast.success('Đã cập nhật lịch dạy')
-    } else {
-      addScheduleItem(data)
-      toast.success('Đã thêm lịch dạy')
+  const handleSave = useCallback(async ({ data, isEdit, id }) => {
+    try {
+      if (isEdit) {
+        await scheduleService.update(id, data)
+        toast.success('Đã cập nhật lịch dạy')
+      } else {
+        await scheduleService.add(data)
+        toast.success('Đã thêm lịch dạy')
+      }
+      await loadData()
+    } catch {
+      toast.error('Không thể lưu lịch dạy')
     }
-    // Force re-render by triggering state update
-    setWeekStart(w => new Date(w))
-  }, [])
+  }, [loadData])
 
-  const handleDelete = useCallback((id) => {
-    deleteScheduleItem(id)
-    toast.success('Đã xóa lịch dạy')
-    setWeekStart(w => new Date(w))
-  }, [])
+  const handleDelete = useCallback(async (id) => {
+    try {
+      await scheduleService.remove(id)
+      toast.success('Đã xóa lịch dạy')
+      await loadData()
+    } catch {
+      toast.error('Không thể xóa lịch dạy')
+    }
+  }, [loadData])
 
   const handleAttendance = useCallback((classId) => {
     onNavigate?.('classes')
@@ -161,7 +191,22 @@ export const SchedulePage = ({ onNavigate }) => {
 
         {/* Grid area */}
         <div className="flex-1 min-w-0">
-          {schedule.length === 0 ? (
+          {loading ? (
+            <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-12 flex items-center justify-center">
+              <p className="text-sm text-navy-400">Đang tải lịch dạy…</p>
+            </div>
+          ) : error ? (
+            <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-12">
+              <Empty
+                icon={<Calendar size={40} />}
+                title="Không thể tải lịch dạy"
+                desc="Đã xảy ra lỗi khi tải dữ liệu. Vui lòng thử lại."
+                action={
+                  <Button variant="primary" size="sm" onClick={loadData}>Thử lại</Button>
+                }
+              />
+            </div>
+          ) : schedule.length === 0 ? (
             <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-12">
               <Empty
                 icon={<Calendar size={40} />}

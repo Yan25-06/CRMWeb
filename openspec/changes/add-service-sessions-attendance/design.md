@@ -28,6 +28,9 @@ Tỉ lệ chuyên cần / đếm buổi (trước ở `db.js` tính đồng bộ
 **4. `schedule_item_id` trên sessions giữ nguyên liên kết lịch↔buổi.**
 Khi tạo buổi từ một mục lịch, service truyền `schedule_item_id`; không xử lý sinh buổi tự động trong change này (giữ hành vi hiện có của UI lịch).
 
+**5. Mô hình điểm danh nhị phân, mặc định "Có mặt".**
+Cột `attendance.present` là `NOT NULL`, nên bỏ trạng thái "Chưa chấm" (`null`) của hệ localStorage cũ. Mọi học sinh được coi là **có mặt** trừ khi giáo viên tick "Vắng" (`present = false`). Hệ quả: chỉ cần lưu bản ghi cho HS vắng (lazy records), và mọi nơi tính thống kê đều dùng quy ước **mẫu số = số buổi học**, "vắng khi `present === false`, còn lại có mặt" (kể cả buổi chưa có bản ghi). `AttendanceToggle` chuyển thành toggle 2 trạng thái Có↔Vắng.
+
 ## Risks / Trade-offs
 
 - **Rollback optimistic phải đúng** — nếu nhiều ô điểm danh đang bay cùng lúc, cần rollback đúng ô lỗi mà không đè ô khác. Mitigation: rollback theo khóa `(session_id, student_id)`, lưu giá trị trước theo từng ô.

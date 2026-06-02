@@ -1,16 +1,36 @@
-import { useMemo } from 'react'
+import { useMemo, useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { clsx } from 'clsx'
 import { AttendanceRingChart } from './AttendanceRingChart'
-import { Badge } from '@/components/ui'
-import { getSessionsByClass, getAttendanceByStudent, getEnrollment } from '@/store/db'
+import { Badge, toast } from '@/components/ui'
+import { sessionService } from '@/services/sessionService'
+import { attendanceService } from '@/services/attendanceService'
+import { enrollmentService } from '@/services/enrollmentService'
 
 export const StudentAttendancePanel = ({ student, classId, onClose }) => {
-  const sessions = useMemo(() => getSessionsByClass(classId), [classId])
-  const attendances = useMemo(() => getAttendanceByStudent(student?.id || ''), [student?.id])
+  const [sessions, setSessions] = useState([])
+  const [attendances, setAttendances] = useState([])
+  const [enrollment, setEnrollment] = useState(null)
+
+  useEffect(() => {
+    if (!student?.id) return
+    let cancelled = false
+    Promise.all([
+      sessionService.getByClass(classId),
+      attendanceService.getByStudent(student.id),
+      enrollmentService.getByClass(classId),
+    ])
+      .then(([classSessions, studentAtts, classEnrolls]) => {
+        if (cancelled) return
+        setSessions(classSessions)
+        setAttendances(studentAtts)
+        setEnrollment(classEnrolls.find(e => e.studentId === student.id) || null)
+      })
+      .catch(() => { if (!cancelled) toast.error('Không thể tải dữ liệu điểm danh') })
+    return () => { cancelled = true }
+  }, [student?.id, classId])
 
   // Get enrollment date so we don't penalize student for sessions before they joined
-  const enrollment = useMemo(() => getEnrollment(student?.id, classId), [student?.id, classId])
   const enrolledDate = enrollment?.enrolledAt ? enrollment.enrolledAt.split('T')[0] : null
 
   const history = useMemo(() => {
@@ -18,7 +38,7 @@ export const StudentAttendancePanel = ({ student, classId, onClose }) => {
       const att = attendances.find(a => a.sessionId === session.id)
       return {
         session,
-        present: att ? att.present : null,
+        present: att ? att.present : true,  // mặc định có mặt
         note: att ? att.note : ''
       }
     })

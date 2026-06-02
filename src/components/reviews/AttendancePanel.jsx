@@ -1,6 +1,7 @@
-import { useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { CheckCircle2, XCircle, CalendarCheck } from 'lucide-react'
-import { getAttendanceByRange } from '@/store/db'
+import { attendanceService } from '@/services/attendanceService'
+import { sessionService } from '@/services/sessionService'
 
 const fmtDate = (d) => {
   const dt = new Date(d)
@@ -10,17 +11,44 @@ const fmtDate = (d) => {
 /**
  * AttendancePanel — list of sessions + attendance % for a student within dateRange.
  * Props: studentId, classId, dateRange = { fromDate, toDate }
+ *
+ * Mặc định có mặt: mỗi buổi trong khoảng tính là "Có mặt" trừ khi có bản ghi
+ * present === false. Mẫu số là SỐ BUỔI trong khoảng, không phải số bản ghi.
  */
 export const AttendancePanel = ({ studentId, classId, dateRange }) => {
   const { fromDate, toDate } = dateRange
 
-  const records = useMemo(
-    () => getAttendanceByRange(studentId, classId, fromDate, toDate),
-    [studentId, classId, fromDate, toDate]
-  )
+  const [sessions, setSessions] = useState([])
+  const [records, setRecords] = useState([])
 
-  const total   = records.length
-  const present = records.filter(r => r.present).length
+  useEffect(() => {
+    let cancelled = false
+    Promise.all([
+      sessionService.getByClass(classId),
+      attendanceService.getByRange(studentId, classId, fromDate, toDate),
+    ])
+      .then(([allSessions, recs]) => {
+        if (cancelled) return
+        setSessions(allSessions.filter(s => s.date >= fromDate && s.date <= toDate))
+        setRecords(recs)
+      })
+      .catch(() => { if (!cancelled) { setSessions([]); setRecords([]) } })
+    return () => { cancelled = true }
+  }, [studentId, classId, fromDate, toDate])
+
+  const items = useMemo(() => {
+    const absentMap = new Map(records.filter(r => r.present === false).map(r => [r.sessionId, r]))
+    return sessions
+      .slice()
+      .sort((a, b) => b.date.localeCompare(a.date))
+      .map(s => {
+        const absent = absentMap.get(s.id)
+        return { id: s.id, date: s.date, present: !absent, note: absent ? absent.note : '' }
+      })
+  }, [sessions, records])
+
+  const total   = items.length
+  const present = items.filter(i => i.present).length
   const pct     = total > 0 ? Math.round((present / total) * 1000) / 10 : null
 
   if (total === 0) {
@@ -47,7 +75,7 @@ export const AttendancePanel = ({ studentId, classId, dateRange }) => {
 
       {/* Session list */}
       <div className="divide-y divide-navy-50 max-h-52 overflow-y-auto">
-        {records.map(rec => (
+        {items.map(rec => (
           <div key={rec.id} className="flex items-center gap-3 px-4 py-2.5">
             {rec.present
               ? <CheckCircle2 size={15} className="text-emerald-500 shrink-0" />
