@@ -36,12 +36,12 @@
 ## 6. Kiểm tra & bàn giao change
 
 - [x] 6.1 Chạy `openspec validate add-service-students-classes` và rà từng requirement đã được task/test nào phủ
-- [ ] 6.2 Tổng kết cho người dùng: những gì change này đã làm (service layer cho students/classes/enrollments, UI nạp async, teacher_id gán tự động, không filter quyền ở client) và những gì CHƯA thuộc phạm vi (sessions/attendance ở #5, homework ở #6, banner offline + xóa `db.js` ở #9)
-- [ ] 6.3 Viết hướng dẫn test thủ công cho người dùng và cùng chạy qua:
+- [x] 6.2 Tổng kết cho người dùng: những gì change này đã làm (service layer cho students/classes/enrollments, UI nạp async, teacher_id gán tự động, không filter quyền ở client) và những gì CHƯA thuộc phạm vi (sessions/attendance ở #5, homework ở #6, banner offline + xóa `db.js` ở #9)
+- [x] 6.3 Viết hướng dẫn test thủ công cho người dùng và cùng chạy qua:
   - Đăng nhập teacher A → tạo học sinh, tạo lớp → thấy dữ liệu của A, không thấy dữ liệu của B
   - Đăng nhập teacher B → danh sách lớp/học sinh của A không xuất hiện
   - Teacher A sửa/xóa học sinh và lớp của mình → thành công
   - Mở `ClassesOverviewPage`, `StudentsTab`, `StudentDetailPanel` → có trạng thái loading trước khi hiện dữ liệu
   - Kiểm tra Network tab: không có request nào gọi `supabase.*` trực tiếp từ component (chỉ qua service)
   - `EnrollmentModal`: ghi danh học sinh vào lớp → upsert không tạo bản ghi trùng khi ghi danh lại
-- [ ] 6.4 Ghi lại kết quả test + vấn đề tồn đọng; xác nhận với người dùng trước khi sang #5 (sessions/attendance)
+- [x] 6.4 Ghi lại kết quả test + vấn đề tồn đọng; xác nhận với người dùng trước khi sang #5 (sessions/attendance)
