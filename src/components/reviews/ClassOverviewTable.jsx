@@ -1,28 +1,28 @@
-import { useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import * as XLSX from 'xlsx'
 import { FileSpreadsheet, Users } from 'lucide-react'
-import { Button } from '@/components/ui'
-import {
-  getActiveStudents, getReviewsByStudent,
-  getAttendanceByRange, getHomeworkByRange,
-} from '@/store/db'
+import { reviewService } from '@/services/reviewService'
+import { enrollmentService } from '@/services/enrollmentService'
+import { studentService } from '@/services/studentService'
+import { attendanceService } from '@/services/attendanceService'
+import { homeworkService } from '@/services/homeworkService'
 
-const calcAttendancePct = (studentId, classId, fromDate, toDate) => {
-  const recs = getAttendanceByRange(studentId, classId, fromDate, toDate)
-  if (recs.length === 0) return null
-  const present = recs.filter(r => r.present).length
-  return Math.round((present / recs.length) * 1000) / 10
+// Default present: only absent records exist; use sessionCount as denominator
+const calcAttendancePct = (studentId, { sessionCount, records }) => {
+  if (sessionCount === 0) return null
+  const absent = records.filter(r => r.studentId === studentId && r.present === false).length
+  return Math.round(((sessionCount - absent) / sessionCount) * 1000) / 10
 }
 
-const calcHomeworkPct = (studentId, classId, fromDate, toDate) => {
-  const records = getHomeworkByRange(studentId, classId, fromDate, toDate)
-  if (records.length === 0) return null
+const calcHomeworkPct = (studentId, hwRecords) => {
+  const recs = hwRecords.filter(r => r.studentId === studentId)
+  if (recs.length === 0) return null
   let done = 0, inProg = 0
-  records.forEach(r => {
-    if (r.progress === 'done' || r.progress === 100) done++
-    else if (r.progress === 'in_progress' || r.progress === 50) inProg++
+  recs.forEach(r => {
+    if (r.progress === 'done') done++
+    else if (r.progress === 'in_progress') inProg++
   })
-  return Math.round((done * 100 + inProg * 50) / records.length)
+  return Math.round((done * 100 + inProg * 50) / recs.length)
 }
 
 const PctBadge = ({ pct }) => {
@@ -44,19 +44,53 @@ const fmtDateVN = (d) => {
  * Props: classId, cls (object), dateRange = { fromDate, toDate }
  */
 export const ClassOverviewTable = ({ classId, cls, dateRange }) => {
+  const [allReviews,     setAllReviews]     = useState([])
+  const [activeStudents, setActiveStudents] = useState([])
+  const [attData,        setAttData]        = useState({ sessionCount: 0, records: [] })
+  const [hwRecords,      setHwRecords]      = useState([])
+
+  // Load students once per class
+  useEffect(() => {
+    if (!classId) { setActiveStudents([]); return }
+    enrollmentService.getByClass(classId).then(async (enrollments) => {
+      const activeIds = enrollments.filter(e => e.status === 'active').map(e => e.studentId)
+      const all = await studentService.getAll()
+      setActiveStudents(all.filter(s => activeIds.includes(s.id)))
+    }).catch(() => {})
+  }, [classId])
+
+  // Reload reviews + attendance + homework when classId or dateRange changes
+  useEffect(() => {
+    if (!classId) {
+      setAllReviews([])
+      setAttData({ sessionCount: 0, records: [] })
+      setHwRecords([])
+      return
+    }
+    Promise.all([
+      reviewService.getByClass(classId),
+      attendanceService.getByClassRange(classId, dateRange.fromDate, dateRange.toDate),
+      homeworkService.getByClassRange(classId, dateRange.fromDate, dateRange.toDate),
+    ]).then(([reviews, att, hw]) => {
+      setAllReviews(reviews)
+      setAttData(att)
+      setHwRecords(hw)
+    }).catch(() => {})
+  }, [classId, dateRange.fromDate, dateRange.toDate])
+
   const rows = useMemo(() => {
     if (!classId) return []
-    const students = getActiveStudents(classId)
-    return students.map(s => {
-      const reviews      = getReviewsByStudent(s.id, classId)
-        .filter(r => r.date >= dateRange.fromDate && r.date <= dateRange.toDate)
-      const latestReview = reviews[0] ?? null
-      const attPct       = calcAttendancePct(s.id, classId, dateRange.fromDate, dateRange.toDate)
-      const hwPct        = calcHomeworkPct(s.id, classId, dateRange.fromDate, dateRange.toDate)
-      const lastRemark   = latestReview?.remark || latestReview?.tags?.[0] || '—'
+    return activeStudents.map(s => {
+      const studentReviews = allReviews
+        .filter(r => r.studentId === s.id && r.date >= dateRange.fromDate && r.date <= dateRange.toDate)
+      const latestReview = studentReviews[0] ?? null
+      const attPct       = calcAttendancePct(s.id, attData)
+      const hwPct        = calcHomeworkPct(s.id, hwRecords)
+      const tags         = Array.isArray(latestReview?.tags) ? latestReview.tags : []
+      const lastRemark   = latestReview?.remark || tags[0] || '—'
       return { student: s, attPct, hwPct, lastRemark }
     })
-  }, [classId, dateRange.fromDate, dateRange.toDate])
+  }, [classId, activeStudents, allReviews, attData, hwRecords, dateRange.fromDate, dateRange.toDate])
 
   const handleExportExcel = () => {
     if (!rows.length) return
@@ -72,14 +106,11 @@ export const ClassOverviewTable = ({ classId, cls, dateRange }) => {
       lastRemark,
     ])
 
-    // Title row for context
     const titleRow  = [`Tổng quan lớp: ${cls?.name ?? ''}`]
-    const rangeRow  = [`Khoảng thời gian: ${fromVN} – ${toVN}`]
+    const rangeRow  = [`Khoảng thời gian: ${fromVN} - ${toVN}`]
     const emptyRow  = []
 
     const ws = XLSX.utils.aoa_to_sheet([titleRow, rangeRow, emptyRow, header, ...data])
-
-    // Column widths
     ws['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 12 }, { wch: 40 }]
 
     const wb = XLSX.utils.book_new()

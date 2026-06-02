@@ -1,4 +1,4 @@
-import { useState, useMemo, useEffect } from 'react'
+import { useState, useMemo, useEffect, useCallback } from 'react'
 import { GraduationCap, FileText, Users, User, Search, UserCircle } from 'lucide-react'
 import { clsx } from 'clsx'
 import { Button, toast } from '@/components/ui'
@@ -12,10 +12,14 @@ import { HomeworkPanel }         from '@/components/reviews/HomeworkPanel'
 import { GeneralCommentPanel }   from '@/components/reviews/GeneralCommentPanel'
 import { ClassOverviewTable }    from '@/components/reviews/ClassOverviewTable'
 import { useDebounce }           from '@/utils/useDebounce'
+import { reviewService }         from '@/services/reviewService'
+import { generalCommentService } from '@/services/generalCommentService'
+import { classService }          from '@/services/classService'
+import { studentService }        from '@/services/studentService'
+import { enrollmentService }     from '@/services/enrollmentService'
 import {
-  getClasses, getStudents, getEnrollmentsByClass,
-  getReviewsByStudent, upsertReview, getSettings,
-  getAttendanceByRange, getHomeworkByRange, getGeneralComment,
+  getSettings,
+  getAttendanceByRange, getHomeworkByRange,
 } from '@/store/db'
 
 const STORAGE_KEY = 'reviews_ui_state'
@@ -123,10 +127,9 @@ export const ReviewsPage = () => {
   const [selectedStudentId, setSelectedStudentIdRaw] = useState(saved.selectedStudentId ?? null)
   const [viewMode,          setViewModeRaw]          = useState(saved.viewMode          ?? 'individual')
   const [dateRange,         setDateRangeRaw]         = useState(saved.dateRange         ?? getDefaultDateRange())
-  const [formOpen,          setFormOpen]             = useState(false)
-  const [editingReview,     setEditingReview]        = useState(null)
-  const [reportOpen,        setReportOpen]           = useState(false)
-  const [refreshKey,        setRefreshKey]           = useState(0)
+  const [formOpen,      setFormOpen]    = useState(false)
+  const [editingReview, setEditingReview] = useState(null)
+  const [reportOpen,    setReportOpen]   = useState(false)
 
   // Wrap setters to also persist to localStorage
   const persist = (patch) => {
@@ -153,28 +156,54 @@ export const ReviewsPage = () => {
     persist({ dateRange: range })
   }
 
-  const classes  = getClasses()
-  const students = getStudents()
   const settings = getSettings()
 
-  const enrollmentMap = useMemo(() => {
-    const map = new Map()
-    for (const cls of classes) {
-      const ids = getEnrollmentsByClass(cls.id)
-        .filter(e => e.status === 'active')
-        .map(e => e.studentId)
-      map.set(cls.id, ids)
-    }
-    return map
-  }, [classes.length, refreshKey])
+  const [classes,        setClasses]        = useState([])
+  const [students,       setStudents]       = useState([])
+  const [enrollmentMap,  setEnrollmentMap]  = useState(new Map())
+  const [reviews,        setReviews]        = useState([])
+  const [generalComment, setGeneralComment] = useState(null)
+  const [reviewsLoading, setReviewsLoading] = useState(false)
+
+  // Load classes + students once on mount
+  useEffect(() => {
+    Promise.all([classService.getAll(), studentService.getAll()])
+      .then(([cls, stu]) => { setClasses(cls); setStudents(stu) })
+      .catch(() => {})
+  }, [])
+
+  // Load enrollments for selected class
+  useEffect(() => {
+    if (!selectedClassId) { setEnrollmentMap(new Map()); return }
+    enrollmentService.getByClass(selectedClassId)
+      .then(enrollments => {
+        const ids = enrollments.filter(e => e.status === 'active').map(e => e.studentId)
+        setEnrollmentMap(new Map([[selectedClassId, ids]]))
+      })
+      .catch(() => {})
+  }, [selectedClassId])
 
   const selectedStudent = students.find(s => s.id === selectedStudentId) ?? null
   const selectedClass   = classes.find(c => c.id === selectedClassId)   ?? null
 
-  const reviews = useMemo(() => {
-    if (!selectedStudentId || !selectedClassId) return []
-    return getReviewsByStudent(selectedStudentId, selectedClassId)
-  }, [selectedStudentId, selectedClassId, refreshKey])
+  const loadReviews = useCallback(async () => {
+    if (!selectedStudentId || !selectedClassId) { setReviews([]); setGeneralComment(null); return }
+    setReviewsLoading(true)
+    try {
+      const [reviewData, commentData] = await Promise.all([
+        reviewService.getByStudent(selectedStudentId, selectedClassId),
+        generalCommentService.get(selectedStudentId, selectedClassId),
+      ])
+      setReviews(reviewData)
+      setGeneralComment(commentData)
+    } catch (err) {
+      toast.error('Không tải được đánh giá: ' + err.message)
+    } finally {
+      setReviewsLoading(false)
+    }
+  }, [selectedStudentId, selectedClassId])
+
+  useEffect(() => { loadReviews() }, [loadReviews])
 
   const filteredReviews = useMemo(
     () => reviews.filter(r => r.date >= dateRange.fromDate && r.date <= dateRange.toDate),
@@ -186,22 +215,21 @@ export const ReviewsPage = () => {
   const attendancePct = useMemo(() => {
     if (!selectedStudentId || !selectedClassId) return null
     return calcAttendancePct(selectedStudentId, selectedClassId, dateRange.fromDate, dateRange.toDate)
-  }, [selectedStudentId, selectedClassId, dateRange.fromDate, dateRange.toDate, refreshKey])
+  }, [selectedStudentId, selectedClassId, dateRange.fromDate, dateRange.toDate])
 
   const homeworkPct = useMemo(() => {
     if (!selectedStudentId || !selectedClassId) return null
     return calcHomeworkPct(selectedStudentId, selectedClassId, dateRange.fromDate, dateRange.toDate)
-  }, [selectedStudentId, selectedClassId, dateRange.fromDate, dateRange.toDate, refreshKey])
+  }, [selectedStudentId, selectedClassId, dateRange.fromDate, dateRange.toDate])
 
-  const generalComment = useMemo(() => {
-    if (!selectedStudentId || !selectedClassId) return null
-    return getGeneralComment(selectedStudentId, selectedClassId)
-  }, [selectedStudentId, selectedClassId, refreshKey])
-
-  const handleSaveReview = (data) => {
-    upsertReview(data)
-    toast.success(editingReview ? 'Đã cập nhật đánh giá' : 'Đã lưu đánh giá')
-    setRefreshKey(k => k + 1)
+  const handleSaveReview = async (data) => {
+    try {
+      await reviewService.upsert(data)
+      toast.success(editingReview ? 'Đã cập nhật đánh giá' : 'Đã lưu đánh giá')
+      await loadReviews()
+    } catch (err) {
+      toast.error('Lưu thất bại: ' + err.message)
+    }
   }
 
   const openAdd  = () => { setEditingReview(null); setFormOpen(true) }

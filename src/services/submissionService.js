@@ -30,6 +30,26 @@ export const submissionService = {
     return data.map(fromDB)
   },
 
+  // Bulk fetch for overview tables: all submissions for a class filtered by
+  // assignment date range. Returns flat list of {studentId, submitted}.
+  async getByClassRange(classId, fromDate, toDate) {
+    const { data: assignments, error: aErr } = await supabase
+      .from('hw_assignments')
+      .select('id')
+      .eq('class_id', classId)
+      .gte('assigned_at', fromDate)
+      .lte('assigned_at', toDate)
+    if (aErr) throw new Error(aErr.message)
+    if (!assignments || assignments.length === 0) return []
+    const ids = assignments.map(a => a.id)
+    const { data, error } = await supabase
+      .from('submissions')
+      .select('student_id, submitted')
+      .in('hw_assignment_id', ids)
+    if (error) throw new Error(error.message)
+    return (data ?? []).map(row => ({ studentId: row.student_id, submitted: row.submitted }))
+  },
+
   // 3.2 — upsert keyed on (hw_assignment_id, student_id); idempotent nộp/chấm
   async upsert(data) {
     const payload = {

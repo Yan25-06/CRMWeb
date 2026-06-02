@@ -6,11 +6,11 @@ import {
 import { clsx } from 'clsx'
 import { Badge, Button, Skeleton } from '@/components/ui'
 import {
-  getSessionReviewsByStudent, addSessionReview,
   getAttendanceRate, getSessionsByClass, getAttendanceByStudent,
   getHomeworkStats, getHomeworkByStudent, getResultsByStudent, getMockTestsByClass,
 } from '@/store/db'
 import { enrollmentService } from '@/services/enrollmentService'
+import { sessionReviewService } from '@/services/sessionReviewService'
 import { getInitials } from '@/utils/helpers'
 
 const STATUS_CONFIG = {
@@ -37,21 +37,30 @@ const QuickRemarkInput = ({ student, enrollment, onRefresh }) => {
   const [saving, setSaving] = useState(false)
   const textareaRef = useRef(null)
 
-  const load = () => {
+  const load = async () => {
     if (!student || !enrollment) return
-    const all = getSessionReviewsByStudent(student.id, enrollment.classId)
-    setRemarks(all)
+    try {
+      const all = await sessionReviewService.getByStudent(student.id, enrollment.classId)
+      setRemarks(all)
+    } catch {
+      // silent load failure — show empty list
+    }
   }
 
   useEffect(() => { load() }, [student?.id, enrollment?.classId])
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!text.trim()) return
     setSaving(true)
-    addSessionReview({ studentId: student.id, classId: enrollment.classId, text: text.trim() })
-    setText('')
-    load()
-    setSaving(false)
+    try {
+      await sessionReviewService.add({ studentId: student.id, classId: enrollment.classId, text: text.trim() })
+      setText('')
+      await load()
+    } catch {
+      // silent — text preserved in input so user can retry
+    } finally {
+      setSaving(false)
+    }
   }
 
   const recent = remarks.slice(0, 3)

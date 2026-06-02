@@ -90,9 +90,34 @@ export const attendanceService = {
     return fromDB(data)
   },
 
+  // Bulk fetch for overview tables. Returns { sessionCount, records }
+  // where records are only the explicit absent/present entries (default = present).
+  // Callers use sessionCount as denominator: (sessionCount - absentCount) / sessionCount.
+  async getByClassRange(classId, fromDate, toDate) {
+    const { data: sessions, error: sessErr } = await supabase
+      .from('sessions')
+      .select('id')
+      .eq('class_id', classId)
+      .gte('date', fromDate)
+      .lte('date', toDate)
+    if (sessErr) throw new Error(sessErr.message)
+    if (!sessions || sessions.length === 0) return { sessionCount: 0, records: [] }
+    const sessionIds = sessions.map(s => s.id)
+    const { data, error } = await supabase
+      .from('attendance')
+      .select('student_id, present')
+      .in('session_id', sessionIds)
+    if (error) throw new Error(error.message)
+    return {
+      sessionCount: sessions.length,
+      records: (data ?? []).map(row => ({ studentId: row.student_id, present: row.present })),
+    }
+  },
+
   // Derived: attendance rate (%) over past sessions of a class. null if none.
   async getRate(studentId, classId) {
-    const today = new Date().toISOString().split('T')[0]
+    const d = new Date()
+    const today = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
     const [sessions, records] = await Promise.all([
       sessionService.getByClass(classId),
       this.getByStudent(studentId),

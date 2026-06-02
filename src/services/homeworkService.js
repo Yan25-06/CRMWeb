@@ -120,6 +120,25 @@ export const homeworkService = {
       .sort((a, b) => (b.date || '').localeCompare(a.date || ''))
   },
 
+  // Bulk fetch for overview tables — homeworks filtered by session date range.
+  async getByClassRange(classId, fromDate, toDate) {
+    const { data: sessions, error: sessErr } = await supabase
+      .from('sessions')
+      .select('id')
+      .eq('class_id', classId)
+      .gte('date', fromDate)
+      .lte('date', toDate)
+    if (sessErr) throw new Error(sessErr.message)
+    if (!sessions || sessions.length === 0) return []
+    const sessionIds = sessions.map(s => s.id)
+    const { data, error } = await supabase
+      .from('homeworks')
+      .select('student_id, progress')
+      .in('session_id', sessionIds)
+    if (error) throw new Error(error.message)
+    return (data ?? []).map(row => ({ studentId: row.student_id, progress: row.progress }))
+  },
+
   // Used by HomeworkTab session mode to compute per-student stats efficiently.
   // Fetches session IDs for the class first, then all homeworks in one query.
   async getByClass(classId) {
