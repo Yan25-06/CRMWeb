@@ -43,4 +43,4 @@
   - Đăng nhập teacher B → buổi học và điểm danh của A không xuất hiện
   - `SchedulePage`: thêm/sửa/xóa mục lịch → hoạt động qua `scheduleService`
   - `StudentAttendancePanel`: thống kê chuyên cần hiển thị đúng sau khi nạp từ Supabase
-- [ ] 6.4 Ghi lại kết quả test + vấn đề tồn đọng; xác nhận với người dùng trước khi sang #6 (homework)
+- [x] 6.4 Ghi lại kết quả test + vấn đề tồn đọng; xác nhận với người dùng trước khi sang #6 (homework)
