@@ -1,6 +1,7 @@
-import { useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import { BookOpen, CheckCircle2, Clock, Circle } from 'lucide-react'
-import { getHomeworkByRange } from '@/store/db'
+import { homeworkService } from '@/services/homeworkService'
+import { toast } from '@/components/ui'
 
 const fmtDate = (d) => {
   if (!d) return ''
@@ -9,28 +10,41 @@ const fmtDate = (d) => {
 }
 
 const PROGRESS_CONFIG = {
-  done:        { label: 'Hoàn tất',    color: 'bg-emerald-50 text-emerald-700', icon: CheckCircle2, iconColor: 'text-emerald-500' },
+  done:        { label: 'Hoàn tất',      color: 'bg-emerald-50 text-emerald-700', icon: CheckCircle2, iconColor: 'text-emerald-500' },
   in_progress: { label: 'Chưa hoàn tất', color: 'bg-amber-50 text-amber-700',    icon: Clock,        iconColor: 'text-amber-500'   },
-  not_done:    { label: 'Không nộp', color: 'bg-red-50 text-red-500',        icon: Circle,       iconColor: 'text-red-400'     },
+  not_done:    { label: 'Không nộp',     color: 'bg-red-50 text-red-500',        icon: Circle,       iconColor: 'text-red-400'     },
 }
 
 /**
  * HomeworkPanel — session-based homework list + completion % for a student within dateRange.
- * Uses phf_homeworks (Theo Buổi), not phf_hw_assignments.
+ * Uses homeworks (Theo Buổi), not hw_assignments.
  * Props: studentId, classId, dateRange = { fromDate, toDate }
  */
 export const HomeworkPanel = ({ studentId, classId, dateRange }) => {
   const { fromDate, toDate } = dateRange
+  const [records, setRecords] = useState([])
+  const [loading, setLoading] = useState(true)
 
-  const records = useMemo(
-    () => getHomeworkByRange(studentId, classId, fromDate, toDate),
-    [studentId, classId, fromDate, toDate]
-  )
+  useEffect(() => {
+    if (!studentId || !classId || !fromDate || !toDate) { setLoading(false); return }
+    setLoading(true)
+    homeworkService.getByRange(studentId, classId, fromDate, toDate)
+      .then(setRecords)
+      .catch(() => toast.error('Không thể tải bài tập'))
+      .finally(() => setLoading(false))
+  }, [studentId, classId, fromDate, toDate])
+
+  if (loading) {
+    return (
+      <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-6 flex items-center justify-center text-navy-400 text-sm">
+        Đang tải...
+      </div>
+    )
+  }
 
   const total      = records.length
   const doneCount  = records.filter(r => r.progress === 'done' || r.progress === 100).length
   const inProgCount = records.filter(r => r.progress === 'in_progress' || r.progress === 50).length
-  // Same formula as HomeworkTab's "Hiệu suất" column
   const pct = total > 0 ? Math.round((doneCount * 100 + inProgCount * 50) / total) : null
 
   if (total === 0) {
@@ -47,7 +61,6 @@ export const HomeworkPanel = ({ studentId, classId, dateRange }) => {
 
   return (
     <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm overflow-hidden">
-      {/* Header */}
       <div className="px-4 py-3 border-b border-navy-50 flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold text-navy-800">Bài Tập Theo Buổi</p>
@@ -58,13 +71,12 @@ export const HomeworkPanel = ({ studentId, classId, dateRange }) => {
         <span className={`text-sm font-bold px-3 py-1 rounded-full ${badgeColor}`}>{pct}%</span>
       </div>
 
-      {/* Session list */}
       <div className="divide-y divide-navy-50 max-h-52 overflow-y-auto">
         {records.map(rec => {
-          const progress   = rec.progress === 100 ? 'done' : rec.progress === 50 ? 'in_progress' : (rec.progress || 'not_done')
-          const cfg        = PROGRESS_CONFIG[progress] || PROGRESS_CONFIG.not_done
-          const Icon       = cfg.icon
-          const label      = rec.title || rec.sessionTopic || `Buổi ${fmtDate(rec.date)}`
+          const progress = rec.progress === 100 ? 'done' : rec.progress === 50 ? 'in_progress' : (rec.progress || 'not_done')
+          const cfg      = PROGRESS_CONFIG[progress] || PROGRESS_CONFIG.not_done
+          const Icon     = cfg.icon
+          const label    = rec.title || rec.sessionTopic || `Buổi ${fmtDate(rec.date)}`
 
           return (
             <div key={rec.id} className="flex items-center gap-3 px-4 py-2.5">

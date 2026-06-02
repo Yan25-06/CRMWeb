@@ -34,7 +34,7 @@ export const sessionService = {
       .eq('class_id', classId)
       .order('date', { ascending: false })
     if (error) throw new Error(error.message)
-    return data.map(fromDB)
+    return (data ?? []).map(fromDB)
   },
 
   async getById(id) {

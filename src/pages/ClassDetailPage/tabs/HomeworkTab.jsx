@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react'
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { FileText, Plus, ArrowLeft, ClipboardList, Calendar, Pencil } from 'lucide-react'
 import { Button, Card, Badge, toast } from '@/components/ui'
@@ -10,13 +10,12 @@ import { HomeworkSummaryFooter } from '@/components/homework/HomeworkSummaryFoot
 import { StudentHomeworkPanel } from '@/components/homework/StudentHomeworkPanel'
 import { HomeworkAssignmentModal } from '@/components/homework/HomeworkAssignmentModal'
 import { SubmissionTable } from '@/components/homework/SubmissionTable'
-import {
-  getSessionsByClass, getStudents, getEnrollmentsByClass,
-  getHomeworkBySession, updateHomework, updateSessionHomeworkTitle, saveHomeworks, getHomeworks,
-  getHwAssignmentsByClass, createHwAssignment, updateHwAssignment, deleteHwAssignment,
-  getSubmissionsByAssignment, getSubmissions, getActiveStudents,
-  uid
-} from '@/store/db'
+import { sessionService } from '@/services/sessionService'
+import { studentService } from '@/services/studentService'
+import { enrollmentService } from '@/services/enrollmentService'
+import { homeworkService } from '@/services/homeworkService'
+import { hwAssignmentService } from '@/services/hwAssignmentService'
+import { submissionService } from '@/services/submissionService'
 import { getInitials, fmtDate } from '@/utils/helpers'
 
 const MODE = { SESSION: 'session', ASSIGN: 'assign' }
@@ -28,111 +27,133 @@ export const HomeworkTab = ({ classId }) => {
   const [students, setStudents] = useState([])
   const [enrollments, setEnrollments] = useState([])
   const [records, setRecords] = useState([])
+  const [classHomeworks, setClassHomeworks] = useState([])
   const [selectedStudent, setSelectedStudent] = useState(null)
-  
+  const [loading, setLoading] = useState(true)
+
   const [sessionModalOpen, setSessionModalOpen] = useState(false)
-  
-  // For shared title input
+
   const [sharedTitle, setSharedTitle] = useState('')
   const titleTimerRef = useRef(null)
 
-  useEffect(() => {
-    const classSessions = getSessionsByClass(classId)
-    setSessions(classSessions)
-    if (!activeSessionId && classSessions.length > 0) {
-      setActiveSessionId(classSessions[0].id)
+  const loadBase = useCallback(async () => {
+    try {
+      const [classSessions, allStudents, classEnrolls, classHws] = await Promise.all([
+        sessionService.getByClass(classId),
+        studentService.getAll(),
+        enrollmentService.getByClass(classId),
+        homeworkService.getByClass(classId),
+      ])
+      const relevantEnrolls = classEnrolls.filter(e => e.status !== 'dropped')
+      setSessions(classSessions)
+      setStudents(allStudents.filter(s => relevantEnrolls.some(e => e.studentId === s.id)))
+      setEnrollments(relevantEnrolls)
+      setClassHomeworks(classHws)
+      setActiveSessionId(prev =>
+        prev && classSessions.some(s => s.id === prev)
+          ? prev
+          : (classSessions[0]?.id || '')
+      )
+    } catch {
+      toast.error('Không thể tải dữ liệu bài tập')
+    } finally {
+      setLoading(false)
     }
-    
-    const loadStudents = () => {
-      const allStudents = getStudents()
-      const classEnrolls = getEnrollmentsByClass(classId).filter(e => e.status !== 'dropped')
-      const relevantStudents = allStudents.filter(s => classEnrolls.some(e => e.studentId === s.id))
-      setStudents(relevantStudents)
-      setEnrollments(classEnrolls)
-    }
-    loadStudents()
   }, [classId])
 
-  useEffect(() => {
-    if (activeSessionId) {
-      const hwRecords = getHomeworkBySession(activeSessionId)
+  useEffect(() => { loadBase() }, [loadBase])
+
+  const loadSessionRecords = useCallback(async (sessionId) => {
+    if (!sessionId) { setRecords([]); setSharedTitle(''); return }
+    try {
+      const hwRecords = await homeworkService.getBySession(sessionId)
       setRecords(hwRecords)
       setSharedTitle(hwRecords.length > 0 ? hwRecords[0].title || '' : '')
-    } else {
-      setRecords([])
-      setSharedTitle('')
+    } catch {
+      toast.error('Không thể tải bài tập buổi học')
     }
-  }, [activeSessionId])
+  }, [])
 
-  const handleSessionSaved = (newId) => {
-    const classSessions = getSessionsByClass(classId)
-    setSessions(classSessions)
+  useEffect(() => { loadSessionRecords(activeSessionId) }, [activeSessionId, loadSessionRecords])
+
+  const handleSessionSaved = async (newId) => {
+    await loadBase()
     setActiveSessionId(newId)
   }
 
-  const handleProgressChange = (recordId, newProgress) => {
-    updateHomework(recordId, { progress: newProgress })
-    setRecords(getHomeworkBySession(activeSessionId))
-    toast.success('Đã lưu tiến độ', { duration: 1500 }) // Mini toast equivalent
+  const handleProgressChange = async (recordId, newProgress) => {
+    try {
+      await homeworkService.update(recordId, { progress: newProgress })
+      const updated = await homeworkService.getBySession(activeSessionId)
+      setRecords(updated)
+      setClassHomeworks(await homeworkService.getByClass(classId))
+      toast.success('Đã lưu tiến độ', { duration: 1500 })
+    } catch {
+      toast.error('Không thể lưu tiến độ')
+    }
   }
 
-  const handleNoteChange = (recordId, note) => {
-    updateHomework(recordId, { note })
-    setRecords(getHomeworkBySession(activeSessionId))
+  const handleNoteChange = async (recordId, note) => {
+    try {
+      await homeworkService.update(recordId, { note })
+      const updated = await homeworkService.getBySession(activeSessionId)
+      setRecords(updated)
+    } catch {
+      toast.error('Không thể lưu ghi chú')
+    }
   }
 
   const handleTitleChange = (val) => {
     setSharedTitle(val)
     if (titleTimerRef.current) clearTimeout(titleTimerRef.current)
-    titleTimerRef.current = setTimeout(() => {
+    titleTimerRef.current = setTimeout(async () => {
       if (activeSessionId) {
-        updateSessionHomeworkTitle(activeSessionId, val)
-        setRecords(getHomeworkBySession(activeSessionId))
+        try {
+          await homeworkService.updateSessionTitle(activeSessionId, val)
+          setRecords(await homeworkService.getBySession(activeSessionId))
+        } catch {
+          toast.error('Không thể lưu tiêu đề bài tập')
+        }
       }
     }, 600)
   }
 
-  const handleAddMissingRecord = (studentId) => {
+  const handleAddRecord = async (studentId) => {
     if (!activeSessionId) return
-    const allHw = getHomeworks()
-    const now = new Date().toISOString()
-    const newRecord = {
-      id: uid(),
-      sessionId: activeSessionId,
-      studentId,
-      progress: 'not_done',
-      title: sharedTitle,
-      note: '',
-      createdAt: now,
-      updatedAt: now
+    try {
+      await homeworkService.create({
+        sessionId: activeSessionId,
+        studentId,
+        progress: 'not_done',
+        title: sharedTitle,
+        note: '',
+      })
+      const updated = await homeworkService.getBySession(activeSessionId)
+      setRecords(updated)
+      setClassHomeworks(await homeworkService.getByClass(classId))
+    } catch {
+      toast.error('Không thể thêm bản ghi bài tập')
     }
-    allHw.push(newRecord)
-    saveHomeworks(allHw)
-    setRecords(getHomeworkBySession(activeSessionId))
   }
 
-  // Pre-compute homework stats for ALL students in one pass
-  // (avoids N×2 localStorage reads from calling getHomeworkStats per row)
+  // Per-student hw stats computed client-side from already-fetched class homeworks
   const hwStatsMap = useMemo(() => {
     if (students.length === 0) return {}
     const classSessionIds = new Set(sessions.map(s => s.id))
-    // Single read of all homework records for this class's sessions
-    const classHomeworks = getHomeworks().filter(h => classSessionIds.has(h.sessionId))
+    const classHws = classHomeworks.filter(h => classSessionIds.has(h.sessionId))
     return Object.fromEntries(students.map(student => {
-      const studentHws = classHomeworks.filter(h => h.studentId === student.id)
-      const stats = { done: 0, inProgress: 0, notDone: 0, total: studentHws.length }
-      studentHws.forEach(r => {
-        if (r.progress === 'done' || r.progress === 100) stats.done++
-        else if (r.progress === 'in_progress' || r.progress === 50) stats.inProgress++
-        else stats.notDone++
-      })
-      return [student.id, stats]
+      const studentHws = classHws.filter(h => h.studentId === student.id)
+      return [student.id, homeworkService.getStats(studentHws)]
     }))
-  }, [students, sessions, records]) // `records` dep triggers recompute after any progress update
+  }, [students, sessions, classHomeworks])
+
+  if (loading) {
+    return <div className="flex items-center justify-center p-16 text-navy-400 text-sm">Đang tải...</div>
+  }
 
   return (
     <div className="flex flex-col gap-6 relative h-full min-h-[500px]">
-      {/* Mode toggle — always visible */}
+      {/* Mode toggle */}
       <div className="flex gap-2">
         <button
           onClick={() => setMode(MODE.SESSION)}
@@ -150,10 +171,9 @@ export const HomeworkTab = ({ classId }) => {
         </button>
       </div>
 
-      {/* Session mode content */}
+      {/* Session mode */}
       {mode === MODE.SESSION && (
         <>
-          {/* Toolbar */}
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-navy-100 shadow-navy-sm">
             <SessionSelector
               sessions={sessions}
@@ -161,7 +181,6 @@ export const HomeworkTab = ({ classId }) => {
               onSelect={setActiveSessionId}
               onAddNew={() => setSessionModalOpen(true)}
             />
-            
             {activeSessionId && (
               <div className="flex-1 max-w-sm">
                 <input
@@ -175,15 +194,12 @@ export const HomeworkTab = ({ classId }) => {
             )}
           </div>
 
-          {/* Main Content */}
           {!activeSessionId ? (
             <Card className="p-16 flex flex-col items-center justify-center text-center gap-3">
               <FileText size={48} className="text-navy-200" />
               <p className="font-semibold text-navy-700">Chưa có buổi học nào</p>
               <p className="text-sm text-navy-400">Tạo buổi đầu tiên ở tab Điểm Danh hoặc thêm tại đây</p>
-              <Button onClick={() => setSessionModalOpen(true)} className="mt-2">
-                + Tạo buổi học
-              </Button>
+              <Button onClick={() => setSessionModalOpen(true)} className="mt-2">+ Tạo buổi học</Button>
             </Card>
           ) : students.length === 0 ? (
             <Card className="p-16 flex flex-col items-center justify-center text-center gap-3">
@@ -212,15 +228,15 @@ export const HomeworkTab = ({ classId }) => {
                       const hwRate = hwStats.total > 0 ? Math.round((hwStats.done * 100 + hwStats.inProgress * 50) / hwStats.total) : 0
 
                       return (
-                        <tr 
-                          key={student.id} 
+                        <tr
+                          key={student.id}
                           className={clsx(
-                            "transition-colors hover:bg-navy-50/30",
-                            isPaused && "opacity-50 bg-gray-50/50 hover:bg-gray-50/50"
+                            'transition-colors hover:bg-navy-50/30',
+                            isPaused && 'opacity-50 bg-gray-50/50 hover:bg-gray-50/50'
                           )}
                         >
                           <td className="px-6 py-3">
-                            <button 
+                            <button
                               className="flex items-center gap-3 text-left w-full group"
                               onClick={() => setSelectedStudent(student)}
                             >
@@ -237,8 +253,8 @@ export const HomeworkTab = ({ classId }) => {
                           </td>
                           <td className="px-6 py-3 text-center">
                             <span className={clsx(
-                              "text-sm font-semibold",
-                              isPaused ? "text-navy-300" : hwRate >= 80 ? "text-emerald-600" : hwRate >= 50 ? "text-amber-600" : "text-red-600"
+                              'text-sm font-semibold',
+                              isPaused || hwStats.total === 0 ? 'text-navy-300' : hwRate >= 80 ? 'text-emerald-600' : hwRate >= 50 ? 'text-amber-600' : 'text-red-600'
                             )}>
                               {hwStats.total > 0 ? `${hwRate}%` : '—'}
                             </span>
@@ -251,11 +267,11 @@ export const HomeworkTab = ({ classId }) => {
                                 onChange={(val) => handleProgressChange(record.id, val)}
                               />
                             ) : (
-                              <Button 
-                                variant="ghost" 
-                                size="sm" 
+                              <Button
+                                variant="ghost"
+                                size="sm"
                                 className="text-xs text-navy-500"
-                                onClick={() => handleAddMissingRecord(student.id)}
+                                onClick={() => handleAddRecord(student.id)}
                               >
                                 <Plus size={14} className="mr-1" /> Thêm
                               </Button>
@@ -278,7 +294,7 @@ export const HomeworkTab = ({ classId }) => {
                   </tbody>
                 </table>
               </div>
-              
+
               <HomeworkSummaryFooter records={records.filter(r => enrollments.find(e => e.studentId === r.studentId)?.status !== 'paused')} />
             </div>
           )}
@@ -300,7 +316,7 @@ export const HomeworkTab = ({ classId }) => {
         </>
       )}
 
-      {/* Assign mode content */}
+      {/* Assign mode */}
       {mode === MODE.ASSIGN && (
         <AssignView classId={classId} />
       )}
@@ -313,54 +329,88 @@ const AssignView = ({ classId }) => {
   const [assignments, setAssignments] = useState([])
   const [selected, setSelected] = useState(null)
   const [submissions, setSubmissions] = useState([])
-  const [allSubs, setAllSubs] = useState([])  // pre-fetched for all assignments (avoids N reads in list)
+  const [allSubs, setAllSubs] = useState([])
   const [students, setStudents] = useState([])
+  const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingAssignment, setEditingAssignment] = useState(null)
 
-  const refresh = () => {
-    const as = getHwAssignmentsByClass(classId)
-    setAssignments(as)
-    // Load all submissions in one shot, filter to this class's assignments
-    const assignmentIds = new Set(as.map(a => a.id))
-    setAllSubs(getSubmissions().filter(s => assignmentIds.has(s.hwAssignmentId)))
-    setStudents(getActiveStudents(classId))
-  }
+  const refresh = useCallback(async () => {
+    try {
+      const [as, activeEnrolls] = await Promise.all([
+        hwAssignmentService.getByClass(classId),
+        enrollmentService.getActiveByClass(classId),
+      ])
+      setAssignments(as)
+      setStudents(activeEnrolls.map(e => e.student).filter(Boolean))
+      // Prefetch all submissions for this class's assignments
+      const assignmentIds = as.map(a => a.id)
+      const subsArrays = await Promise.all(assignmentIds.map(id => submissionService.getByAssignment(id)))
+      setAllSubs(subsArrays.flat())
+    } catch {
+      toast.error('Không thể tải danh sách bài tập')
+    } finally {
+      setLoading(false)
+    }
+  }, [classId])
 
-  useEffect(() => { refresh() }, [classId])
+  useEffect(() => { refresh() }, [refresh])
 
-  const openAssignment = (a) => {
+  const openAssignment = async (a) => {
     setSelected(a)
-    setSubmissions(getSubmissionsByAssignment(a.id))
+    try {
+      setSubmissions(await submissionService.getByAssignment(a.id))
+    } catch {
+      toast.error('Không thể tải dữ liệu nộp bài')
+    }
   }
 
-  const handleSave = (data) => {
-    createHwAssignment({ ...data, classId })
-    toast.success('Đã thêm bài tập!')
-    refresh()
-    setModalOpen(false)
+  const handleSave = async (data) => {
+    try {
+      await hwAssignmentService.create({ ...data, classId })
+      toast.success('Đã thêm bài tập!')
+      await refresh()
+      setModalOpen(false)
+    } catch {
+      toast.error('Không thể thêm bài tập')
+    }
   }
 
-  const handleEditSave = (data) => {
-    updateHwAssignment(editingAssignment.id, data)
-    toast.success('Đã cập nhật bài tập!')
-    refresh()
-    setEditingAssignment(null)
+  const handleEditSave = async (data) => {
+    try {
+      await hwAssignmentService.update(editingAssignment.id, data)
+      toast.success('Đã cập nhật bài tập!')
+      await refresh()
+      setEditingAssignment(null)
+    } catch {
+      toast.error('Không thể cập nhật bài tập')
+    }
   }
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (!confirm('Xóa bài tập này? Tất cả dữ liệu nộp bài sẽ bị xóa.')) return
-    deleteHwAssignment(id)
-    if (selected?.id === id) setSelected(null)
-    refresh()
-    toast.success('Đã xóa bài tập')
+    try {
+      await hwAssignmentService.remove(id)
+      if (selected?.id === id) setSelected(null)
+      await refresh()
+      toast.success('Đã xóa bài tập')
+    } catch {
+      toast.error('Không thể xóa bài tập')
+    }
   }
 
-  const refreshSubmissions = () => {
-    if (selected) setSubmissions(getSubmissionsByAssignment(selected.id))
-    // Also sync allSubs so the list view submission counts stay fresh
-    const assignmentIds = new Set(assignments.map(a => a.id))
-    setAllSubs(getSubmissions().filter(s => assignmentIds.has(s.hwAssignmentId)))
+  const refreshSubmissions = async () => {
+    if (!selected) return
+    try {
+      const subs = await submissionService.getByAssignment(selected.id)
+      setSubmissions(subs)
+      // Sync allSubs so list view submission counts stay fresh
+      const assignmentIds = assignments.map(a => a.id)
+      const subsArrays = await Promise.all(assignmentIds.map(id => submissionService.getByAssignment(id)))
+      setAllSubs(subsArrays.flat())
+    } catch {
+      toast.error('Không thể cập nhật dữ liệu nộp bài')
+    }
   }
 
   const submittedCount = submissions.filter(s => s.submitted).length
@@ -372,9 +422,12 @@ const AssignView = ({ classId }) => {
 
   const isOverdue = (a) => a.dueDate && a.dueDate < new Date().toISOString().split('T')[0]
 
+  if (loading) {
+    return <div className="flex items-center justify-center p-16 text-navy-400 text-sm">Đang tải...</div>
+  }
+
   return (
     <div className="flex flex-col gap-4 animate-fade-in">
-      {/* Header: only show when a specific assignment is selected (internal navigation) */}
       {selected && (
         <div className="flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
@@ -392,7 +445,6 @@ const AssignView = ({ classId }) => {
         </div>
       )}
 
-      {/* Thêm bài tập button (only in list view) */}
       {!selected && (
         <div className="flex justify-end">
           <Button size="sm" onClick={() => setModalOpen(true)}>
@@ -401,7 +453,6 @@ const AssignView = ({ classId }) => {
         </div>
       )}
 
-      {/* View A: list */}
       {!selected && (
         assignments.length === 0 ? (
           <Card className="p-12 flex flex-col items-center justify-center gap-3 text-center">
@@ -423,7 +474,6 @@ const AssignView = ({ classId }) => {
               </thead>
               <tbody className="divide-y divide-navy-50">
                 {assignments.map(a => {
-                  // Use pre-fetched allSubs instead of per-assignment localStorage read
                   const cnt = allSubs.filter(s => s.hwAssignmentId === a.id && s.submitted).length
                   return (
                     <tr
@@ -474,7 +524,6 @@ const AssignView = ({ classId }) => {
         )
       )}
 
-      {/* View B: submission table */}
       {selected && (
         <>
           {selected.description && (
@@ -486,7 +535,6 @@ const AssignView = ({ classId }) => {
             hwAssignmentId={selected.id}
             onUpdate={refreshSubmissions}
           />
-          {/* Footer summary */}
           <div className="bg-navy-50 border border-navy-100 rounded-2xl px-5 py-3 flex items-center gap-6 text-sm">
             <span className="text-navy-700">
               Đã nộp <strong className="text-navy-900">{submittedCount}/{students.length}</strong>
@@ -506,7 +554,6 @@ const AssignView = ({ classId }) => {
         onSave={handleSave}
       />
 
-      {/* Edit modal */}
       <HomeworkAssignmentModal
         open={!!editingAssignment}
         onClose={() => setEditingAssignment(null)}

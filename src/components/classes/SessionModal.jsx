@@ -58,11 +58,12 @@ export const SessionModal = ({ open, onClose, classId, session = null, onSaved }
       try {
         const existingSessions = await sessionService.getByClass(classId)
         if (existingSessions.some(s => s.date === date)) {
-          toast.warning('Đã có buổi học trong ngày này. Bạn có chắc muốn tạo thêm?')
+          toast.info('Đã có buổi học trong ngày này. Bấm "Tạo buổi học" lần nữa để xác nhận.')
           setConfirmSameDay(true)
           return
         }
-      } catch {
+      } catch (e) {
+        console.error('[SessionModal] getByClass failed:', e)
         toast.error('Không thể kiểm tra buổi học hiện có')
         return
       }
@@ -75,7 +76,8 @@ export const SessionModal = ({ open, onClose, classId, session = null, onSaved }
       toast.success(`Đã tạo buổi ${dateFormatted}!`)
       onSaved?.(newSession.id)
       onClose?.()
-    } catch {
+    } catch (e) {
+      console.error('[SessionModal] create failed:', e)
       toast.error('Không thể tạo buổi học')
     } finally {
       setSaving(false)

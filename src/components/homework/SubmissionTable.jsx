@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react'
 import { clsx } from 'clsx'
-import { upsertSubmission } from '@/store/db'
+import { submissionService } from '@/services/submissionService'
 import { getInitials } from '@/utils/helpers'
+import { toast } from '@/components/ui'
 import { Check } from 'lucide-react'
 
 const SavedIndicator = ({ show }) => (
@@ -16,12 +17,10 @@ const SavedIndicator = ({ show }) => (
 const SubmissionRow = ({ student, submission, hwAssignmentId, onUpdate }) => {
   const [saved, setSaved] = useState(false)
   const [scoreError, setScoreError] = useState('')
-  // Controlled state so inputs stay in sync when submission prop changes
   const [scoreVal, setScoreVal] = useState(submission?.score ?? '')
   const [commentVal, setCommentVal] = useState(submission?.comment ?? '')
   const debounceRef = useRef(null)
 
-  // Sync controlled inputs when parent passes updated submission
   useEffect(() => {
     setScoreVal(submission?.score ?? '')
     setCommentVal(submission?.comment ?? '')
@@ -29,10 +28,14 @@ const SubmissionRow = ({ student, submission, hwAssignmentId, onUpdate }) => {
 
   const flash = () => { setSaved(true); setTimeout(() => setSaved(false), 1500) }
 
-  const save = useCallback((data) => {
-    upsertSubmission({ hwAssignmentId, studentId: student.id, ...data })
-    flash()
-    onUpdate?.()
+  const save = useCallback(async (data) => {
+    try {
+      await submissionService.upsert({ hwAssignmentId, studentId: student.id, ...data })
+      flash()
+      onUpdate?.()
+    } catch {
+      toast.error('Không thể lưu dữ liệu nộp bài')
+    }
   }, [hwAssignmentId, student.id, onUpdate])
 
   const handleCheckbox = (e) => {
@@ -61,7 +64,6 @@ const SubmissionRow = ({ student, submission, hwAssignmentId, onUpdate }) => {
     }, 300)
   }
 
-  // gradedAt is stored as Unix timestamp (Date.now()) → format correctly
   const gradedAt = submission?.gradedAt
     ? new Date(submission.gradedAt).toLocaleDateString('vi-VN')
     : '—'
