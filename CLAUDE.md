@@ -2,8 +2,7 @@
 
 Hướng dẫn cho AI khi làm việc trong repo này. **Đọc file này đầu mỗi session thay vì quét lại toàn bộ project.**
 
-> ⚠️ **QUY TẮC BẮT BUỘC:** Sau khi sửa/thêm tính năng làm thay đổi kiến trúc, data model, service layer, routing, scripts hoặc trạng thái migration — **cập nhật lại file này** ở phần liên quan. Giữ nó luôn khớp với code. Đừng để nó lỗi thời (README.md và openspec/AGENTS.md hiện đã lỗi thời, xem mục cuối).
-
+> ⚠️ **QUY TẮC BẮT BUỘC:** Sau khi sửa/thêm tính năng làm thay đổi kiến trúc, data model, service layer, routing, scripts hoặc trạng thái migration — **cập nhật lại file này và file README.md** ở phần liên quan. Giữ nó luôn khớp với code. Đừng để nó lỗi thời 
 ---
 
 ## Dự án là gì
@@ -128,8 +127,3 @@ Project quản lý thay đổi qua OpenSpec (`openspec/`). Có skill tích hợp
 - Optimistic UI + retry (không offline-first thật).
 
 ---
-
-## ⚠️ Tài liệu đã lỗi thời (đừng tin tưởng, ưu tiên file này)
-- `README.md` — mô tả stack chỉ localStorage, roadmap Phase 1-5 cũ, cấu trúc thư mục sai (StudentsPage/AttendancePage không còn). **Chưa nhắc Supabase.**
-- `openspec/AGENTS.md` — ghi "localStorage (không có backend)", "Tất cả data qua db.js", "Phase hiện tại: Phase 2". Đã bị thực tế migration vượt qua.
-- Nếu sửa lớn, cân nhắc cập nhật luôn 2 file trên cho khớp.
