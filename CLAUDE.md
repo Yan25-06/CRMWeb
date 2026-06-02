@@ -42,12 +42,12 @@ Mỗi service là một object với method `getAll / getById / create / update 
 - `create` gắn `teacher_id` qua `getUid()` (export từ `studentService.js`).
 - **UI không gọi `supabase.*` trực tiếp** — luôn qua service (trừ auth trong `useAuth.jsx`).
 
-Services đã có: `studentService`, `classService` (+`teacherService`), `enrollmentService`, `sessionService`, `attendanceService`, `homeworkService`, `hwAssignmentService`, `submissionService`, `scheduleService`.
+Services đã có: `studentService`, `classService` (+`teacherService`), `enrollmentService`, `sessionService`, `attendanceService`, `homeworkService`, `hwAssignmentService`, `submissionService`, `scheduleService`, `feeService`, `paymentService`.
 
 ### Trạng thái migration theo trang (cập nhật khi chuyển tiếp!)
-- ✅ **Đã dùng services:** `ClassesOverviewPage`, `ClassDetailPage/index` + tabs `StudentsTab`, `AttendanceTab`, `HomeworkTab`, `SchedulePage`, `DashboardPage` (một phần).
-- ⏳ **Còn dùng `store/db.js`:** `FeesPage`, `ReviewsPage`, `ReportsPage`, `SettingsPage`, `MockTestTab`, `DashboardPage` (một phần).
-- Service layer còn thiếu (theo roadmap): fees/payments, reviews/session_reviews/general_comments, mock_tests/mock_test_results/settings.
+- ✅ **Đã dùng services:** `ClassesOverviewPage`, `ClassDetailPage/index` + tabs `StudentsTab`, `AttendanceTab`, `HomeworkTab`, `SchedulePage`, `DashboardPage` (một phần), `FeesPage` + components fees (`FeesTable`, `PaymentModal`, `StudentPaymentHistoryPanel`).
+- ⏳ **Còn dùng `store/db.js`:** `ReviewsPage`, `ReportsPage`, `SettingsPage`, `MockTestTab`, `DashboardPage` (một phần).
+- Service layer còn thiếu (theo roadmap): reviews/session_reviews/general_comments, mock_tests/mock_test_results/settings.
 - Change cutover cuối cùng sẽ **xóa `src/store/db.js`**. Không migrate data localStorage cũ — bắt đầu sạch.
 
 **Khi thêm tính năng mới:** ưu tiên viết qua Supabase service. Nếu service chưa tồn tại cho domain đó, tạo mới theo đúng pattern `fromDB/toDB` thay vì thêm vào `db.js`.
@@ -125,5 +125,15 @@ Project quản lý thay đổi qua OpenSpec (`openspec/`). Có skill tích hợp
 - Admin read-only = không cấp policy ghi cho admin ở DB.
 - Invite giáo viên qua Supabase Dashboard; DB trigger tự tạo row `teachers` — không dùng Edge Function.
 - Optimistic UI + retry (không offline-first thật).
+
+## Model học phí (đã chốt)
+- **Không tính theo buổi.** Học phí là cố định: theo tháng hoặc theo khóa.
+- `enrollments.fee_type`: `'monthly'` (mặc định) | `'course'`
+- `enrollments.monthly_fee`: học phí tháng (VNĐ) — dùng khi `fee_type = 'monthly'`
+- `enrollments.course_fee`: học phí cả khóa (VNĐ) — dùng khi `fee_type = 'course'`
+- Công thức `calcFee`: `monthly` → `monthly_fee + surcharge`; `course` → `course_fee`
+- `fees.surcharge`: phụ phí tháng (upsert qua `feeService.upsert`), chỉ áp dụng cho `monthly`
+- **Không còn cột `fee_per_session`** trên bất kỳ bảng nào (đã xóa qua migration `20260602000003`)
+- UI đặt học phí: `EnrollmentModal` (toggle "Theo tháng / Theo khóa")
 
 ---
