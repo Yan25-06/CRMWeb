@@ -1,9 +1,10 @@
 import { useState } from 'react'
 import { clsx } from 'clsx'
 import { Badge } from '@/components/ui'
+import { toast } from '@/components/ui'
 import { ChevronUp, ChevronDown, History, Plus } from 'lucide-react'
 import { fmtVND } from '@/utils/helpers'
-import { getPaymentsByStudent } from '@/store/db'
+import { paymentService } from '@/services/paymentService'
 import { StudentPaymentHistoryPanel } from './StudentPaymentHistoryPanel'
 
 const statusInfo = (paid, expected) => {
@@ -16,18 +17,38 @@ export const FeesTable = ({ rows, period, onAddPayment, onRefresh }) => {
   const [sortAsc, setSortAsc] = useState(true)
   const [historyFor, setHistoryFor] = useState(null)
   const [historyPayments, setHistoryPayments] = useState([])
+  const [loadingHistory, setLoadingHistory] = useState(false)
 
   const sorted = [...rows].sort((a, b) =>
     sortAsc ? a.name.localeCompare(b.name, 'vi') : b.name.localeCompare(a.name, 'vi')
   )
 
-  const openHistory = (row) => {
-    setHistoryPayments(getPaymentsByStudent(row.studentId))
+  const openHistory = async (row) => {
     setHistoryFor(row)
+    setLoadingHistory(true)
+    try {
+      const payments = await paymentService.getByStudent(row.studentId)
+      setHistoryPayments(payments)
+    } catch {
+      toast.error('Không tải được lịch sử thanh toán')
+    } finally {
+      setLoadingHistory(false)
+    }
   }
 
   const closeHistory = () => {
     setHistoryFor(null)
+    onRefresh?.()
+  }
+
+  const reloadHistory = async () => {
+    if (!historyFor) return
+    try {
+      const payments = await paymentService.getByStudent(historyFor.studentId)
+      setHistoryPayments(payments)
+    } catch {
+      toast.error('Không tải được lịch sử thanh toán')
+    }
     onRefresh?.()
   }
 
@@ -102,10 +123,8 @@ export const FeesTable = ({ rows, period, onAddPayment, onRefresh }) => {
         onClose={closeHistory}
         student={historyFor}
         payments={historyPayments}
-        onDeleted={() => {
-          setHistoryPayments(getPaymentsByStudent(historyFor?.studentId))
-          onRefresh?.()
-        }}
+        loading={loadingHistory}
+        onDeleted={reloadHistory}
       />
     </>
   )

@@ -1,22 +1,28 @@
-import { Modal, Badge } from '@/components/ui'
+import { Modal } from '@/components/ui'
+import { toast } from '@/components/ui'
 import { fmtVND, fmtDate } from '@/utils/helpers'
 import { Banknote, ArrowLeftRight, Trash2 } from 'lucide-react'
-import { deletePayment } from '@/store/db'
-import { toast } from '@/components/ui'
+import { paymentService } from '@/services/paymentService'
 
 const METHOD_LABEL = { cash: 'Tiền mặt', transfer: 'Chuyển khoản' }
 
-export const StudentPaymentHistoryPanel = ({ open, onClose, student, payments, onDeleted }) => {
-  const handleDelete = (id) => {
+export const StudentPaymentHistoryPanel = ({ open, onClose, student, payments, loading, onDeleted }) => {
+  const handleDelete = async (id) => {
     if (!confirm('Xoá khoản thanh toán này?')) return
-    deletePayment(id)
-    toast.success('Đã xoá')
-    onDeleted?.()
+    try {
+      await paymentService.remove(id)
+      toast.success('Đã xoá')
+      onDeleted?.()
+    } catch {
+      toast.error('Xoá không thành công, vui lòng thử lại.')
+    }
   }
 
   return (
     <Modal open={open} onClose={onClose} title={`Lịch sử thanh toán — ${student?.name ?? ''}`}>
-      {payments.length === 0 ? (
+      {loading ? (
+        <p className="text-sm text-navy-400 py-6 text-center">Đang tải...</p>
+      ) : payments.length === 0 ? (
         <p className="text-sm text-navy-400 py-6 text-center">Chưa có khoản nào</p>
       ) : (
         <div className="flex flex-col divide-y divide-navy-50 max-h-96 overflow-y-auto">

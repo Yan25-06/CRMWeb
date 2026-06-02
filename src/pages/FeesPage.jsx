@@ -4,48 +4,34 @@ import { toast } from '@/components/ui'
 import { Banknote, Users, AlertCircle, Plus } from 'lucide-react'
 import { PaymentModal } from '@/components/fees/PaymentModal'
 import { FeesTable } from '@/components/fees/FeesTable'
-import {
-  getStudents, getClasses, getEnrollments,
-  calcFee, getPaidAmountByStudentPeriod, createPayment,
-} from '@/store/db'
-import { fmtVND, monthISO } from '@/utils/helpers'
-
-const buildRows = (period) => {
-  const students = getStudents()
-  const classes = getClasses()
-  const enrollments = getEnrollments().filter(e => e.status !== 'dropped')
-
-  const [year, month] = period.split('-').map(Number)
-
-  return students
-    .filter(s => enrollments.some(e => e.studentId === s.id))
-    .map(s => {
-      const enrollment = enrollments.find(e => e.studentId === s.id)
-      const cls = classes.find(c => c.id === enrollment?.classId)
-      const expected = calcFee(s.id, year, month)
-      const paid = getPaidAmountByStudentPeriod(s.id, period)
-      return {
-        studentId: s.id,
-        name: s.name,
-        className: cls?.name ?? '—',
-        expected,
-        paid,
-      }
-    })
-}
+import { feeService } from '@/services/feeService'
+import { paymentService } from '@/services/paymentService'
+import { fmtVND } from '@/utils/helpers'
 
 export const FeesPage = ({ year, month }) => {
   const currentPeriod = `${year}-${String(month).padStart(2, '0')}`
   const [rows, setRows] = useState([])
+  const [loading, setLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [defaultStudentId, setDefaultStudentId] = useState(null)
 
-  const refresh = useCallback(() => setRows(buildRows(currentPeriod)), [currentPeriod])
+  const refresh = useCallback(async () => {
+    setLoading(true)
+    try {
+      const data = await feeService.buildFeesRows(year, month)
+      setRows(data)
+    } catch (e) {
+      toast.error('Không tải được dữ liệu học phí')
+    } finally {
+      setLoading(false)
+    }
+  }, [year, month])
+
   useEffect(() => { refresh() }, [refresh])
 
-  const handleSave = (data) => {
+  const handleSave = async (data) => {
     try {
-      createPayment({ ...data, period: data.period })
+      await paymentService.create({ ...data, period: data.period })
       toast.success('Đã ghi nhận thanh toán!')
       refresh()
     } catch {
@@ -111,7 +97,9 @@ export const FeesPage = ({ year, month }) => {
       </div>
 
       {/* Table or empty state */}
-      {rows.length === 0 ? (
+      {loading ? (
+        <div className="flex justify-center py-16 text-navy-400 text-sm">Đang tải...</div>
+      ) : rows.length === 0 ? (
         <Empty
           icon="💰"
           title="Chưa có học viên nào trong tháng này"

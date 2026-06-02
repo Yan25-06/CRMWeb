@@ -201,7 +201,7 @@ export const countSessions = (studentId, year, month, classId = null) => {
 }
 
 // ─── Fees ────────────────────────────────────────────────
-// Shape: { id, studentId, year, month, feePerSession, surcharge, paid, note? }
+// Shape: { id, studentId, year, month, surcharge, paid, note? }
 export const getFees = () => get(KEYS.FEES)
 export const saveFees = (f) => set(KEYS.FEES, f)
 
@@ -221,18 +221,15 @@ export const upsertFee = (data) => {
   saveFees(fees)
 }
 
-// Calculate total fee across all enrollments: Σ(sessions_per_class × feePerSession) + surcharge
+// Fixed fee per enrollment: monthly_fee + surcharge OR course_fee
 export const calcFee = (studentId, year, month) => {
   const feeRec = getFeeByStudentMonth(studentId, year, month)
-  const surcharge = feeRec?.surcharge ?? 0
-  const activeEnrollments = getEnrollments().filter(
+  const enrollment = getEnrollments().find(
     e => e.studentId === studentId && e.status !== 'dropped'
   )
-  const sessionFees = activeEnrollments.reduce((sum, e) => {
-    const sessions = countSessions(studentId, year, month, e.classId)
-    return sum + sessions * (e.feePerSession ?? 0)
-  }, 0)
-  return sessionFees + surcharge
+  if (!enrollment) return 0
+  if (enrollment.feeType === 'course') return enrollment.courseFee ?? 0
+  return (enrollment.monthlyFee ?? 0) + (feeRec?.surcharge ?? 0)
 }
 
 // Tính trạng thái đã thanh toán động từ Payments thay vì dùng Fees.paid tĩnh
@@ -491,25 +488,13 @@ export const saveSettings = (s) => set(KEYS.SETTINGS, { ...getSettings(), ...s }
 
 // ─── Dashboard stats ─────────────────────────────────────
 
-// Internal helper: same logic as calcFee but operates on pre-loaded in-memory
-// arrays, avoiding repeated localStorage.getItem calls inside a reduce loop.
-const calcFeeFromCache = (studentId, year, month, { fees, allEnrollments, allSessions, allAttendance }) => {
+// Internal helper: same logic as calcFee but operates on pre-loaded in-memory arrays.
+const calcFeeFromCache = (studentId, year, month, { fees, allEnrollments }) => {
   const feeRec = fees.find(f => f.studentId === studentId && f.year === year && f.month === month)
-  const surcharge = feeRec?.surcharge ?? 0
-  const prefix = `${year}-${String(month).padStart(2, '0')}`
-  const activeEnrollments = allEnrollments.filter(
-    e => e.studentId === studentId && e.status !== 'dropped'
-  )
-  const sessionFees = activeEnrollments.reduce((sum, e) => {
-    const sessionIds = new Set(
-      allSessions.filter(s => s.classId === e.classId && s.date.startsWith(prefix)).map(s => s.id)
-    )
-    const count = allAttendance.filter(
-      a => a.studentId === studentId && a.present === true && sessionIds.has(a.sessionId)
-    ).length
-    return sum + count * (e.feePerSession ?? 0)
-  }, 0)
-  return sessionFees + surcharge
+  const enrollment = allEnrollments.find(e => e.studentId === studentId && e.status !== 'dropped')
+  if (!enrollment) return 0
+  if (enrollment.feeType === 'course') return enrollment.courseFee ?? 0
+  return (enrollment.monthlyFee ?? 0) + (feeRec?.surcharge ?? 0)
 }
 
 export const getDashboardStats = (year, month) => {
@@ -523,7 +508,7 @@ export const getDashboardStats = (year, month) => {
   const today = new Date().toISOString().split('T')[0]
   const presentToday = allAttendance.filter(a => a.date === today && a.present).length
 
-  const cache = { fees, allEnrollments, allSessions, allAttendance }
+  const cache = { fees, allEnrollments }
 
   // Monthly revenue
   const monthlyRevenue = students.reduce((sum, s) => {
@@ -842,21 +827,23 @@ export const seedDemoData = () => {
 
   // ── Enrollments (spread across 3 classes) ─────────────
   const enrollCfg = [
-    [0, cls1.id, 'active',  150000, 'Đạt 7.0 IELTS để du học Úc'],
-    [1, cls1.id, 'active',  150000, 'Cải thiện nghe và đọc'],
-    [2, cls1.id, 'active',  150000, 'Lấy chứng chỉ IELTS 6.5'],
-    [3, cls1.id, 'paused',  150000, 'Chuẩn bị thi IELTS tháng 9'],
-    [4, cls2.id, 'active',  120000, 'Đạt 650 TOEIC cho công việc'],
-    [5, cls2.id, 'active',  120000, 'Nâng band TOEIC lên 700'],
-    [6, cls2.id, 'active',  120000, 'Thi TOEIC tháng 8'],
-    [7, cls3.id, 'active',  100000, 'Giao tiếp tiếng Anh cơ bản'],
-    [8, cls3.id, 'active',  100000, 'Tự tin nói chuyện với người nước ngoài'],
-    [9, cls3.id, 'active',  100000, 'Chuẩn bị phỏng vấn xin việc'],
-    [0, cls3.id, 'active',  100000, 'Bổ sung kỹ năng giao tiếp'],
+    [0, cls1.id, 'active',  800000, 'Đạt 7.0 IELTS để du học Úc'],
+    [1, cls1.id, 'active',  800000, 'Cải thiện nghe và đọc'],
+    [2, cls1.id, 'active',  800000, 'Lấy chứng chỉ IELTS 6.5'],
+    [3, cls1.id, 'paused',  800000, 'Chuẩn bị thi IELTS tháng 9'],
+    [4, cls2.id, 'active',  700000, 'Đạt 650 TOEIC cho công việc'],
+    [5, cls2.id, 'active',  700000, 'Nâng band TOEIC lên 700'],
+    [6, cls2.id, 'active',  700000, 'Thi TOEIC tháng 8'],
+    [7, cls3.id, 'active',  600000, 'Giao tiếp tiếng Anh cơ bản'],
+    [8, cls3.id, 'active',  600000, 'Tự tin nói chuyện với người nước ngoài'],
+    [9, cls3.id, 'active',  600000, 'Chuẩn bị phỏng vấn xin việc'],
+    [0, cls3.id, 'active',  600000, 'Bổ sung kỹ năng giao tiếp'],
   ]
-  enrollCfg.forEach(([si, classId, status, feePerSession, goal]) => {
+  enrollCfg.forEach(([si, classId, status, monthlyFee, goal]) => {
     const entry = {
-      studentId: sIds[si], classId, status, feePerSession, goal, note: '',
+      studentId: sIds[si], classId, status,
+      feeType: 'monthly', monthlyFee, courseFee: null,
+      goal, note: '',
       enrolledAt: new Date(Date.now() - (60 - si * 5) * 86400000).toISOString(),
     }
     if (status === 'paused') entry.pausedAt = new Date(Date.now() - 5 * 86400000).toISOString()
