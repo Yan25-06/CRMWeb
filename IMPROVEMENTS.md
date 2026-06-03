@@ -6,6 +6,7 @@
 |---|-----|--------|
 | A1 | `FeesPage` | Loading state dùng text thay vì `<Skeleton>` |
 | A2 | `ReviewsPage` — tất cả các panel | Không có skeleton khi load dữ liệu |
+| A3 | `MockTestTab` | Đang không có `<Skeleton>` khi load mock test |
 
 ## B. Dashboard
 
@@ -37,3 +38,6 @@
 | # | Chỗ | Vấn đề |
 |---|-----|--------|
 | E1 | `ClassDetailPage` | Không có breadcrumb/back rõ ràng khi navigate từ Dashboard |
+| E2 | `Sidebar` | Đưa page lớp học và học viên lên trên, sau dashboard, vì đây là 2 page dùng nhiều nhất |
+
+
