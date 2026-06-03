@@ -11,7 +11,7 @@ Web app quản lý điểm danh + học phí cho giáo viên/trung tâm tiếng 
 ## Stack
 - **React 18 + Vite** (alias `@/` → `src/`, cấu hình trong `vite.config.js`)
 - **Tailwind CSS 3** với custom Navy design tokens (`tailwind.config.js`, `src/index.css`)
-- **Supabase** (`@supabase/supabase-js`) — auth + Postgres backend, đang dần thay localStorage
+- **Supabase** (`@supabase/supabase-js`) — auth + Postgres backend (localStorage đã xóa hoàn toàn)
 - **lucide-react** (icons), **clsx** (conditional classes)
 - **chart.js** + **react-chartjs-2** (biểu đồ), **html2canvas** + **jspdf** (xuất PDF), **xlsx** (xuất Excel)
 
@@ -26,16 +26,11 @@ Web app quản lý điểm danh + học phí cho giáo viên/trung tâm tiếng 
 
 ---
 
-## ⭐ Điểm quan trọng nhất: Migration localStorage → Supabase đang DỞ DANG
+## ⭐ Data Layer: Supabase Service Layer (hoàn tất)
 
-Project đang chuyển từ store localStorage sang Supabase service layer. **Tồn tại song song 2 nguồn data** — phải biết file mình sửa đang dùng cái nào:
+Migration localStorage → Supabase **đã hoàn tất**. Không còn `src/store/db.js`. Toàn bộ data đi qua service layer.
 
-### Nguồn data cũ — `src/store/db.js` (localStorage)
-- File lớn (~1100 dòng), toàn bộ CRUD trên localStorage với key prefix `phf_`.
-- Cũng chứa `seedDemoData()` (gọi trong `App.jsx`) và export/import backup JSON.
-- **Shape các entity được ghi chú dạng comment ngay trên mỗi nhóm hàm** — đọc đó để biết cấu trúc dữ liệu.
-
-### Nguồn data mới — `src/services/*.js` (Supabase)
+### Nguồn data — `src/services/*.js` (Supabase)
 Mỗi service là một object với method `getAll / getById / create / update / remove` (+ method riêng theo domain). Pattern chuẩn (xem `studentService.js`, `classService.js`):
 - `fromDB(row)` map snake_case → camelCase; `toDB(data)` map camelCase → snake_case.
 - Mọi method `throw new Error(error.message)` khi Supabase lỗi.
@@ -78,11 +73,10 @@ src/
 │   ├── DashboardPage / FeesPage / ReportsPage / ReviewsPage / SchedulePage / SettingsPage
 │   ├── LoginPage / SetPasswordPage / PlaceholderPages
 │   └── ClassDetailPage/ (index.jsx + tabs/)
-├── services/   ← Supabase service layer (data MỚI)
-├── store/      ← db.js (localStorage, data CŨ) + mockTestExport.js
-├── hooks/useAuth.jsx
+├── services/   ← Supabase service layer (toàn bộ data)
+├── hooks/useAuth.jsx, useOnlineStatus.js
 ├── lib/supabase.js
-├── utils/      ← helpers, useDebounce, scheduleConflict
+├── utils/      ← helpers, useDebounce, scheduleConflict, retryQueue, mockTestExport
 ├── App.jsx / main.jsx / index.css
 ```
 
@@ -100,7 +94,7 @@ src/
 - Navy tokens chính: navy-950 `#06142B`, navy-900 `#0F2044` (sidebar/header), navy-800 `#1B3A6B` (primary), navy-600 `#2E5FA3` (accent), navy-50 `#E8EEF7` (hover).
 
 ### Data & format
-- Đọc/ghi data qua service (mới) hoặc `db.js` (cũ) — **không gọi localStorage/supabase trực tiếp trong component.**
+- Đọc/ghi data qua service layer — **không gọi `supabase.*` trực tiếp trong component** (trừ auth trong `useAuth.jsx`).
 - Tiền tệ: `new Intl.NumberFormat('vi-VN').format(n) + 'đ'`
 - Ngày: `new Date(date).toLocaleDateString('vi-VN')`; lưu dạng `YYYY-MM-DD`.
 
@@ -116,8 +110,8 @@ src/
 Project quản lý thay đổi qua OpenSpec (`openspec/`). Có skill tích hợp: `openspec-propose`, `openspec-apply-change`, `openspec-archive-change`, `openspec-explore`.
 - `openspec/specs/` — spec hiện hành (đã build). `openspec/changes/` — change đang làm; `openspec/changes/archive/` — đã xong.
 - `openspec/ROADMAP.md` — lộ trình migration Supabase multi-teacher (nguồn chân lý cho thứ tự các change service layer).
-- Change đang mở (chưa archive): `add-supabase-multi-teacher` (reference gốc), `add-service-tests-settings` (implement xong, chờ archive), `add-admin-panel`.
-- Đã archive: `add-service-fees` (2026-06-02), `add-service-reviews` (2026-06-02).
+- Change đang mở (chưa archive): `add-supabase-multi-teacher` (reference gốc), `add-admin-panel`.
+- Đã archive: `add-service-fees` (2026-06-02), `add-service-reviews` (2026-06-02), `add-service-tests-settings` (2026-06-03).
 - Một change gồm `proposal.md`, `design.md`, `specs/`, `tasks.md`. Implement theo tasks, check `[x]` khi xong, không làm ngoài scope.
 
 ## Quyết định kiến trúc đã chốt (từ ROADMAP)

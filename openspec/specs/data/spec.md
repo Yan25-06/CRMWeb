@@ -1,29 +1,24 @@
-# Spec: Data Layer (localStorage)
+# Spec: Data Layer (Supabase)
 
-## Storage Keys
-```
-phf_students    — danh sách học sinh
-phf_classes     — danh sách lớp học
-phf_attendance  — bản ghi điểm danh
-phf_fees        — cấu hình học phí
-phf_schedule    — lịch dạy
-phf_reviews     — nhận xét học sinh
-phf_settings    — cài đặt app
-phf_payments    — khoản thu học phí (default: [])
-phf_homework    — bài tập được giao (default: [])
-phf_submissions — bản ghi nộp bài của học sinh (default: [])
-```
+## Tầng dữ liệu hiện tại
+Toàn bộ dữ liệu lưu trên Supabase (PostgreSQL), truy cập qua service layer (`src/services/`). Các localStorage key `phf_*` và file `src/store/db.js` đã bị xóa sau cutover hoàn tất (2026-06-02).
+
+## Requirements
 
 ### Requirement: Storage keys for payments, homework, and submissions
-The system SHALL add three new localStorage keys: `phf_payments`, `phf_homework`, `phf_submissions`, each defaulting to `[]` when absent.
+Tầng dữ liệu localStorage SHALL được thay thế hoàn toàn bằng Supabase (PostgreSQL). Các storage key `phf_*` và truy cập trực tiếp `src/store/db.js` KHÔNG còn là nguồn dữ liệu chính; dữ liệu cho payments, homework, submissions và mọi entity khác SHALL lưu trong các bảng PostgreSQL tương ứng, truy cập qua service layer (`src/services/`). File `src/store/db.js` và logic localStorage liên quan SHALL bị xóa.
 
-#### Scenario: Cold start with empty storage
-- **WHEN** app khởi động và localStorage chưa có key `phf_payments` / `phf_homework` / `phf_submissions`
-- **THEN** data layer trả về mảng rỗng cho từng key, không throw error
+#### Scenario: Cold start không còn đọc localStorage
+- **WHEN** app khởi động sau khi cutover
+- **THEN** hệ thống nạp dữ liệu từ Supabase qua service layer, không đọc các key `phf_*`
 
-#### Scenario: Read tolerates missing fields on legacy records
-- **WHEN** đọc một record cũ thiếu field mới (vd Student thiếu `feePerSession`)
-- **THEN** data layer trả về record với field đó gán giá trị default (0 hoặc null), không crash
+#### Scenario: Không migrate dữ liệu cũ
+- **WHEN** triển khai backend mới
+- **THEN** hệ thống bắt đầu với dữ liệu trống; dữ liệu mock trong localStorage cũ KHÔNG được nhập vào
+
+#### Scenario: Không còn import db.js
+- **WHEN** quét toàn bộ codebase sau cutover
+- **THEN** không file nào còn import từ `src/store/db.js` và file đó đã bị xóa
 
 ## Data Models
 

@@ -39,7 +39,7 @@
 
 - [x] 7.1 Chạy `openspec validate add-service-tests-settings` và rà từng requirement đã được task/test nào phủ
 - [x] 7.2 Tổng kết cho người dùng: những gì change này đã làm (service layer cho mock-test/settings, banner offline + retry, xóa db.js + localStorage) và những gì CHƯA thuộc phạm vi (Admin Panel ở #10)
-- [ ] 7.3 Viết hướng dẫn test thủ công cho người dùng và cùng chạy qua:
+- [x] 7.3 Viết hướng dẫn test thủ công cho người dùng và cùng chạy qua:
   - Đăng nhập teacher A → tạo bài thi thử + nhập điểm → nạp lại trang → dữ liệu vẫn còn (đến từ Supabase, không phải localStorage)
   - Nhập lại điểm cùng học sinh/bài thi → không tạo bản ghi trùng (kiểm Supabase Table Editor)
   - `SettingsPage`: lưu cài đặt → nạp lại → giữ nguyên; không còn nút export/import localStorage
@@ -47,4 +47,4 @@
   - Xóa localStorage trình duyệt → app vẫn chạy bình thường (không phụ thuộc `phf_*`)
   - Đăng nhập teacher B → bài thi/kết quả/cài đặt của A không xuất hiện
   - `grep` toàn repo: không còn import `store/db`; build sạch
-- [ ] 7.4 Ghi lại kết quả test + vấn đề tồn đọng; xác nhận với người dùng trước khi sang #10 (Admin Panel)
+- [x] 7.4 Ghi lại kết quả test + vấn đề tồn đọng; xác nhận với người dùng trước khi sang #10 (Admin Panel)
