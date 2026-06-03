@@ -34,8 +34,9 @@ Migration localStorage → Supabase **đã hoàn tất**. Không còn `src/store
 Mỗi service là một object với method `getAll / getById / create / update / remove` (+ method riêng theo domain). Pattern chuẩn (xem `studentService.js`, `classService.js`):
 - `fromDB(row)` map snake_case → camelCase; `toDB(data)` map camelCase → snake_case.
 - Mọi method `throw new Error(error.message)` khi Supabase lỗi.
-- `create` gắn `teacher_id` qua `getUid()` (export từ `studentService.js`).
+- `create` gắn `teacher_id` qua `getUid()` (export từ `studentService.js`), nhưng nếu `data.teacherId` có giá trị → dùng giá trị đó (cho admin gán lớp cho giáo viên khác).
 - **UI không gọi `supabase.*` trực tiếp** — luôn qua service (trừ auth trong `useAuth.jsx`).
+- **`classService` hỗ trợ admin**: `create()` và `update()` chấp nhận `data.teacherId` tường minh để admin gán/đổi giáo viên phụ trách.
 
 Services đã có: `studentService`, `classService` (+`teacherService`), `enrollmentService`, `sessionService`, `attendanceService`, `homeworkService`, `hwAssignmentService`, `submissionService`, `scheduleService`, `feeService`, `paymentService`, `reviewService`, `sessionReviewService`, `generalCommentService`, `mockTestService`, `mockTestResultService`, `settingsService`.
 
@@ -56,9 +57,10 @@ Services đã có: `studentService`, `classService` (+`teacherService`), `enroll
 
 ## Routing & Layout
 - **Không dùng react-router.** Routing là state `page` trong `App.jsx` (`useState` + `switch` trong `renderPage()`).
-- Trang: `dashboard`, `fees`, `reports`, `reviews`, `schedule`, `classes`, `settings`.
+- Trang: `dashboard`, `fees`, `reports`, `reviews`, `schedule`, `classes`, `settings`, **`admin`** (chỉ khi `is_admin = true`).
 - `classes` có 2 chế độ: list (`ClassesOverviewPage`) ↔ detail (`ClassDetailPage`) qua `selectedClassId` (persist trong localStorage).
 - `ClassDetailPage` có các tab: Students, Attendance, Homework, MockTest.
+- **Admin Panel** (`AdminPanelPage`): route `/admin` (page `'admin'`), hiển thị danh sách giáo viên, form tạo/giao/đổi lớp, xem read-only dữ liệu các giáo viên. Guard với `teacher.is_admin` (redirect về dashboard nếu không phải admin). Link "Admin" chỉ hiện trong Navbar khi `is_admin = true`.
 - Month/year picker ở top bar chỉ hiện cho trang `dashboard` và `fees`.
 - Layout: `Navbar` (sidebar/mobile nav) bên trái + main content, `ToastContainer` global.
 
@@ -72,6 +74,7 @@ src/
 ├── pages/
 │   ├── DashboardPage / FeesPage / ReportsPage / ReviewsPage / SchedulePage / SettingsPage
 │   ├── LoginPage / SetPasswordPage / PlaceholderPages
+│   ├── AdminPanelPage.jsx  ← Admin Panel (tạo/giao lớp, xem read-only data)
 │   └── ClassDetailPage/ (index.jsx + tabs/)
 ├── services/   ← Supabase service layer (toàn bộ data)
 ├── hooks/useAuth.jsx, useOnlineStatus.js
@@ -110,9 +113,10 @@ src/
 Project quản lý thay đổi qua OpenSpec (`openspec/`). Có skill tích hợp: `openspec-propose`, `openspec-apply-change`, `openspec-archive-change`, `openspec-explore`.
 - `openspec/specs/` — spec hiện hành (đã build). `openspec/changes/` — change đang làm; `openspec/changes/archive/` — đã xong.
 - `openspec/ROADMAP.md` — lộ trình migration Supabase multi-teacher (nguồn chân lý cho thứ tự các change service layer).
-- Change đang mở (chưa archive): `add-supabase-multi-teacher` (reference gốc), `add-admin-panel`.
-- Đã archive: `add-service-fees` (2026-06-02), `add-service-reviews` (2026-06-02), `add-service-tests-settings` (2026-06-03).
+- Change đang mở (chưa archive): `add-supabase-multi-teacher` (reference gốc — có thể xóa sau khi confirm `add-admin-panel` hoạt động).
+- Đã archive: `add-service-fees` (2026-06-02), `add-service-reviews` (2026-06-02), `add-service-tests-settings` (2026-06-03), **`add-admin-panel` (2026-06-03)**.
 - Một change gồm `proposal.md`, `design.md`, `specs/`, `tasks.md`. Implement theo tasks, check `[x]` khi xong, không làm ngoài scope.
+- **Lộ trình multi-teacher hoàn tất**: tất cả service layer sẵn sàng, admin panel đã triển khai, mời giáo viên qua Supabase Dashboard.
 
 ## Quyết định kiến trúc đã chốt (từ ROADMAP)
 - RLS enforce ở PostgreSQL, **không** filter quyền ở frontend.
