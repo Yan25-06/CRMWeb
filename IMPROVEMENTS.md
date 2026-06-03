@@ -20,7 +20,7 @@
 |---|-----|--------|
 | C1 | `FeesPage` | Không có nút xuất Excel/PDF cho bảng học phí tháng hiện tại |
 | C2 | `ReportsPage → MockTestCard` | Giới hạn cứng 5 học sinh (`slice(0,5)`) khi xem tất cả |
-| C3 | `ReviewsPage → ClassOverviewTable` | Thêm cột điểm mock test trung bình vào báo cáo tổng quan lớp |
+| C3 | `ReviewsPage → ClassOverviewTable` | Thêm 2 cột: (1) điểm mock test gần nhất, (2) chênh lệch điểm so với lần mock trước |
 | C4 | `ReviewsPage → GeneralCommentPanel` | Bỏ tab nhận xét chung (xóa `<GeneralCommentPanel />`) |
 | C5 | `ReportsPage` | Thêm phần chọn lớp chung ở đầu trang cho tất cả biểu đồ, thay vì mỗi card có selector riêng |
 | C6 | `ReportsPage` | Thêm 1 biểu đồ về tiến độ bài tập (số bài nộp / số bài giao (homeworks) theo thời gian) |

@@ -55,13 +55,6 @@ export const SettingsPage = () => {
           onChange={e => setSettings(s => ({ ...s, teacherName: e.target.value }))}
           placeholder="VD: Nguyễn Văn A"
         />
-        <Input
-          label="Học Phí Mặc Định / Buổi"
-          type="number"
-          value={settings.defaultFeePerSession || ''}
-          onChange={e => setSettings(s => ({ ...s, defaultFeePerSession: Number(e.target.value) }))}
-          placeholder="VD: 150000"
-        />
         <Button onClick={handleSave} variant="primary" className="w-fit gap-2">
           <Save size={15} />
           {saved ? 'Đã lưu!' : 'Lưu Cài Đặt'}
