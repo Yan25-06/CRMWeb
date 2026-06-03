@@ -147,7 +147,7 @@ export const ClassDetailPage = ({ classId, onBack }) => {
           <HomeworkTab classId={classId} />
         )}
         {activeTab === 'mocktest' && (
-          <MockTestTab classId={classId} className={currentClass?.name ?? ''} />
+          <MockTestTab classId={classId} className={currentClass?.name ?? ''} skillConfig={currentClass?.skillConfig} />
         )}
       </div>
     </div>

@@ -2,9 +2,6 @@ import { clsx } from 'clsx'
 import { Calendar, ChevronRight, Star } from 'lucide-react'
 import { POSITIVE_TAGS } from './QuickTagEditor'
 
-const SKILL_LABELS = { listenScore: 'Nghe', speakScore: 'Nói', readScore: 'Đọc', writeScore: 'Viết' }
-const SKILL_KEYS   = ['listenScore', 'speakScore', 'readScore', 'writeScore']
-
 const fmtDate = (dateStr) => {
   const d = new Date(dateStr)
   return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`
@@ -22,10 +19,11 @@ const ScoreBadge = ({ label, score }) => {
 
 /**
  * ReviewHistory — timeline of past reviews for a student
- * @param {Array}    reviews  - sorted DESC review records
- * @param {Function} onEdit   - callback(review) to edit
+ * @param {Array}    reviews     - sorted DESC review records
+ * @param {Array}    skillConfig - class skill config array [{ name, maxScore, order }]
+ * @param {Function} onEdit      - callback(review) to edit
  */
-export const ReviewHistory = ({ reviews = [], onEdit }) => {
+export const ReviewHistory = ({ reviews = [], skillConfig = [], onEdit }) => {
   if (reviews.length === 0) {
     return (
       <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-8 flex flex-col items-center justify-center gap-3 text-center">
@@ -66,9 +64,9 @@ export const ReviewHistory = ({ reviews = [], onEdit }) => {
 
                   {/* Skill scores */}
                   <div className="flex flex-wrap gap-1 mb-2">
-                    {SKILL_KEYS.map(k =>
-                      rev[k] != null
-                        ? <ScoreBadge key={k} label={SKILL_LABELS[k]} score={rev[k]} />
+                    {skillConfig.map(skill =>
+                      rev.scores?.[skill.name] != null
+                        ? <ScoreBadge key={skill.name} label={skill.name} score={rev.scores[skill.name]} />
                         : null
                     )}
                   </div>

@@ -366,10 +366,10 @@ export const ReviewsPage = ({ settings = {} }) => {
                 {/* Radar + history */}
                 <div className="flex flex-col md:flex-row gap-4 items-start">
                   <div className="w-full md:w-1/2">
-                    <RadarChartPanel reviews={filteredReviews} onAddReview={openAdd} />
+                    <RadarChartPanel reviews={filteredReviews} skillConfig={selectedClass?.skillConfig} onAddReview={openAdd} />
                   </div>
                   <div className="w-full md:w-1/2">
-                    <ReviewHistory reviews={filteredReviews} onEdit={openEdit} />
+                    <ReviewHistory reviews={filteredReviews} skillConfig={selectedClass?.skillConfig} onEdit={openEdit} />
                   </div>
                 </div>
 
@@ -410,6 +410,7 @@ export const ReviewsPage = ({ settings = {} }) => {
         studentId={selectedStudentId}
         classId={selectedClassId}
         teacherName={settings?.teacherName}
+        skillConfig={selectedClass?.skillConfig}
         onSave={handleSaveReview}
       />
 

@@ -109,7 +109,7 @@ const MockTestCard = ({ mockTest, results, students, className, onEdit, onDelete
   )
 }
 
-export const MockTestTab = ({ classId, className }) => {
+export const MockTestTab = ({ classId, className, skillConfig }) => {
   const [mockTests, setMockTests]       = useState([])
   const [resultsByTest, setResultsByTest] = useState({})
   const [students, setStudents]         = useState([])
@@ -287,6 +287,7 @@ export const MockTestTab = ({ classId, className }) => {
         onClose={() => { setModalOpen(false); setEditingTest(null) }}
         classId={classId}
         mockTest={editingTest}
+        skillConfig={skillConfig}
         onSaved={handleModalSaved}
       />
     </div>

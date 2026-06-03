@@ -2,11 +2,9 @@ import { useEffect, useRef } from 'react'
 import { Chart, RadarController, RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend } from 'chart.js'
 import { Button } from '@/components/ui'
 import { PlusCircle, TrendingUp } from 'lucide-react'
+import { DEFAULT_SKILL_CONFIG } from '@/services/classService'
 
 Chart.register(RadarController, RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend)
-
-const SKILL_LABELS = ['Nghe', 'Nói', 'Đọc', 'Viết']
-const SKILL_KEYS   = ['listenScore', 'speakScore', 'readScore', 'writeScore']
 
 // Color palette for overlaid datasets (max 6 visible)
 const DATASET_COLORS = [
@@ -24,11 +22,16 @@ const fmtDate = (dateStr) => {
 }
 
 /**
- * RadarChartPanel — displays skill radar chart with multi-period overlay
+ * RadarChartPanel — displays skill radar chart with multi-period overlay.
+ * Normalizes all scores to % (value/maxScore*100) so skills with different
+ * maxScore values are comparable on a single 0–100 axis.
+ *
  * @param {Array}    reviews       - sorted DESC review records for this student
+ * @param {Array}    skillConfig   - [{ name, maxScore, order }] from class
  * @param {Function} onAddReview   - callback to open ReviewForm for new review
  */
-export const RadarChartPanel = ({ reviews = [], onAddReview }) => {
+export const RadarChartPanel = ({ reviews = [], skillConfig, onAddReview }) => {
+  const skills = skillConfig ?? DEFAULT_SKILL_CONFIG
   const canvasRef = useRef(null)
   const chartRef  = useRef(null)
 
@@ -39,11 +42,18 @@ export const RadarChartPanel = ({ reviews = [], onAddReview }) => {
     if (!canvasRef.current) return
     if (chartRef.current) chartRef.current.destroy()
 
+    const labels = skills.map(sk => sk.name)
+
     const datasets = visible.map((rev, i) => {
       const color = DATASET_COLORS[i % DATASET_COLORS.length]
+      const data = skills.map(sk => {
+        const raw = rev.scores?.[sk.name]
+        if (raw == null) return 0
+        return Math.round((raw / sk.maxScore) * 1000) / 10 // % with 1 decimal
+      })
       return {
         label: fmtDate(rev.date),
-        data: SKILL_KEYS.map(k => rev[k] ?? 0),
+        data,
         borderColor: color.border,
         backgroundColor: color.bg,
         borderWidth: 2,
@@ -55,14 +65,14 @@ export const RadarChartPanel = ({ reviews = [], onAddReview }) => {
 
     chartRef.current = new Chart(canvasRef.current, {
       type: 'radar',
-      data: { labels: SKILL_LABELS, datasets },
+      data: { labels, datasets },
       options: {
         responsive: true,
         maintainAspectRatio: true,
         scales: {
           r: {
-            min: 0, max: 9,
-            ticks: { stepSize: 3, font: { size: 10 }, color: '#7FAADA' },
+            min: 0, max: 100,
+            ticks: { stepSize: 25, font: { size: 10 }, color: '#7FAADA', callback: v => `${v}%` },
             grid:  { color: 'rgba(127,170,218,0.2)' },
             angleLines: { color: 'rgba(127,170,218,0.3)' },
             pointLabels: {
@@ -78,14 +88,22 @@ export const RadarChartPanel = ({ reviews = [], onAddReview }) => {
           },
           tooltip: {
             callbacks: {
-              label: (ctx) => ` ${ctx.dataset.label}: ${ctx.raw}/9`,
+              label: (ctx) => {
+                const rev = visible[ctx.datasetIndex]
+                const skill = skills[ctx.dataIndex]
+                const raw = rev?.scores?.[skill?.name]
+                const pct = ctx.raw
+                return raw != null
+                  ? ` ${ctx.dataset.label}: ${raw}/${skill.maxScore} (${pct}%)`
+                  : ` ${ctx.dataset.label}: —`
+              },
             },
           },
         },
       },
     })
     return () => chartRef.current?.destroy()
-  }, [reviews.length, JSON.stringify(visible.map(r => r.id))])
+  }, [reviews.length, JSON.stringify(visible.map(r => r.id)), JSON.stringify(skills)])
 
   if (reviews.length === 0) {
     return (
@@ -110,7 +128,7 @@ export const RadarChartPanel = ({ reviews = [], onAddReview }) => {
       <div className="flex items-center justify-between mb-3">
         <div>
           <p className="text-sm font-semibold text-navy-800">Biểu Đồ Năng Lực</p>
-          <p className="text-xs text-navy-400">{reviews.length} đợt đánh giá</p>
+          <p className="text-xs text-navy-400">{reviews.length} đợt đánh giá · chuẩn hóa 0–100%</p>
         </div>
         <Button variant="secondary" size="sm" onClick={onAddReview} className="flex items-center gap-1.5">
           <PlusCircle size={13} />

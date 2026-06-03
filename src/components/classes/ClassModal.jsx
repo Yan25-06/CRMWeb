@@ -1,5 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Modal, Input, Button, toast } from '@/components/ui'
+import { MockTestSectionBuilder } from '@/components/mock-test/MockTestSectionBuilder'
+import { DEFAULT_SKILL_CONFIG } from '@/services/classService'
+
+const toSections = (skillConfig) =>
+  skillConfig.map((sk, i) => ({ id: crypto.randomUUID(), name: sk.name, maxScore: sk.maxScore, order: sk.order ?? i }))
+
+const toSkillConfig = (sections) =>
+  sections.map((s, i) => ({ name: s.name, maxScore: s.maxScore, order: i }))
 
 export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = false, teachers = [] }) => {
   const [formData, setFormData] = useState({
@@ -12,6 +20,7 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
     startDate: '',
     teacherId: '',
   })
+  const [skillSections, setSkillSections] = useState(() => toSections(DEFAULT_SKILL_CONFIG))
   const [errors, setErrors] = useState({})
 
   useEffect(() => {
@@ -27,6 +36,7 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
           startDate: classItem.startDate || '',
           teacherId: classItem.teacherId || '',
         })
+        setSkillSections(toSections(classItem.skillConfig ?? DEFAULT_SKILL_CONFIG))
       } else {
         setFormData({
           name: '',
@@ -38,6 +48,7 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
           startDate: '',
           teacherId: '',
         })
+        setSkillSections(toSections(DEFAULT_SKILL_CONFIG))
       }
       setErrors({})
     }
@@ -66,7 +77,7 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
       return
     }
 
-    onSave({ ...formData, maxStudents: Number(formData.maxStudents) || 0 })
+    onSave({ ...formData, maxStudents: Number(formData.maxStudents) || 0, skillConfig: toSkillConfig(skillSections) })
     toast.success(classItem ? 'Đã cập nhật lớp học!' : 'Đã thêm lớp học!')
     onClose()
   }
@@ -181,6 +192,19 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
           value={formData.startDate}
           onChange={handleChange}
         />
+
+        {/* Skill config builder */}
+        <div className="flex flex-col gap-2">
+          <div className="flex justify-between items-center">
+            <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Cấu Hình Kỹ Năng</label>
+            <span className="text-xs text-navy-400">Dùng cho đánh giá & mock test</span>
+          </div>
+          <div className="flex justify-between text-xs text-navy-400 px-8 pr-10">
+            <span className="flex-1">Tên kỹ năng</span>
+            <span className="w-24 text-center">Điểm tối đa</span>
+          </div>
+          <MockTestSectionBuilder sections={skillSections} onChange={setSkillSections} />
+        </div>
       </div>
     </Modal>
   )

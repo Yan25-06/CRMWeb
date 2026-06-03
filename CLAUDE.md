@@ -114,7 +114,7 @@ Project quản lý thay đổi qua OpenSpec (`openspec/`). Có skill tích hợp
 - `openspec/specs/` — spec hiện hành (đã build). `openspec/changes/` — change đang làm; `openspec/changes/archive/` — đã xong.
 - `openspec/ROADMAP.md` — lộ trình migration Supabase multi-teacher (nguồn chân lý cho thứ tự các change service layer).
 - Change đang mở (chưa archive): `add-supabase-multi-teacher` (reference gốc — có thể xóa sau khi confirm `add-admin-panel` hoạt động).
-- Đã archive: `add-service-fees` (2026-06-02), `add-service-reviews` (2026-06-02), `add-service-tests-settings` (2026-06-03), **`add-admin-panel` (2026-06-03)**.
+- Đã archive: `add-service-fees` (2026-06-02), `add-service-reviews` (2026-06-02), `add-service-tests-settings` (2026-06-03), `add-admin-panel` (2026-06-03), **`add-class-skill-config` (2026-06-03)**.
 - Một change gồm `proposal.md`, `design.md`, `specs/`, `tasks.md`. Implement theo tasks, check `[x]` khi xong, không làm ngoài scope.
 - **Lộ trình multi-teacher hoàn tất**: tất cả service layer sẵn sàng, admin panel đã triển khai, mời giáo viên qua Supabase Dashboard.
 
@@ -123,6 +123,16 @@ Project quản lý thay đổi qua OpenSpec (`openspec/`). Có skill tích hợp
 - Admin read-only = không cấp policy ghi cho admin ở DB.
 - Invite giáo viên qua Supabase Dashboard; DB trigger tự tạo row `teachers` — không dùng Edge Function.
 - Optimistic UI + retry (không offline-first thật).
+
+## Model đánh giá kỹ năng (đã chốt — migration 20260603000001)
+- **`classes.skill_config`** (jsonb): mảng `[{ name, maxScore, order }]` định nghĩa kỹ năng của lớp. Default IELTS 4 kỹ năng thang 0–9.
+- **`reviews.scores`** (jsonb): keyed theo tên kỹ năng `{ "Listening": 7.5, "Reading": 6.0 }`. Không còn 4 cột cố định.
+- **`DEFAULT_SKILL_CONFIG`** export từ `classService.js` — dùng làm fallback ở service + UI.
+- `ClassModal`: tái dùng `MockTestSectionBuilder` để chỉnh tên/điểm tối đa kỹ năng.
+- `ReviewForm`: render ô nhập điểm động theo `skillConfig` của lớp, validate `0..maxScore`.
+- `RadarChartPanel`: chuẩn hóa điểm về % (`value/maxScore*100`), trục `r` cố định 0–100.
+- `MockTestModal`: khi tạo mới, init sections từ `skillConfig` của lớp.
+- Các component nhận `skillConfig` qua prop (truyền từ `selectedClass.skillConfig` ở page level).
 
 ## Model học phí (đã chốt)
 - **Không tính theo buổi.** Học phí là cố định: theo tháng hoặc theo khóa.

@@ -4,13 +4,7 @@ import { jsPDF } from 'jspdf'
 import { X, Download, FileImage, Loader2 } from 'lucide-react'
 import { Button } from '@/components/ui'
 import { buildTagSummary, POSITIVE_TAGS } from './QuickTagEditor'
-
-const SKILL_LABELS = [
-  { key: 'listenScore', label: 'Nghe (Listening)' },
-  { key: 'speakScore',  label: 'Nói (Speaking)'   },
-  { key: 'readScore',   label: 'Đọc (Reading)'    },
-  { key: 'writeScore',  label: 'Viết (Writing)'   },
-]
+import { DEFAULT_SKILL_CONFIG } from '@/services/classService'
 
 const fmtDate = (dateStr) => {
   if (!dateStr) return ''
@@ -122,27 +116,35 @@ export const ReportCardModal = ({ open, onClose, student, cls, latestReview, set
                 )}
 
                 {/* Skill scores table */}
-                <div>
-                  <p className="text-xs font-bold text-navy-600 uppercase tracking-wide mb-2">Điểm Kỹ Năng</p>
-                  <div className="grid grid-cols-2 gap-2">
-                    {SKILL_LABELS.map(({ key, label }) => {
-                      const score = latestReview[key]
-                      if (score == null) return null
-                      const pct = Math.round((score / 9) * 100)
-                      return (
-                        <div key={key} className="flex flex-col gap-1">
-                          <div className="flex justify-between items-center">
-                            <span className="text-xs text-navy-600">{label}</span>
-                            <span className="text-sm font-bold text-navy-800">{score}/9</span>
-                          </div>
-                          <div className="h-1.5 bg-navy-100 rounded-full overflow-hidden">
-                            <div className="h-full bg-navy-600 rounded-full transition-all" style={{ width: `${pct}%` }} />
-                          </div>
-                        </div>
-                      )
-                    })}
-                  </div>
-                </div>
+                {(() => {
+                  const skillConfig = cls?.skillConfig ?? DEFAULT_SKILL_CONFIG
+                  const scores = latestReview?.scores ?? {}
+                  const hasScores = skillConfig.some(sk => scores[sk.name] != null)
+                  if (!hasScores) return null
+                  return (
+                    <div>
+                      <p className="text-xs font-bold text-navy-600 uppercase tracking-wide mb-2">Điểm Kỹ Năng</p>
+                      <div className="grid grid-cols-2 gap-2">
+                        {skillConfig.map(skill => {
+                          const score = scores[skill.name]
+                          if (score == null) return null
+                          const pct = Math.round((score / skill.maxScore) * 100)
+                          return (
+                            <div key={skill.name} className="flex flex-col gap-1">
+                              <div className="flex justify-between items-center">
+                                <span className="text-xs text-navy-600">{skill.name}</span>
+                                <span className="text-sm font-bold text-navy-800">{score}/{skill.maxScore}</span>
+                              </div>
+                              <div className="h-1.5 bg-navy-100 rounded-full overflow-hidden">
+                                <div className="h-full bg-navy-600 rounded-full transition-all" style={{ width: `${pct}%` }} />
+                              </div>
+                            </div>
+                          )
+                        })}
+                      </div>
+                    </div>
+                  )
+                })()}
 
                 {/* Tags */}
                 {latestReview.tags?.length > 0 && (

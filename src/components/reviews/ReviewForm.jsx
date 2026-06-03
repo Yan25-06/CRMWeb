@@ -1,17 +1,18 @@
 import { useState, useEffect } from 'react'
 import { Modal, Button, Input } from '@/components/ui'
 import { QuickTagEditor } from './QuickTagEditor'
+import { DEFAULT_SKILL_CONFIG } from '@/services/classService'
 
 const EMPTY_FORM = {
   date: new Date().toISOString().split('T')[0],
-  listenScore: '', speakScore: '', readScore: '', writeScore: '',
+  scores: {},
   tags: [], advice: '', remark: '',
 }
 
-const clampScore = (val) => {
+const clampScore = (val, maxScore) => {
   const n = parseFloat(val)
   if (isNaN(n)) return ''
-  return Math.min(9, Math.max(0, n))
+  return Math.min(maxScore, Math.max(0, n))
 }
 
 /**
@@ -22,9 +23,11 @@ const clampScore = (val) => {
  * @param {string}   studentId
  * @param {string}   classId
  * @param {string}   teacherName
+ * @param {Array}    skillConfig   - [{ name, maxScore, order }]
  * @param {Function} onSave - callback(reviewData)
  */
-export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, teacherName, onSave }) => {
+export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, teacherName, skillConfig, onSave }) => {
+  const skills = skillConfig ?? DEFAULT_SKILL_CONFIG
   const isEdit = !!editingReview
   const [form, setForm]     = useState(EMPTY_FORM)
   const [errors, setErrors] = useState({})
@@ -33,14 +36,11 @@ export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, t
     if (open) {
       if (editingReview) {
         setForm({
-          date:        editingReview.date ?? EMPTY_FORM.date,
-          listenScore: editingReview.listenScore ?? '',
-          speakScore:  editingReview.speakScore  ?? '',
-          readScore:   editingReview.readScore   ?? '',
-          writeScore:  editingReview.writeScore  ?? '',
-          tags:        editingReview.tags        ?? [],
-          advice:      editingReview.advice      ?? '',
-          remark:      editingReview.remark      ?? '',
+          date:   editingReview.date ?? EMPTY_FORM.date,
+          scores: editingReview.scores ?? {},
+          tags:   editingReview.tags   ?? [],
+          advice: editingReview.advice ?? '',
+          remark: editingReview.remark ?? '',
         })
       } else {
         setForm(EMPTY_FORM)
@@ -49,14 +49,19 @@ export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, t
     }
   }, [open, editingReview])
 
-  const setField = (field, val) => setForm(f => ({ ...f, [field]: val }))
+  const setScore = (name, val) =>
+    setForm(f => ({ ...f, scores: { ...f.scores, [name]: val } }))
 
   const validate = () => {
     const e = {}
     if (!form.date) e.date = 'Vui lòng chọn ngày'
-    for (const key of ['listenScore', 'speakScore', 'readScore', 'writeScore']) {
-      if (form[key] !== '' && (parseFloat(form[key]) < 0 || parseFloat(form[key]) > 9))
-        e[key] = 'Điểm 0–9'
+    for (const skill of skills) {
+      const val = form.scores?.[skill.name]
+      if (val !== '' && val != null) {
+        const n = parseFloat(val)
+        if (isNaN(n) || n < 0 || n > skill.maxScore)
+          e[skill.name] = `Điểm 0–${skill.maxScore}`
+      }
     }
     setErrors(e)
     return Object.keys(e).length === 0
@@ -64,13 +69,18 @@ export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, t
 
   const handleSubmit = () => {
     if (!validate()) return
+    const cleanScores = {}
+    for (const skill of skills) {
+      const val = form.scores?.[skill.name]
+      if (val !== '' && val != null) {
+        const n = parseFloat(val)
+        if (!isNaN(n)) cleanScores[skill.name] = n
+      }
+    }
     const data = {
       studentId, classId,
       date:        form.date,
-      listenScore: form.listenScore !== '' ? parseFloat(form.listenScore) : undefined,
-      speakScore:  form.speakScore  !== '' ? parseFloat(form.speakScore)  : undefined,
-      readScore:   form.readScore   !== '' ? parseFloat(form.readScore)   : undefined,
-      writeScore:  form.writeScore  !== '' ? parseFloat(form.writeScore)  : undefined,
+      scores:      cleanScores,
       tags:        form.tags,
       advice:      form.advice.trim() || undefined,
       remark:      form.remark.trim() || undefined,
@@ -80,21 +90,31 @@ export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, t
     onClose?.()
   }
 
-  const ScoreInput = ({ label, field }) => (
-    <div className="flex flex-col gap-1">
-      <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">{label}</label>
-      <input
-        type="number"
-        min="0" max="9" step="0.5"
-        placeholder="—"
-        value={form[field]}
-        onChange={e => setField(field, e.target.value)}
-        onBlur={e => setField(field, clampScore(e.target.value) === '' ? '' : clampScore(e.target.value))}
-        className={`input text-center ${errors[field] ? 'border-red-400' : ''}`}
-      />
-      {errors[field] && <span className="text-xs text-red-500">{errors[field]}</span>}
-    </div>
-  )
+  const ScoreInput = ({ skill }) => {
+    const val = form.scores?.[skill.name] ?? ''
+    return (
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">{skill.name}</label>
+        <input
+          type="number"
+          min="0"
+          max={skill.maxScore}
+          step={skill.maxScore <= 9 ? 0.5 : 1}
+          placeholder="—"
+          value={val}
+          onChange={e => setScore(skill.name, e.target.value)}
+          onBlur={e => {
+            const clamped = clampScore(e.target.value, skill.maxScore)
+            setScore(skill.name, clamped === '' ? '' : clamped)
+          }}
+          className={`input text-center ${errors[skill.name] ? 'border-red-400' : ''}`}
+        />
+        {errors[skill.name] && <span className="text-xs text-red-500">{errors[skill.name]}</span>}
+      </div>
+    )
+  }
+
+  const cols = skills.length <= 4 ? skills.length : 4
 
   return (
     <Modal
@@ -116,25 +136,22 @@ export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, t
           label="Ngày đánh giá"
           type="date"
           value={form.date}
-          onChange={e => setField('date', e.target.value)}
+          onChange={e => setForm(f => ({ ...f, date: e.target.value }))}
           error={errors.date}
         />
 
-        {/* 4 skill scores */}
+        {/* Dynamic skill scores */}
         <div>
-          <p className="text-xs font-medium text-navy-600 uppercase tracking-wide mb-1.5">Điểm Kỹ Năng (0–9)</p>
-          <div className="grid grid-cols-4 gap-2">
-            <ScoreInput label="Nghe"  field="listenScore" />
-            <ScoreInput label="Nói"   field="speakScore"  />
-            <ScoreInput label="Đọc"   field="readScore"   />
-            <ScoreInput label="Viết"  field="writeScore"  />
+          <p className="text-xs font-medium text-navy-600 uppercase tracking-wide mb-1.5">Điểm Kỹ Năng</p>
+          <div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
+            {skills.map(skill => <ScoreInput key={skill.name} skill={skill} />)}
           </div>
         </div>
 
         {/* Quick tags */}
         <div>
           <p className="text-xs font-medium text-navy-600 uppercase tracking-wide mb-1.5">Nhận Xét Nhanh</p>
-          <QuickTagEditor value={form.tags} onChange={tags => setField('tags', tags)} />
+          <QuickTagEditor value={form.tags} onChange={tags => setForm(f => ({ ...f, tags }))} />
         </div>
 
         {/* Remark */}
@@ -145,7 +162,7 @@ export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, t
             rows={1}
             placeholder="Ghi chú thêm về buổi học..."
             value={form.remark}
-            onChange={e => setField('remark', e.target.value)}
+            onChange={e => setForm(f => ({ ...f, remark: e.target.value }))}
           />
         </div>
 
@@ -157,7 +174,7 @@ export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, t
             rows={1}
             placeholder="Lời khuyên cho học viên và phụ huynh..."
             value={form.advice}
-            onChange={e => setField('advice', e.target.value)}
+            onChange={e => setForm(f => ({ ...f, advice: e.target.value }))}
           />
         </div>
       </div>

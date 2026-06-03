@@ -5,7 +5,10 @@ import { mockTestService } from '@/services/mockTestService'
 import { mockTestResultService } from '@/services/mockTestResultService'
 import { MockTestSectionBuilder, DEFAULT_SECTIONS } from './MockTestSectionBuilder'
 
-export const MockTestModal = ({ open, onClose, classId, mockTest, onSaved }) => {
+const skillConfigToSections = (skillConfig) =>
+  skillConfig.map((sk, i) => ({ id: crypto.randomUUID(), name: sk.name, maxScore: sk.maxScore, order: sk.order ?? i }))
+
+export const MockTestModal = ({ open, onClose, classId, mockTest, skillConfig, onSaved }) => {
   const mode = mockTest ? 'edit' : 'create'
 
   const [title, setTitle]         = useState('')
@@ -30,7 +33,11 @@ export const MockTestModal = ({ open, onClose, classId, mockTest, onSaved }) => 
     } else {
       setTitle('')
       setDate(new Date().toISOString().split('T')[0])
-      setSections(DEFAULT_SECTIONS())
+      setSections(
+        Array.isArray(skillConfig) && skillConfig.length > 0
+          ? skillConfigToSections(skillConfig)
+          : DEFAULT_SECTIONS()
+      )
       setTeacherNote('')
       setHasResults(false)
       setWarnConfirmed(false)
