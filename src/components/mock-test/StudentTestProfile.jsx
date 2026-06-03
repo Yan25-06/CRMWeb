@@ -4,7 +4,8 @@ import { clsx } from 'clsx'
 import { Line } from 'react-chartjs-2'
 import { Chart as ChartJS, CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler } from 'chart.js'
 import { getInitials } from '@/utils/helpers'
-import { upsertMockTestResult } from '@/store/db'
+import { mockTestResultService } from '@/services/mockTestResultService'
+import { enqueueRetry } from '@/utils/retryQueue'
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, Tooltip, Filler)
 
@@ -25,14 +26,21 @@ const TestCard = ({ mockTest, result, onNoteChange, extraAction }) => {
   const handleNote = (val) => {
     setNote(val)
     clearTimeout(timerRef.current)
-    timerRef.current = setTimeout(() => {
-      upsertMockTestResult({
+    timerRef.current = setTimeout(async () => {
+      const data = {
         mockTestId: mockTest.id,
         studentId: result?.studentId,
         scores: result?.scores ?? {},
         teacherNote: val,
-      })
-      onNoteChange?.()
+      }
+      try {
+        await mockTestResultService.upsert(data)
+        onNoteChange?.()
+      } catch {
+        if (!navigator.onLine) {
+          enqueueRetry(() => mockTestResultService.upsert(data).then(() => onNoteChange?.()))
+        }
+      }
     }, 800)
   }
 
@@ -44,30 +52,30 @@ const TestCard = ({ mockTest, result, onNoteChange, extraAction }) => {
             {extraAction}
           </div>
         )}
-      <button
-        onClick={() => setOpen(o => !o)}
-        className="flex-1 flex items-center justify-between px-4 py-3 hover:bg-navy-50/50 transition-colors text-left"
-      >
-        <div className="flex items-center gap-3">
-          <div className="flex flex-col">
-            <span className="font-semibold text-navy-800 text-sm">{mockTest.title}</span>
-            <span className="text-xs text-navy-400">{fmt(mockTest.date)}</span>
+        <button
+          onClick={() => setOpen(o => !o)}
+          className="flex-1 flex items-center justify-between px-4 py-3 hover:bg-navy-50/50 transition-colors text-left"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex flex-col">
+              <span className="font-semibold text-navy-800 text-sm">{mockTest.title}</span>
+              <span className="text-xs text-navy-400">{fmt(mockTest.date)}</span>
+            </div>
           </div>
-        </div>
-        <div className="flex items-center gap-3">
-          {pct !== null ? (
-            <span className={clsx(
-              'text-sm font-bold px-2.5 py-0.5 rounded-full',
-              pct >= 80 ? 'bg-emerald-100 text-emerald-700' : pct >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
-            )}>
-              {total}/{maxTotal} ({pct}%)
-            </span>
-          ) : (
-            <span className="text-xs text-navy-300 font-medium">Chưa có điểm</span>
-          )}
-          {open ? <ChevronUp size={16} className="text-navy-400" /> : <ChevronDown size={16} className="text-navy-400" />}
-        </div>
-      </button>
+          <div className="flex items-center gap-3">
+            {pct !== null ? (
+              <span className={clsx(
+                'text-sm font-bold px-2.5 py-0.5 rounded-full',
+                pct >= 80 ? 'bg-emerald-100 text-emerald-700' : pct >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+              )}>
+                {total}/{maxTotal} ({pct}%)
+              </span>
+            ) : (
+              <span className="text-xs text-navy-300 font-medium">Chưa có điểm</span>
+            )}
+            {open ? <ChevronUp size={16} className="text-navy-400" /> : <ChevronDown size={16} className="text-navy-400" />}
+          </div>
+        </button>
       </div>
 
       {open && (
@@ -143,7 +151,6 @@ export const StudentTestProfile = ({ student, mockTests = [], results = [], rend
 
   return (
     <div className="flex flex-col gap-5">
-      {/* Header */}
       <div className="flex items-center gap-3">
         <div className="w-11 h-11 rounded-full bg-navy-800 text-white font-bold text-sm flex items-center justify-center shrink-0">
           {getInitials(student.name)}
@@ -154,7 +161,6 @@ export const StudentTestProfile = ({ student, mockTests = [], results = [], rend
         </div>
       </div>
 
-      {/* Line chart — only if ≥2 results */}
       <div ref={chartRef}>
         {chartPoints.length >= 2 && chartVisible && (
           <div className="bg-white border border-navy-100 rounded-2xl p-4">
@@ -186,7 +192,6 @@ export const StudentTestProfile = ({ student, mockTests = [], results = [], rend
         )}
       </div>
 
-      {/* Test accordion list */}
       <div className="flex flex-col gap-2">
         {testsWithResults.length === 0 ? (
           <p className="text-sm text-navy-400 text-center py-8">Chưa có bài kiểm tra nào</p>

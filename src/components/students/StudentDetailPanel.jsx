@@ -5,11 +5,12 @@ import {
 } from 'lucide-react'
 import { clsx } from 'clsx'
 import { Badge, Button, Skeleton } from '@/components/ui'
-import {
-  getAttendanceRate, getSessionsByClass, getAttendanceByStudent,
-  getHomeworkStats, getHomeworkByStudent, getResultsByStudent, getMockTestsByClass,
-} from '@/store/db'
 import { enrollmentService } from '@/services/enrollmentService'
+import { sessionService }    from '@/services/sessionService'
+import { attendanceService } from '@/services/attendanceService'
+import { homeworkService }   from '@/services/homeworkService'
+import { mockTestService }   from '@/services/mockTestService'
+import { mockTestResultService } from '@/services/mockTestResultService'
 import { sessionReviewService } from '@/services/sessionReviewService'
 import { getInitials } from '@/utils/helpers'
 
@@ -74,7 +75,6 @@ const QuickRemarkInput = ({ student, enrollment, onRefresh }) => {
         <p className="text-sm text-navy-300 italic">Chưa có nhận xét nào</p>
       )}
 
-      {/* Recent remarks */}
       {recent.map(r => (
         <div key={r.id} className="flex items-start gap-2 text-sm">
           <span className="text-navy-300 text-xs font-medium shrink-0 pt-0.5 w-12">{formatDateShort(r.createdAt)}</span>
@@ -82,7 +82,6 @@ const QuickRemarkInput = ({ student, enrollment, onRefresh }) => {
         </div>
       ))}
 
-      {/* Expand rest */}
       {rest.length > 0 && (
         <>
           <button
@@ -105,7 +104,6 @@ const QuickRemarkInput = ({ student, enrollment, onRefresh }) => {
         </>
       )}
 
-      {/* Add remark */}
       <div className="flex flex-col gap-2 mt-1">
         <textarea
           ref={textareaRef}
@@ -128,10 +126,17 @@ const QuickRemarkInput = ({ student, enrollment, onRefresh }) => {
 
 // ─── Main Component ──────────────────────────────────────
 export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange }) => {
-  // Inline goal editing (task 6.3)
   const [editingGoal, setEditingGoal] = useState(false)
   const [goalText, setGoalText] = useState(enrollment?.goal || '')
   const goalInputRef = useRef(null)
+
+  // Async loaded data
+  const [attendanceRate, setAttendanceRate] = useState(null)
+  const [sessions, setSessions]             = useState([])
+  const [attendanceRecs, setAttendanceRecs] = useState([])
+  const [homeworks, setHomeworks]           = useState([])
+  const [mockTests, setMockTests]           = useState([])
+  const [mockResults, setMockResults]       = useState([])
 
   useEffect(() => {
     setGoalText(enrollment?.goal || '')
@@ -141,6 +146,27 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
   useEffect(() => {
     if (editingGoal) goalInputRef.current?.focus()
   }, [editingGoal])
+
+  useEffect(() => {
+    if (!student?.id || !enrollment?.classId) return
+    const { id: studentId, } = student
+    const { classId } = enrollment
+    Promise.all([
+      attendanceService.getRate(studentId, classId),
+      sessionService.getByClass(classId),
+      attendanceService.getByStudent(studentId),
+      homeworkService.getByStudent(studentId, classId),
+      mockTestService.getByClass(classId),
+      mockTestResultService.getByStudent(studentId, classId),
+    ]).then(([rate, sess, attRecs, hwRecs, tests, results]) => {
+      setAttendanceRate(rate ?? 0)
+      setSessions(sess)
+      setAttendanceRecs(attRecs)
+      setHomeworks(hwRecs)
+      setMockTests(tests)
+      setMockResults(results)
+    }).catch(() => {})
+  }, [student?.id, enrollment?.classId])
 
   const handleSaveGoal = async () => {
     if (!enrollment) return
@@ -166,101 +192,64 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
     )
   }
 
-  const cfg   = STATUS_CONFIG[enrollment.status] || STATUS_CONFIG.active
+  const cfg     = STATUS_CONFIG[enrollment.status] || STATUS_CONFIG.active
   const initials = getInitials(student.name)
-  
-  const attendanceRate = getAttendanceRate(student.id, enrollment.classId)
-  
-  // Calculate attendance history for timeline
-  const classSessions = getSessionsByClass(enrollment.classId)
+
+  const today = new Date().toISOString().split('T')[0]
+  const classSessions = sessions
   const classSessionIds = new Set(classSessions.map(s => s.id))
-  const studentAtts = getAttendanceByStudent(student.id).filter(a => classSessionIds.has(a.sessionId))
-  
+  const studentAtts = attendanceRecs.filter(a => classSessionIds.has(a.sessionId))
+
   const recentAttendance = classSessions
-    .filter(s => s.date <= new Date().toISOString().split('T')[0])
+    .filter(s => s.date <= today)
     .map(s => {
       const att = studentAtts.find(a => a.sessionId === s.id)
-      return {
-        id: s.id,
-        type: 'attendance',
-        date: s.date,
-        present: att ? att.present : null,
-        topic: s.topic
-      }
+      return { id: s.id, type: 'attendance', date: s.date, present: att ? att.present : null, topic: s.topic }
     })
     .filter(a => a.present !== null)
-  // Calculate homework history for timeline
-  const studentHw = getHomeworkByStudent(student.id, enrollment.classId)
+
   const recentHomework = classSessions
-    .filter(s => s.date <= new Date().toISOString().split('T')[0])
+    .filter(s => s.date <= today)
     .map(s => {
-      const hw = studentHw.find(h => h.sessionId === s.id)
+      const hw = homeworks.find(h => h.sessionId === s.id)
       if (!hw || hw.progress === 'not_done' || hw.progress === 0) return null
-      return {
-        id: `hw_${hw.id}`,
-        type: 'homework',
-        date: s.date,
-        progress: hw.progress,
-        topic: s.topic || hw.title
-      }
+      return { id: `hw_${hw.id}`, type: 'homework', date: s.date, progress: hw.progress, topic: s.topic || hw.title }
     })
     .filter(Boolean)
     .slice(0, 5)
 
-  const hwStats = getHomeworkStats(student.id, enrollment.classId)
-  const hwRate = hwStats.total > 0 ? Math.round((hwStats.done / hwStats.total) * 100) : 0
+  const hwStats = homeworkService.getStats(homeworks)
+  const hwRate  = hwStats.total > 0 ? Math.round((hwStats.done / hwStats.total) * 100) : 0
 
-  // Mock test data
-  const studentMockResults = getResultsByStudent(student.id, enrollment.classId)
-  const latestMockResult = studentMockResults.find(r => r.totalScore > 0) ?? null
-  const classMockTests = getMockTestsByClass(enrollment.classId)
-  const latestMockTest = latestMockResult
-    ? classMockTests.find(t => t.id === latestMockResult.mockTestId)
-    : null
-  const latestMockMax = latestMockTest
-    ? (latestMockTest.sections ?? []).reduce((s, sec) => s + sec.maxScore, 0)
-    : 0
-  const latestMockPct = latestMockMax > 0 && latestMockResult?.totalScore > 0
-    ? Math.round((latestMockResult.totalScore / latestMockMax) * 100)
-    : null
+  const studentMockResults  = mockResults
+  const latestMockResult    = studentMockResults.find(r => r.totalScore > 0) ?? null
+  const latestMockTest      = latestMockResult ? mockTests.find(t => t.id === latestMockResult.mockTestId) : null
+  const latestMockMax       = latestMockTest ? (latestMockTest.sections ?? []).reduce((s, sec) => s + sec.maxScore, 0) : 0
+  const latestMockPct       = latestMockMax > 0 && latestMockResult?.totalScore > 0
+    ? Math.round((latestMockResult.totalScore / latestMockMax) * 100) : null
 
-  // Mock test timeline events
   const mockTimelineEvents = studentMockResults
     .filter(r => r.totalScore > 0)
     .map(r => {
-      const test = classMockTests.find(t => t.id === r.mockTestId)
+      const test = mockTests.find(t => t.id === r.mockTestId)
       if (!test) return null
       const maxTotal = (test.sections ?? []).reduce((s, sec) => s + sec.maxScore, 0)
       const pct = maxTotal > 0 ? Math.round((r.totalScore / maxTotal) * 100) : 0
-      return {
-        id: `mock_${r.id}`,
-        type: 'mocktest',
-        date: test.date,
-        title: test.title,
-        score: r.totalScore,
-        maxTotal,
-        pct,
-      }
+      return { id: `mock_${r.id}`, type: 'mocktest', date: test.date, title: test.title, score: r.totalScore, maxTotal, pct }
     })
     .filter(Boolean)
 
-  // Combine events and sort by date descending
   const timelineEvents = [...recentAttendance, ...recentHomework, ...mockTimelineEvents]
     .sort((a, b) => new Date(b.date) - new Date(a.date))
     .slice(0, 5)
 
-  const handleStatusClick = () => {
-    // Cycle: active → paused (needs confirm handled in parent / EnrollmentModal)
-    // For inline click-to-change: active ↔ active, show modal
-    onEdit?.()
-  }
+  const handleStatusClick = () => { onEdit?.() }
 
   return (
     <div className="flex flex-col gap-6 overflow-y-auto h-full">
-      {/* ── Header section (3.3) ── */}
+      {/* ── Header section ── */}
       <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-5">
         <div className="flex items-start gap-4">
-          {/* Large avatar */}
           <div className="w-14 h-14 rounded-full bg-navy-800 text-white font-bold text-xl
             flex items-center justify-center shrink-0 select-none shadow-navy">
             {initials}
@@ -282,7 +271,6 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
               </button>
             </div>
 
-            {/* Badge trạng thái - click to change via modal */}
             <div className="flex items-center gap-2 mt-2">
               <button
                 id="status-badge-btn"
@@ -295,7 +283,6 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
               <span className="text-xs text-navy-300">· Tham gia {formatDate(enrollment.enrolledAt)}</span>
             </div>
 
-            {/* Mục tiêu inline edit (6.3) */}
             <div className="flex items-start gap-1.5 mt-3">
               <Target size={13} className="text-navy-400 shrink-0 mt-0.5" />
               {editingGoal ? (
@@ -328,14 +315,16 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
         </div>
       </div>
 
-      {/* ── 4 Overview cards (3.4) — 2×2 grid ── */}
+      {/* ── 4 Overview cards ── */}
       <div className="grid grid-cols-2 gap-3">
         <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-4 flex flex-col gap-1">
           <div className="flex items-center gap-1.5 mb-1">
             <BookOpen size={13} className="text-navy-400" />
             <span className="text-xs text-navy-400 font-medium uppercase tracking-wide">Điểm danh</span>
           </div>
-          <span className="text-2xl font-display font-bold text-navy-900 leading-none">{attendanceRate}%</span>
+          <span className="text-2xl font-display font-bold text-navy-900 leading-none">
+            {attendanceRate !== null ? `${attendanceRate}%` : '—'}
+          </span>
           <span className="text-xs text-navy-400">chuyên cần</span>
         </div>
 
@@ -383,18 +372,17 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
         </div>
       </div>
 
-      {/* ── Nhận xét GV (3.5) ── */}
+      {/* ── Nhận xét GV ── */}
       <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-5">
         <QuickRemarkInput student={student} enrollment={enrollment} onRefresh={() => {}} />
       </div>
 
-      {/* ── Timeline 5 hoạt động gần nhất (3.6) ── */}
+      {/* ── Timeline 5 hoạt động gần nhất ── */}
       <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-5">
         <h3 className="text-xs font-semibold text-navy-500 uppercase tracking-wide mb-3">
           Hoạt động gần đây
         </h3>
         <div className="flex flex-col gap-3">
-          {/* Enrollment event */}
           <div className="flex items-start gap-3">
             <div className="w-1.5 h-1.5 rounded-full bg-emerald-400 mt-1.5 shrink-0" />
             <div>
@@ -421,7 +409,6 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
             </div>
           )}
 
-          {/* Combined events */}
           {timelineEvents.map(event => {
             if (event.type === 'attendance') {
               return (
@@ -432,7 +419,7 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
                   )} />
                   <div>
                     <p className="text-sm text-navy-700">
-                      {event.present ? "Có mặt" : "Vắng mặt"} 
+                      {event.present ? "Có mặt" : "Vắng mặt"}
                       {event.topic && <span className="text-navy-400 font-normal"> — {event.topic}</span>}
                     </p>
                     <p className="text-xs text-navy-400">{formatDate(event.date)}</p>
@@ -445,7 +432,7 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
                   <div className="text-[10px] mt-1 shrink-0">📝</div>
                   <div>
                     <p className="text-sm text-navy-700">
-                      Bài tập{event.topic && <span className="font-medium"> {event.topic}</span>}: 
+                      Bài tập{event.topic && <span className="font-medium"> {event.topic}</span>}:
                       <span className={clsx(
                         "ml-1 font-medium",
                         event.progress === 'done' || event.progress === 100 ? "text-emerald-600" : "text-amber-600"
@@ -490,7 +477,6 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
         </div>
       </div>
 
-      {/* Bottom padding */}
       <div className="h-4" />
     </div>
   )

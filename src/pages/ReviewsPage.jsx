@@ -17,10 +17,8 @@ import { generalCommentService } from '@/services/generalCommentService'
 import { classService }          from '@/services/classService'
 import { studentService }        from '@/services/studentService'
 import { enrollmentService }     from '@/services/enrollmentService'
-import {
-  getSettings,
-  getAttendanceByRange, getHomeworkByRange,
-} from '@/store/db'
+import { attendanceService }     from '@/services/attendanceService'
+import { homeworkService }       from '@/services/homeworkService'
 
 const STORAGE_KEY = 'reviews_ui_state'
 
@@ -36,24 +34,6 @@ const loadState = () => {
     const raw = localStorage.getItem(STORAGE_KEY)
     return raw ? JSON.parse(raw) : {}
   } catch { return {} }
-}
-
-const calcAttendancePct = (studentId, classId, fromDate, toDate) => {
-  const recs = getAttendanceByRange(studentId, classId, fromDate, toDate)
-  if (!recs.length) return null
-  const present = recs.filter(r => r.present).length
-  return Math.round((present / recs.length) * 1000) / 10
-}
-
-const calcHomeworkPct = (studentId, classId, fromDate, toDate) => {
-  const records = getHomeworkByRange(studentId, classId, fromDate, toDate)
-  if (!records.length) return null
-  let done = 0, inProg = 0
-  records.forEach(r => {
-    if (r.progress === 'done' || r.progress === 100) done++
-    else if (r.progress === 'in_progress' || r.progress === 50) inProg++
-  })
-  return Math.round((done * 100 + inProg * 50) / records.length)
 }
 
 // Compact student list shown in the left panel (individual mode only)
@@ -119,7 +99,7 @@ const StudentList = ({ students, enrollmentMap, selectedClassId, selectedStudent
   )
 }
 
-export const ReviewsPage = () => {
+export const ReviewsPage = ({ settings = {} }) => {
   // Restore persisted state on mount
   const saved = loadState()
 
@@ -155,8 +135,6 @@ export const ReviewsPage = () => {
     setDateRangeRaw(range)
     persist({ dateRange: range })
   }
-
-  const settings = getSettings()
 
   const [classes,        setClasses]        = useState([])
   const [students,       setStudents]       = useState([])
@@ -212,14 +190,32 @@ export const ReviewsPage = () => {
 
   const latestReview = reviews[0] ?? null
 
-  const attendancePct = useMemo(() => {
-    if (!selectedStudentId || !selectedClassId) return null
-    return calcAttendancePct(selectedStudentId, selectedClassId, dateRange.fromDate, dateRange.toDate)
-  }, [selectedStudentId, selectedClassId, dateRange.fromDate, dateRange.toDate])
+  const [attendancePct, setAttendancePct] = useState(null)
+  const [homeworkPct,   setHomeworkPct]   = useState(null)
 
-  const homeworkPct = useMemo(() => {
-    if (!selectedStudentId || !selectedClassId) return null
-    return calcHomeworkPct(selectedStudentId, selectedClassId, dateRange.fromDate, dateRange.toDate)
+  useEffect(() => {
+    if (!selectedStudentId || !selectedClassId) { setAttendancePct(null); setHomeworkPct(null); return }
+    Promise.all([
+      attendanceService.getByRange(selectedStudentId, selectedClassId, dateRange.fromDate, dateRange.toDate),
+      homeworkService.getByRange(selectedStudentId, selectedClassId, dateRange.fromDate, dateRange.toDate),
+    ]).then(([attRecs, hwRecs]) => {
+      if (attRecs.length) {
+        const present = attRecs.filter(r => r.present !== false).length
+        setAttendancePct(Math.round((present / attRecs.length) * 1000) / 10)
+      } else {
+        setAttendancePct(null)
+      }
+      if (hwRecs.length) {
+        let done = 0, inProg = 0
+        hwRecs.forEach(r => {
+          if (r.progress === 'done' || r.progress === 100) done++
+          else if (r.progress === 'in_progress' || r.progress === 50) inProg++
+        })
+        setHomeworkPct(Math.round((done * 100 + inProg * 50) / hwRecs.length))
+      } else {
+        setHomeworkPct(null)
+      }
+    }).catch(() => { setAttendancePct(null); setHomeworkPct(null) })
   }, [selectedStudentId, selectedClassId, dateRange.fromDate, dateRange.toDate])
 
   const handleSaveReview = async (data) => {

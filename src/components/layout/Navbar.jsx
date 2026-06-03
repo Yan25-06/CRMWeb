@@ -1,11 +1,10 @@
 import { clsx } from 'clsx'
 import {
-  LayoutDashboard, CalendarCheck, BookOpen,
-  Calendar, Users, Settings, Menu, X, Download,
+  LayoutDashboard, BookOpen,
+  Calendar, Users, Settings, Menu, X,
   GraduationCap, BarChart2, LogOut,
 } from 'lucide-react'
 import { useState } from 'react'
-import { exportData } from '@/store/db'
 import { toast } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
 
@@ -25,11 +24,6 @@ export const Navbar = ({ activePage, onNavigate, centerName }) => {
   const handleLogout = async () => {
     await logout()
     toast.success('Đã đăng xuất!')
-  }
-
-  const handleExport = () => {
-    exportData()
-    toast.success('Đã xuất file backup!')
   }
 
   return (
@@ -76,13 +70,6 @@ export const Navbar = ({ activePage, onNavigate, centerName }) => {
               {teacher?.name && <p className="text-xs text-navy-400 truncate">{user.email}</p>}
             </div>
           )}
-          <button
-            onClick={handleExport}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-navy-400 hover:text-white hover:bg-white/8 transition-all duration-200 w-full"
-          >
-            <Download size={16} />
-            Xuất Backup
-          </button>
           <button
             onClick={() => onNavigate('settings')}
             className={clsx(

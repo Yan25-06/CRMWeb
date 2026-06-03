@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Navbar } from '@/components/layout/Navbar'
+import { OfflineBanner } from '@/components/layout/OfflineBanner'
 import { ToastContainer } from '@/components/ui'
 import { DashboardPage } from '@/pages/DashboardPage'
 import { SettingsPage } from '@/pages/SettingsPage'
@@ -9,7 +10,7 @@ import { FeesPage } from '@/pages/FeesPage'
 import { ReportsPage } from '@/pages/ReportsPage'
 import { ClassesOverviewPage } from '@/pages/ClassesOverviewPage'
 import { ClassDetailPage } from '@/pages/ClassDetailPage'
-import { getSettings, seedDemoData } from '@/store/db'
+import { settingsService, DEFAULT_SETTINGS } from '@/services/settingsService'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -19,16 +20,14 @@ export default function App() {
   const [page, setPage]   = useState('dashboard')
   const [year, setYear]   = useState(() => new Date().getFullYear())
   const [month, setMonth] = useState(() => new Date().getMonth() + 1)
-  const [settings, setSettingsState] = useState(getSettings())
+  const [settings, setSettings] = useState(DEFAULT_SETTINGS)
   const [selectedClassId, setSelectedClassId] = useState(() => {
     const stored = localStorage.getItem('selectedClassId')
     return stored || null
   })
 
-  // Seed demo data on first load
   useEffect(() => {
-    seedDemoData()
-    setSettingsState(getSettings())
+    settingsService.get().then(setSettings).catch(() => {})
   }, [])
 
   // Persist selectedClassId to localStorage
@@ -55,10 +54,9 @@ export default function App() {
   const renderPage = () => {
     switch (page) {
       case 'dashboard':  return <DashboardPage year={year} month={month} onNavigate={setPage} />
-
       case 'fees':       return <FeesPage year={year} month={month} />
       case 'reports':    return <ReportsPage />
-      case 'reviews':    return <ReviewsPage />
+      case 'reviews':    return <ReviewsPage settings={settings} />
       case 'schedule':   return <SchedulePage onNavigate={setPage} />
       case 'classes':
         if (selectedClassId) {
@@ -75,6 +73,8 @@ export default function App() {
 
   return (
     <div className="flex h-screen overflow-hidden bg-surface-secondary">
+      <OfflineBanner />
+
       {/* Sidebar */}
       <Navbar
         activePage={page}

@@ -1,18 +1,20 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { Button, Input, toast } from '@/components/ui'
-import { createMockTest, updateMockTest, getMockTestResultsByTest } from '@/store/db'
+import { mockTestService } from '@/services/mockTestService'
+import { mockTestResultService } from '@/services/mockTestResultService'
 import { MockTestSectionBuilder, DEFAULT_SECTIONS } from './MockTestSectionBuilder'
 
 export const MockTestModal = ({ open, onClose, classId, mockTest, onSaved }) => {
   const mode = mockTest ? 'edit' : 'create'
 
-  const [title, setTitle] = useState('')
-  const [date, setDate] = useState('')
-  const [sections, setSections] = useState([])
+  const [title, setTitle]         = useState('')
+  const [date, setDate]           = useState('')
+  const [sections, setSections]   = useState([])
   const [teacherNote, setTeacherNote] = useState('')
   const [hasResults, setHasResults] = useState(false)
   const [warnConfirmed, setWarnConfirmed] = useState(false)
+  const [saving, setSaving]       = useState(false)
 
   useEffect(() => {
     if (!open) return
@@ -21,9 +23,10 @@ export const MockTestModal = ({ open, onClose, classId, mockTest, onSaved }) => 
       setDate(mockTest.date)
       setSections(mockTest.sections ?? [])
       setTeacherNote(mockTest.teacherNote ?? '')
-      const results = getMockTestResultsByTest(mockTest.id)
-      setHasResults(results.some(r => Object.keys(r.scores).length > 0))
       setWarnConfirmed(false)
+      mockTestResultService.getByTest(mockTest.id)
+        .then(results => setHasResults(results.some(r => Object.keys(r.scores ?? {}).length > 0)))
+        .catch(() => setHasResults(false))
     } else {
       setTitle('')
       setDate(new Date().toISOString().split('T')[0])
@@ -36,7 +39,7 @@ export const MockTestModal = ({ open, onClose, classId, mockTest, onSaved }) => 
 
   const sectionsValid = sections.length > 0 && sections.every(s => s.name.trim() && s.maxScore > 0)
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     if (!title.trim()) { toast.error('Vui lòng nhập tên bài kiểm tra'); return }
     if (!date) { toast.error('Vui lòng chọn ngày thi'); return }
     if (!sectionsValid) { toast.error('Tên phần thi không được rỗng và điểm tối đa phải > 0'); return }
@@ -47,16 +50,23 @@ export const MockTestModal = ({ open, onClose, classId, mockTest, onSaved }) => 
       return
     }
 
-    if (mode === 'create') {
-      const test = createMockTest({ classId, title: title.trim(), date, sections, teacherNote: teacherNote.trim() })
-      toast.success('Đã tạo Mock Test!')
-      onSaved?.(test)
-    } else {
-      const test = updateMockTest(mockTest.id, { title: title.trim(), date, sections, teacherNote: teacherNote.trim() })
-      toast.success('Đã cập nhật!')
-      onSaved?.(test)
+    setSaving(true)
+    try {
+      if (mode === 'create') {
+        const test = await mockTestService.create({ classId, title: title.trim(), date, sections, teacherNote: teacherNote.trim() })
+        toast.success('Đã tạo Mock Test!')
+        onSaved?.(test)
+      } else {
+        const test = await mockTestService.update(mockTest.id, { title: title.trim(), date, sections, teacherNote: teacherNote.trim() })
+        toast.success('Đã cập nhật!')
+        onSaved?.(test)
+      }
+      onClose?.()
+    } catch (err) {
+      toast.error('Lỗi: ' + err.message)
+    } finally {
+      setSaving(false)
     }
-    onClose?.()
   }
 
   if (!open) return null
@@ -123,7 +133,7 @@ export const MockTestModal = ({ open, onClose, classId, mockTest, onSaved }) => 
 
         <div className="px-6 py-4 bg-navy-50 flex justify-end gap-3">
           <Button variant="secondary" onClick={onClose}>Hủy</Button>
-          <Button variant="primary" onClick={handleSubmit}>
+          <Button variant="primary" onClick={handleSubmit} disabled={saving}>
             {mode === 'create' ? 'Tạo Mock Test' : 'Lưu thay đổi'}
           </Button>
         </div>

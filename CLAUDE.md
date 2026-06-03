@@ -42,15 +42,14 @@ Mỗi service là một object với method `getAll / getById / create / update 
 - `create` gắn `teacher_id` qua `getUid()` (export từ `studentService.js`).
 - **UI không gọi `supabase.*` trực tiếp** — luôn qua service (trừ auth trong `useAuth.jsx`).
 
-Services đã có: `studentService`, `classService` (+`teacherService`), `enrollmentService`, `sessionService`, `attendanceService`, `homeworkService`, `hwAssignmentService`, `submissionService`, `scheduleService`, `feeService`, `paymentService`, `reviewService`, `sessionReviewService`, `generalCommentService`.
+Services đã có: `studentService`, `classService` (+`teacherService`), `enrollmentService`, `sessionService`, `attendanceService`, `homeworkService`, `hwAssignmentService`, `submissionService`, `scheduleService`, `feeService`, `paymentService`, `reviewService`, `sessionReviewService`, `generalCommentService`, `mockTestService`, `mockTestResultService`, `settingsService`.
 
-### Trạng thái migration theo trang (cập nhật khi chuyển tiếp!)
-- ✅ **Đã dùng services:** `ClassesOverviewPage`, `ClassDetailPage/index` + tabs `StudentsTab`, `AttendanceTab`, `HomeworkTab`, `SchedulePage`, `DashboardPage` (một phần), `FeesPage` + components fees (`FeesTable`, `PaymentModal`, `StudentPaymentHistoryPanel`), `ReviewsPage` + components reviews (`ClassOverviewTable`, `GeneralCommentPanel`), `StudentDetailPanel` (phần session reviews).
-- ⏳ **Còn dùng `store/db.js`:** `ReportsPage`, `SettingsPage`, `MockTestTab`, `DashboardPage` (một phần); `ReviewsPage`/`StudentDetailPanel` còn dùng db.js cho attendance/homework/mock-test (chưa phải scope này).
-- Service layer còn thiếu (theo roadmap): mock_tests/mock_test_results/settings.
-- Change cutover cuối cùng sẽ **xóa `src/store/db.js`**. Không migrate data localStorage cũ — bắt đầu sạch.
+### Trạng thái migration theo trang
+- ✅ **Tất cả trang đã dùng services.** `src/store/db.js` và `src/store/mockTestExport.js` đã bị xóa (cutover hoàn tất, 2026-06-02).
+- Offline banner (`src/components/layout/OfflineBanner.jsx`) + retry queue (`src/utils/retryQueue.js`) đã thêm.
+- Export mock test functions chuyển sang `src/utils/mockTestExport.js`.
 
-**Khi thêm tính năng mới:** ưu tiên viết qua Supabase service. Nếu service chưa tồn tại cho domain đó, tạo mới theo đúng pattern `fromDB/toDB` thay vì thêm vào `db.js`.
+**Khi thêm tính năng mới:** luôn viết qua Supabase service. Tạo service mới theo pattern `fromDB/toDB`.
 
 ---
 
@@ -117,7 +116,7 @@ src/
 Project quản lý thay đổi qua OpenSpec (`openspec/`). Có skill tích hợp: `openspec-propose`, `openspec-apply-change`, `openspec-archive-change`, `openspec-explore`.
 - `openspec/specs/` — spec hiện hành (đã build). `openspec/changes/` — change đang làm; `openspec/changes/archive/` — đã xong.
 - `openspec/ROADMAP.md` — lộ trình migration Supabase multi-teacher (nguồn chân lý cho thứ tự các change service layer).
-- Change đang mở (chưa archive): `add-supabase-multi-teacher` (reference gốc), `add-service-tests-settings`, `add-admin-panel`.
+- Change đang mở (chưa archive): `add-supabase-multi-teacher` (reference gốc), `add-service-tests-settings` (implement xong, chờ archive), `add-admin-panel`.
 - Đã archive: `add-service-fees` (2026-06-02), `add-service-reviews` (2026-06-02).
 - Một change gồm `proposal.md`, `design.md`, `specs/`, `tasks.md`. Implement theo tasks, check `[x]` khi xong, không làm ngoài scope.
 

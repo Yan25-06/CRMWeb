@@ -1,23 +1,21 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect } from 'react'
 import {
   Users, TrendingUp, Calendar, DollarSign,
-  BookOpen, Clock,
+  BookOpen,
 } from 'lucide-react'
 import { StatCard, Card, Badge, Skeleton } from '@/components/ui'
-import {
-  getDashboardStats,
-  getAttendanceByDate,
-} from '@/store/db'
 import { studentService } from '@/services/studentService'
 import { classService } from '@/services/classService'
+import { paymentService } from '@/services/paymentService'
 
 const fmt = (n) =>
   new Intl.NumberFormat('vi-VN').format(n) + 'đ'
 
 export const DashboardPage = ({ year, month, onNavigate }) => {
-  const [students, setStudents] = useState([])
-  const [classes, setClasses] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [students, setStudents]             = useState([])
+  const [classes,  setClasses]              = useState([])
+  const [monthlyRevenue, setMonthlyRevenue] = useState(0)
+  const [loading, setLoading]              = useState(true)
 
   useEffect(() => {
     Promise.all([studentService.getAll(), classService.getAll()])
@@ -26,11 +24,12 @@ export const DashboardPage = ({ year, month, onNavigate }) => {
       .finally(() => setLoading(false))
   }, [])
 
-  // Revenue/attendance stats still come from localStorage (sessions/attendance not migrated yet)
-  const stats = useMemo(() => getDashboardStats(year, month), [year, month])
-
-  const today = new Date().toISOString().split('T')[0]
-  const todayAtt = useMemo(() => getAttendanceByDate(today), [today])
+  useEffect(() => {
+    const period = `${year}-${String(month).padStart(2, '0')}`
+    paymentService.getByPeriod(period)
+      .then(payments => setMonthlyRevenue(payments.reduce((s, p) => s + (p.amount ?? 0), 0)))
+      .catch(() => setMonthlyRevenue(0))
+  }, [year, month])
 
   const monthName = new Date(year, month - 1).toLocaleString('vi-VN', { month: 'long' })
 
@@ -84,29 +83,29 @@ export const DashboardPage = ({ year, month, onNavigate }) => {
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         <StatCard
           label="Học Sinh"
-          value={students.length || stats.totalStudents}
-          sub={`${classes.length || stats.totalClasses} lớp`}
+          value={students.length}
+          sub={`${classes.length} lớp`}
           icon={<Users size={16} />}
           accent="navy"
         />
         <StatCard
-          label="Có Mặt Hôm Nay"
-          value={todayAtt.filter(a => a.present).length}
-          sub={`trong ${students.length || stats.totalStudents} học sinh`}
-          icon={<Calendar size={16} />}
-          accent="success"
+          label="Lớp Học"
+          value={classes.length}
+          sub="đang hoạt động"
+          icon={<BookOpen size={16} />}
+          accent="navy"
         />
         <StatCard
-          label={`Doanh Thu ${monthName}`}
-          value={fmt(stats.monthlyRevenue)}
+          label={`Thu ${monthName}`}
+          value={fmt(monthlyRevenue)}
           sub="tổng học phí tháng"
           icon={<DollarSign size={16} />}
           accent="warning"
         />
         <StatCard
-          label={`Doanh Thu ${year}`}
-          value={fmt(stats.yearlyRevenue)}
-          sub="tổng cả năm"
+          label="Năm"
+          value={year}
+          sub="năm học hiện tại"
           icon={<TrendingUp size={16} />}
           accent="navy"
         />
@@ -118,7 +117,7 @@ export const DashboardPage = ({ year, month, onNavigate }) => {
           <div className="px-5 py-4 border-b border-navy-50 flex items-center justify-between">
             <h2 className="font-semibold text-navy-800 text-sm">Danh Sách Học Sinh</h2>
             <button
-              onClick={() => onNavigate('students')}
+              onClick={() => onNavigate('classes')}
               className="text-xs text-navy-500 hover:text-navy-800 font-medium transition-colors"
             >
               Xem tất cả →
@@ -131,7 +130,7 @@ export const DashboardPage = ({ year, month, onNavigate }) => {
           ) : (
             <div className="divide-y divide-navy-50">
               {students.slice(0, 6).map(s => (
-                <div key={s.id} className="flex items-center gap-3 px-5 py-3 hover:bg-navy-50 transition-colors cursor-pointer" onClick={() => onNavigate('students')}>
+                <div key={s.id} className="flex items-center gap-3 px-5 py-3 hover:bg-navy-50 transition-colors cursor-pointer" onClick={() => onNavigate('classes')}>
                   <div className="w-8 h-8 rounded-full bg-navy-100 flex items-center justify-center text-navy-700 font-semibold text-sm shrink-0">
                     {s.name.split(' ').pop()?.[0]}
                   </div>
@@ -188,10 +187,10 @@ export const DashboardPage = ({ year, month, onNavigate }) => {
         <h2 className="text-sm font-semibold text-navy-600 uppercase tracking-wide mb-3">Thao Tác Nhanh</h2>
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
           {[
-            { label: 'Điểm Danh Hôm Nay', page: 'attendance', accent: 'bg-navy-800 text-white' },
-            { label: 'Nhập Học Phí',       page: 'fees',       accent: 'bg-emerald-700 text-white' },
-            { label: 'Nhận Xét HS',        page: 'reviews',    accent: 'bg-amber-600 text-white' },
-            { label: 'Xem Lịch Dạy',       page: 'schedule',   accent: 'bg-navy-600 text-white' },
+            { label: 'Điểm Danh',   page: 'classes',  accent: 'bg-navy-800 text-white' },
+            { label: 'Nhập Học Phí', page: 'fees',     accent: 'bg-emerald-700 text-white' },
+            { label: 'Nhận Xét HS', page: 'reviews',  accent: 'bg-amber-600 text-white' },
+            { label: 'Xem Lịch Dạy', page: 'schedule', accent: 'bg-navy-600 text-white' },
           ].map(({ label, page, accent }) => (
             <button
               key={page}

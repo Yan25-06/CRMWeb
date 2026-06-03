@@ -5,17 +5,16 @@ import { Button, Card, toast } from '@/components/ui'
 import { MockTestModal } from '@/components/mock-test/MockTestModal'
 import { MockTestScoreTable } from '@/components/mock-test/MockTestScoreTable'
 import { StudentTestProfile } from '@/components/mock-test/StudentTestProfile'
-import {
-  getMockTestsByClass, getMockTestResultsByTest, deleteMockTest,
-  getEnrollmentsByClass, getStudents, getResultsByStudent, getSettings,
-} from '@/store/db'
-import { exportMockTestExcel, exportStudentResultText } from '@/store/mockTestExport'
+import { mockTestService } from '@/services/mockTestService'
+import { mockTestResultService } from '@/services/mockTestResultService'
+import { enrollmentService } from '@/services/enrollmentService'
+import { settingsService } from '@/services/settingsService'
+import { exportMockTestExcel, exportStudentResultText } from '@/utils/mockTestExport'
 import { getInitials } from '@/utils/helpers'
 
 const fmt = (iso) =>
   iso ? new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'
 
-// Sidebar item for a single student
 const SidebarStudentItem = ({ student, latestResult, isActive, onClick }) => {
   const hasScore = latestResult?.totalScore > 0
   return (
@@ -39,7 +38,6 @@ const SidebarStudentItem = ({ student, latestResult, isActive, onClick }) => {
   )
 }
 
-// A single mock test card in class overview
 const MockTestCard = ({ mockTest, results, students, className, onEdit, onDelete, onResultChange }) => {
   const [expanded, setExpanded] = useState(false)
   const sections = mockTest.sections ?? []
@@ -50,7 +48,6 @@ const MockTestCard = ({ mockTest, results, students, className, onEdit, onDelete
 
   return (
     <div className="border border-navy-100 rounded-2xl overflow-hidden">
-      {/* Card header */}
       <div className="flex items-center gap-3 px-4 py-3 bg-white hover:bg-navy-50/30 transition-colors">
         <button
           className="flex-1 flex items-center gap-3 text-left"
@@ -73,7 +70,6 @@ const MockTestCard = ({ mockTest, results, students, className, onEdit, onDelete
           {expanded ? <ChevronUp size={16} className="text-navy-400 shrink-0" /> : <ChevronDown size={16} className="text-navy-400 shrink-0" />}
         </button>
 
-        {/* Action buttons */}
         <div className="flex items-center gap-1 shrink-0">
           <button
             onClick={() => exportMockTestExcel(mockTest, results, students, className)}
@@ -99,7 +95,6 @@ const MockTestCard = ({ mockTest, results, students, className, onEdit, onDelete
         </div>
       </div>
 
-      {/* Expanded score table */}
       {expanded && (
         <div className="border-t border-navy-50">
           <MockTestScoreTable
@@ -115,55 +110,66 @@ const MockTestCard = ({ mockTest, results, students, className, onEdit, onDelete
 }
 
 export const MockTestTab = ({ classId, className }) => {
-  const [mockTests, setMockTests] = useState([])
+  const [mockTests, setMockTests]       = useState([])
   const [resultsByTest, setResultsByTest] = useState({})
-  const [students, setStudents] = useState([])
-  const [selectedStudentId, setSelectedStudentId] = useState(null) // null = class overview
+  const [students, setStudents]         = useState([])
+  const [selectedStudentId, setSelectedStudentId] = useState(null)
+  const [modalOpen, setModalOpen]       = useState(false)
+  const [editingTest, setEditingTest]   = useState(null)
+  const [centerName, setCenterName]     = useState('')
 
-  const [modalOpen, setModalOpen] = useState(false)
-  const [editingTest, setEditingTest] = useState(null)
+  useEffect(() => {
+    settingsService.get().then(s => setCenterName(s.centerName)).catch(() => {})
+  }, [])
 
-  const settings = getSettings()
-
-  const loadData = useCallback(() => {
-    const tests = getMockTestsByClass(classId)
-    setMockTests(tests)
-
-    const byTest = {}
-    tests.forEach(t => { byTest[t.id] = getMockTestResultsByTest(t.id) })
-    setResultsByTest(byTest)
-
-    const enrollments = getEnrollmentsByClass(classId).filter(e => e.status === 'active')
-    const allStudents = getStudents()
-    setStudents(allStudents.filter(s => enrollments.some(e => e.studentId === s.id)))
+  const loadData = useCallback(async () => {
+    try {
+      const [tests, allResults, enrollments] = await Promise.all([
+        mockTestService.getByClass(classId),
+        mockTestResultService.getByClass(classId),
+        enrollmentService.getActiveByClass(classId),
+      ])
+      setMockTests(tests)
+      const byTest = {}
+      tests.forEach(t => { byTest[t.id] = allResults.filter(r => r.mockTestId === t.id) })
+      setResultsByTest(byTest)
+      setStudents(enrollments.map(e => e.student).filter(Boolean))
+    } catch (err) {
+      toast.error('Không tải được dữ liệu: ' + err.message)
+    }
   }, [classId])
 
   useEffect(() => { loadData() }, [loadData])
 
   const handleEdit = (test) => { setEditingTest(test); setModalOpen(true) }
 
-  const handleDelete = (test) => {
+  const handleDelete = async (test) => {
     if (!window.confirm(`Xóa bài kiểm tra "${test.title}" và toàn bộ điểm của học viên?`)) return
-    deleteMockTest(test.id)
-    toast.success('Đã xóa bài kiểm tra')
-    loadData()
+    try {
+      await mockTestService.remove(test.id)
+      toast.success('Đã xóa bài kiểm tra')
+      loadData()
+    } catch (err) {
+      toast.error('Lỗi khi xóa: ' + err.message)
+    }
   }
 
   const handleModalSaved = () => { setEditingTest(null); loadData() }
-
   const handleResultChange = () => { loadData() }
 
-  // For student profile view
   const selectedStudent = students.find(s => s.id === selectedStudentId) ?? null
+
+  // student results: flatten all results, filter by studentId
+  const allResults = Object.values(resultsByTest).flat()
   const studentResults = selectedStudentId
-    ? getResultsByStudent(selectedStudentId, classId)
+    ? allResults.filter(r => r.studentId === selectedStudentId)
     : []
 
-  // Sidebar: latest result per student
+  // sidebar: latest result per student
   const latestResultByStudent = {}
   students.forEach(stu => {
-    const results = getResultsByStudent(stu.id, classId)
-    latestResultByStudent[stu.id] = results.find(r => r.totalScore > 0) ?? null
+    const results = allResults.filter(r => r.studentId === stu.id && r.totalScore > 0)
+    latestResultByStudent[stu.id] = results[0] ?? null
   })
 
   return (
@@ -174,7 +180,6 @@ export const MockTestTab = ({ classId, className }) => {
           <p className="text-sm font-semibold text-navy-800">Mock Tests</p>
         </div>
 
-        {/* "Class overview" row */}
         <button
           onClick={() => setSelectedStudentId(null)}
           className={clsx(
@@ -188,7 +193,6 @@ export const MockTestTab = ({ classId, className }) => {
           <p className="text-sm font-medium text-navy-800">Tổng quan lớp</p>
         </button>
 
-        {/* Students */}
         <div className="flex-1 overflow-y-auto">
           {students.map(stu => (
             <SidebarStudentItem
@@ -205,9 +209,7 @@ export const MockTestTab = ({ classId, className }) => {
       {/* Main panel */}
       <div className="flex-1 min-w-0 flex flex-col gap-4 overflow-y-auto">
         {selectedStudentId === null ? (
-          /* ── Class overview ── */
           <>
-            {/* Toolbar — same style as Attendance/Homework */}
             <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-navy-100 shadow-navy-sm">
               <h2 className="text-base font-semibold text-navy-800">Mock Tests</h2>
               <Button
@@ -250,7 +252,6 @@ export const MockTestTab = ({ classId, className }) => {
             )}
           </>
         ) : (
-          /* ── Student test profile ── */
           <>
             <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-navy-100 shadow-navy-sm">
               <button
@@ -268,7 +269,7 @@ export const MockTestTab = ({ classId, className }) => {
               results={studentResults}
               renderExtraAction={(test, result) => (
                 <button
-                  onClick={() => exportStudentResultText(selectedStudent, test, result, settings.centerName)}
+                  onClick={() => exportStudentResultText(selectedStudent, test, result, centerName)}
                   className="flex items-center gap-1.5 text-xs text-navy-400 hover:text-navy-700 transition-colors px-2 py-1 rounded-lg hover:bg-navy-50"
                   title="Xuất kết quả dạng văn bản"
                 >
@@ -281,7 +282,6 @@ export const MockTestTab = ({ classId, className }) => {
         )}
       </div>
 
-      {/* Modal */}
       <MockTestModal
         open={modalOpen}
         onClose={() => { setModalOpen(false); setEditingTest(null) }}

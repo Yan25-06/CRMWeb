@@ -1,10 +1,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { clsx } from 'clsx'
-import { upsertMockTestResult } from '@/store/db'
+import { mockTestResultService } from '@/services/mockTestResultService'
+import { enqueueRetry } from '@/utils/retryQueue'
 import { getInitials } from '@/utils/helpers'
 import { toast } from '@/components/ui'
 
-// Inline score cell — renders as <td> fragments for table use
 const ScoreCell = ({ section, value, onChange }) => {
   const [local, setLocal] = useState(value ?? '')
 
@@ -55,7 +55,6 @@ export const MockTestScoreTable = ({ mockTest, results = [], students = [], onRe
   const sections = mockTest.sections ?? []
   const maxTotal = sections.reduce((s, sec) => s + sec.maxScore, 0)
 
-  // Detect orphan section ids: present in results but removed from mockTest
   const activeSectionIds = new Set(sections.map(s => s.id))
   const orphanIds = new Set()
   results.forEach(r => Object.keys(r.scores ?? {}).forEach(sid => {
@@ -63,34 +62,50 @@ export const MockTestScoreTable = ({ mockTest, results = [], students = [], onRe
   }))
   const orphanArr = [...orphanIds]
 
-  const handleScoreChange = (student, sectionId, val) => {
+  const handleScoreChange = async (student, sectionId, val) => {
     const result = results.find(r => r.studentId === student.id)
     const newScores = { ...(result?.scores ?? {}), [sectionId]: val }
-    const updated = upsertMockTestResult({
+    const data = {
       mockTestId: mockTest.id,
       studentId: student.id,
       scores: newScores,
       teacherNote: result?.teacherNote ?? '',
-    })
-    onResultChange?.(updated)
+    }
+    try {
+      const updated = await mockTestResultService.upsert(data)
+      onResultChange?.(updated)
+    } catch {
+      if (!navigator.onLine) {
+        enqueueRetry(() => mockTestResultService.upsert(data).then(r => onResultChange?.(r)))
+        toast.warning('Mất kết nối. Điểm sẽ tự lưu khi có mạng.')
+      } else {
+        toast.error('Không lưu được điểm')
+      }
+    }
   }
 
   const handleNoteChange = (studentId, val) => {
     setNotes(prev => ({ ...prev, [studentId]: val }))
     clearTimeout(noteTimers.current[studentId])
-    noteTimers.current[studentId] = setTimeout(() => {
+    noteTimers.current[studentId] = setTimeout(async () => {
       const result = results.find(r => r.studentId === studentId)
-      upsertMockTestResult({
+      const data = {
         mockTestId: mockTest.id,
         studentId,
         scores: result?.scores ?? {},
         teacherNote: val,
-      })
-      onResultChange?.()
+      }
+      try {
+        await mockTestResultService.upsert(data)
+        onResultChange?.()
+      } catch {
+        if (!navigator.onLine) {
+          enqueueRetry(() => mockTestResultService.upsert(data).then(() => onResultChange?.()))
+        }
+      }
     }, 800)
   }
 
-  // Footer averages
   const avgPerSection = sections.map(sec => {
     const vals = results.map(r => r.scores?.[sec.id]).filter(v => v !== undefined && v !== '')
     if (!vals.length) return null

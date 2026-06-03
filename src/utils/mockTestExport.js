@@ -10,7 +10,6 @@ export const exportMockTestExcel = (mockTest, results = [], students = [], class
   const sections = mockTest.sections ?? []
   const maxTotal = sections.reduce((s, sec) => s + sec.maxScore, 0)
 
-  // Sheet 1: Điểm thi
   const scoreHeader = ['Tên học viên', ...sections.map(s => `${s.name} (/${s.maxScore})`), 'Tổng', '%']
   const scoreRows = students.map(stu => {
     const result = results.find(r => r.studentId === stu.id)
@@ -26,7 +25,6 @@ export const exportMockTestExcel = (mockTest, results = [], students = [], class
   })
   const sheet1 = XLSX.utils.aoa_to_sheet([scoreHeader, ...scoreRows])
 
-  // Sheet 2: Nhận xét GV
   const noteHeader = ['Tên học viên', 'Nhận xét giáo viên']
   const noteRows = students.map(stu => {
     const result = results.find(r => r.studentId === stu.id)
