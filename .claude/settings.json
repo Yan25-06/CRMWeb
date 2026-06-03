@@ -3,7 +3,8 @@
     "allow": [
       "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\PC\\\\Desktop\\\\Ielts\\\\Web\\\\src\" -Recurse -Filter \"*Route*\")",
       "Bash(Select-Object FullName)",
-      "Bash(TEACHER\" || echo \"Files not found\")"
+      "Bash(TEACHER\" || echo \"Files not found\")",
+      "PowerShell(Move-Item -Path \"C:\\\\Users\\\\PC\\\\Desktop\\\\Ielts\\\\Web\\\\openspec\\\\changes\\\\add-class-skill-config\" -Destination \"C:\\\\Users\\\\PC\\\\Desktop\\\\Ielts\\\\Web\\\\openspec\\\\changes\\\\archive\\\\2026-06-03-add-class-skill-config\" -ErrorAction Stop)"
     ]
   }
 }
