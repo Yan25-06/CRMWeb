@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(Get-ChildItem -Path \"C:\\\\Users\\\\PC\\\\Desktop\\\\Ielts\\\\Web\\\\src\" -Recurse -Filter \"*Route*\")",
+      "Bash(Select-Object FullName)",
+      "Bash(TEACHER\" || echo \"Files not found\")"
+    ]
+  }
+}

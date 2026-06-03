@@ -11,18 +11,23 @@ const fromDB = (row) => row ? {
   scheduleTime: row.schedule_time,
   startDate: row.start_date,
   createdAt: row.created_at,
+  teacherId: row.teacher_id,
   teacherName: row.teachers?.name || row.teachers?.email || null,
 } : null
 
-const toDB = (data) => ({
-  name: data.name,
-  level: data.level ?? null,
-  max_students: data.maxStudents ?? null,
-  course_type: data.courseType ?? null,
-  schedule_days: data.scheduleDays ?? null,
-  schedule_time: data.scheduleTime ?? null,
-  start_date: data.startDate ?? null,
-})
+const toDB = (data) => {
+  const obj = {
+    name: data.name,
+    level: data.level ?? null,
+    max_students: data.maxStudents ?? null,
+    course_type: data.courseType ?? null,
+    schedule_days: data.scheduleDays ?? null,
+    schedule_time: data.scheduleTime ?? null,
+    start_date: data.startDate ?? null,
+  }
+  if (data.teacherId) obj.teacher_id = data.teacherId
+  return obj
+}
 
 export const teacherService = {
   async getAll() {

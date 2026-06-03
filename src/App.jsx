@@ -10,13 +10,16 @@ import { FeesPage } from '@/pages/FeesPage'
 import { ReportsPage } from '@/pages/ReportsPage'
 import { ClassesOverviewPage } from '@/pages/ClassesOverviewPage'
 import { ClassDetailPage } from '@/pages/ClassDetailPage'
+import { AdminPanelPage } from '@/pages/AdminPanelPage'
 import { settingsService, DEFAULT_SETTINGS } from '@/services/settingsService'
+import { useAuth } from '@/hooks/useAuth'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { clsx } from 'clsx'
 
 const MONTHS = ['Th.1','Th.2','Th.3','Th.4','Th.5','Th.6','Th.7','Th.8','Th.9','Th.10','Th.11','Th.12']
 
 export default function App() {
+  const { teacher } = useAuth()
   const [page, setPage]   = useState('dashboard')
   const [year, setYear]   = useState(() => new Date().getFullYear())
   const [month, setMonth] = useState(() => new Date().getMonth() + 1)
@@ -48,16 +51,29 @@ export default function App() {
     else setMonth(m => m + 1)
   }
 
+  // Guard admin route
+  const handleNavigate = (newPage) => {
+    if (newPage === 'admin' && !teacher?.is_admin) {
+      setPage('dashboard')
+      return
+    }
+    setPage(newPage)
+  }
+
   const pagesWithMonthPicker = ['dashboard', 'fees']
   const showPicker = pagesWithMonthPicker.includes(page)
 
+  // If trying to view admin page but not admin, show dashboard
+  const currentPage = page === 'admin' && !teacher?.is_admin ? 'dashboard' : page
+
   const renderPage = () => {
-    switch (page) {
-      case 'dashboard':  return <DashboardPage year={year} month={month} onNavigate={setPage} />
+    switch (currentPage) {
+      case 'dashboard':  return <DashboardPage year={year} month={month} onNavigate={handleNavigate} />
       case 'fees':       return <FeesPage year={year} month={month} />
       case 'reports':    return <ReportsPage />
       case 'reviews':    return <ReviewsPage settings={settings} />
-      case 'schedule':   return <SchedulePage onNavigate={setPage} />
+      case 'schedule':   return <SchedulePage onNavigate={handleNavigate} />
+      case 'admin':      return <AdminPanelPage />
       case 'classes':
         if (selectedClassId) {
           return <ClassDetailPage
@@ -67,7 +83,7 @@ export default function App() {
         }
         return <ClassesOverviewPage onSelectClass={setSelectedClassId} />
       case 'settings':   return <SettingsPage />
-      default:           return <DashboardPage year={year} month={month} onNavigate={setPage} />
+      default:           return <DashboardPage year={year} month={month} onNavigate={handleNavigate} />
     }
   }
 
@@ -77,9 +93,10 @@ export default function App() {
 
       {/* Sidebar */}
       <Navbar
-        activePage={page}
-        onNavigate={setPage}
+        activePage={currentPage}
+        onNavigate={handleNavigate}
         centerName={settings.centerName}
+        isAdmin={teacher?.is_admin}
       />
 
       {/* Main content */}

@@ -2,7 +2,7 @@ import { clsx } from 'clsx'
 import {
   LayoutDashboard, BookOpen,
   Calendar, Users, Settings, Menu, X,
-  GraduationCap, BarChart2, LogOut,
+  GraduationCap, BarChart2, LogOut, Shield,
 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from '@/components/ui'
@@ -17,7 +17,7 @@ const NAV_ITEMS = [
   { id: 'classes', label: 'Lớp Học', icon: Users },
 ]
 
-export const Navbar = ({ activePage, onNavigate, centerName }) => {
+export const Navbar = ({ activePage, onNavigate, centerName, isAdmin }) => {
   const [menuOpen, setMenuOpen] = useState(false)
   const { user, teacher, logout } = useAuth()
 
@@ -59,6 +59,20 @@ export const Navbar = ({ activePage, onNavigate, centerName }) => {
               {label}
             </button>
           ))}
+          {isAdmin && (
+            <button
+              onClick={() => onNavigate('admin')}
+              className={clsx(
+                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 w-full text-left border-t border-navy-700 mt-1 pt-4',
+                activePage === 'admin'
+                  ? 'bg-white/15 text-white'
+                  : 'text-navy-300 hover:bg-white/8 hover:text-white'
+              )}
+            >
+              <Shield size={17} />
+              Admin
+            </button>
+          )}
         </nav>
 
         {/* Bottom actions */}
@@ -122,7 +136,7 @@ export const Navbar = ({ activePage, onNavigate, centerName }) => {
               </button>
             </div>
             <nav className="flex-1 px-3 py-4 flex flex-col gap-1 overflow-y-auto">
-              {[...NAV_ITEMS, { id: 'settings', label: 'Cài Đặt', icon: Settings }].map(({ id, label, icon: Icon }) => (
+              {[...NAV_ITEMS, ...(isAdmin ? [{ id: 'admin', label: 'Admin', icon: Shield }] : []), { id: 'settings', label: 'Cài Đặt', icon: Settings }].map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
                   onClick={() => { onNavigate(id); setMenuOpen(false) }}
