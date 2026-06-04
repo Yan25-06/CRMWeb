@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { clsx } from 'clsx'
 import { Badge } from '@/components/ui'
 import { toast } from '@/components/ui'
-import { ChevronUp, ChevronDown, History, Plus } from 'lucide-react'
+import { ChevronUp, ChevronDown, Plus } from 'lucide-react'
 import { fmtVND } from '@/utils/helpers'
 import { paymentService } from '@/services/paymentService'
 import { StudentPaymentHistoryPanel } from './StudentPaymentHistoryPanel'
@@ -38,7 +38,6 @@ export const FeesTable = ({ rows, period, onAddPayment, onRefresh }) => {
 
   const closeHistory = () => {
     setHistoryFor(null)
-    onRefresh?.()
   }
 
   const reloadHistory = async () => {
@@ -72,14 +71,18 @@ export const FeesTable = ({ rows, period, onAddPayment, onRefresh }) => {
                 <th className="px-5 py-3 font-semibold text-navy-700 text-right">Học phí kỳ vọng</th>
                 <th className="px-5 py-3 font-semibold text-navy-700 text-right">Đã đóng</th>
                 <th className="px-5 py-3 font-semibold text-navy-700 text-center">Trạng thái</th>
-                <th className="px-5 py-3 font-semibold text-navy-700 text-center">Thao tác</th>
+                <th className="px-5 py-3 font-semibold text-navy-700 text-center w-28">Thao tác</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-navy-50">
               {sorted.map(row => {
                 const { label, variant } = statusInfo(row.paid, row.expected)
                 return (
-                  <tr key={row.studentId} className="hover:bg-navy-50/30 transition-colors">
+                  <tr
+                    key={row.studentId}
+                    onClick={() => openHistory(row)}
+                    className="hover:bg-navy-50/40 transition-colors cursor-pointer"
+                  >
                     <td className="px-5 py-3 font-medium text-navy-900">{row.name}</td>
                     <td className="px-5 py-3 text-navy-500">{row.className}</td>
                     <td className="px-5 py-3 text-right text-navy-700">{fmtVND(row.expected)}</td>
@@ -92,29 +95,24 @@ export const FeesTable = ({ rows, period, onAddPayment, onRefresh }) => {
                     <td className="px-5 py-3 text-center">
                       <Badge variant={variant}>{label}</Badge>
                     </td>
-                    <td className="px-5 py-3 text-center">
-                      <div className="flex items-center justify-center gap-1">
-                        <button
-                          title="Xem lịch sử"
-                          onClick={() => openHistory(row)}
-                          className="p-1.5 rounded-lg text-navy-400 hover:text-navy-700 hover:bg-navy-50 transition-colors"
-                        >
-                          <History size={15} />
-                        </button>
-                        <button
-                          title="Ghi nhận thêm"
-                          onClick={() => onAddPayment(row.studentId)}
-                          className="p-1.5 rounded-lg text-navy-400 hover:text-emerald-600 hover:bg-emerald-50 transition-colors"
-                        >
-                          <Plus size={15} />
-                        </button>
-                      </div>
+                    <td className="px-5 py-3 text-center" onClick={e => e.stopPropagation()}>
+                      <button
+                        title="Ghi nhận thanh toán"
+                        onClick={() => onAddPayment(row.studentId)}
+                        className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-lg text-xs font-medium text-navy-600 hover:text-emerald-700 hover:bg-emerald-50 border border-navy-100 hover:border-emerald-200 transition-colors"
+                      >
+                        <Plus size={13} />
+                        Ghi nhận
+                      </button>
                     </td>
                   </tr>
                 )
               })}
             </tbody>
           </table>
+        </div>
+        <div className="px-5 py-2 border-t border-navy-50 text-xs text-navy-400">
+          {sorted.length} học viên · Nhấn vào hàng để xem lịch sử thanh toán
         </div>
       </div>
 
@@ -125,6 +123,7 @@ export const FeesTable = ({ rows, period, onAddPayment, onRefresh }) => {
         payments={historyPayments}
         loading={loadingHistory}
         onDeleted={reloadHistory}
+        onAddPayment={onAddPayment}
       />
     </>
   )

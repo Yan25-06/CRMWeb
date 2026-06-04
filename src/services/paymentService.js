@@ -66,6 +66,17 @@ export const paymentService = {
     return fromDB(row)
   },
 
+  async update(id, data) {
+    const { data: row, error } = await supabase
+      .from('payments')
+      .update(toDB(data))
+      .eq('id', id)
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    return fromDB(row)
+  },
+
   async remove(id) {
     const { error } = await supabase
       .from('payments')

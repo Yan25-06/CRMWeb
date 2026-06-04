@@ -8,6 +8,7 @@ import { enrollmentService } from '@/services/enrollmentService'
 import { EnrollmentModal } from '@/components/students/EnrollmentModal'
 import { StudentModal } from '@/components/students/StudentModal'
 import { ImportStudentsModal } from '@/components/students/ImportStudentsModal'
+import { ExportExcelButton } from '@/components/reports/ExportExcelButton'
 import { getInitials, fmtVND } from '@/utils/helpers'
 import { useDebounce } from '@/utils/useDebounce'
 
@@ -560,6 +561,36 @@ export const StudentsDirectoryPage = ({ onNavigateToClass }) => {
             <Upload size={14} className="mr-1" />
             Import Excel
           </Button>
+          <ExportExcelButton
+            rows={filteredStudents.map(s => {
+              const enrs = enrollmentsByStudent[s.id] || []
+              const status = calcStatus(enrs)
+              const activeClasses = enrs
+                .filter(e => e.status === 'active')
+                .map(e => classMap[e.classId]?.name)
+                .filter(Boolean)
+                .join(', ')
+              const statusLabel = STATUS_BADGE[status]?.label ?? ''
+              return {
+                name: s.name,
+                grade: s.grade || '',
+                phone: s.phone || '',
+                email: s.email || '',
+                classes: activeClasses,
+                status: statusLabel,
+              }
+            })}
+            columns={[
+              { key: 'name',    label: 'Họ tên' },
+              { key: 'grade',   label: 'Khối' },
+              { key: 'phone',   label: 'SĐT' },
+              { key: 'email',   label: 'Email' },
+              { key: 'classes', label: 'Lớp' },
+              { key: 'status',  label: 'Trạng thái' },
+            ]}
+            filename="danh-ba-hoc-vien"
+            disabled={filteredStudents.length === 0}
+          />
           {selectedIds.size > 0 && (
             <Button variant="danger" size="sm" onClick={handleBulkDelete}>
               <Trash2 size={14} className="mr-1" />

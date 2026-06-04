@@ -11,7 +11,7 @@ import { useAuth } from '@/hooks/useAuth'
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'classes', label: 'Lớp Học', icon: Users },
-  { id: 'students', label: 'Học Sinh', icon: UserRound },
+  { id: 'students', label: 'Học Viên', icon: UserRound },
   { id: 'fees', label: 'Học Phí', icon: BookOpen },
   { id: 'reports', label: 'Báo Cáo', icon: BarChart2 },
   { id: 'reviews', label: 'Nhận Xét', icon: GraduationCap },

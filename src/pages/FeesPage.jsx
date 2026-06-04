@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
+import { clsx } from 'clsx'
 import { StatCard, Button, Empty, Skeleton } from '@/components/ui'
 import { toast } from '@/components/ui'
 import { Banknote, Users, AlertCircle, Plus } from 'lucide-react'
@@ -7,6 +8,37 @@ import { FeesTable } from '@/components/fees/FeesTable'
 import { feeService } from '@/services/feeService'
 import { paymentService } from '@/services/paymentService'
 import { fmtVND } from '@/utils/helpers'
+import { ExportExcelButton } from '@/components/reports/ExportExcelButton'
+
+const getPaymentStatus = (paid, expected) => {
+  if (expected <= 0) return 'free'
+  if (paid >= expected) return 'paid'
+  if (paid > 0) return 'partial'
+  return 'debt'
+}
+
+const PAYMENT_TABS = [
+  { id: 'all',     label: 'Tất cả' },
+  { id: 'debt',    label: 'Còn nợ' },
+  { id: 'paid',    label: 'Đã đóng đủ' },
+  { id: 'partial', label: 'Đóng một phần' },
+]
+
+const STATUS_LABELS = {
+  paid:    'Đã đóng đủ',
+  partial: 'Đóng một phần',
+  debt:    'Còn nợ',
+  free:    'Miễn phí',
+}
+
+const FEE_EXPORT_COLUMNS = [
+  { key: 'name',        label: 'Học sinh' },
+  { key: 'className',   label: 'Lớp' },
+  { key: 'expectedFmt', label: 'Phải đóng' },
+  { key: 'paidFmt',     label: 'Đã đóng' },
+  { key: 'debtFmt',     label: 'Còn nợ' },
+  { key: 'status',      label: 'Trạng thái' },
+]
 
 export const FeesPage = ({ year, month }) => {
   const currentPeriod = `${year}-${String(month).padStart(2, '0')}`
@@ -14,7 +46,7 @@ export const FeesPage = ({ year, month }) => {
   const [loading, setLoading] = useState(false)
   const [modalOpen, setModalOpen] = useState(false)
   const [defaultStudentId, setDefaultStudentId] = useState(null)
-
+  const [payStatusFilter, setPayStatusFilter] = useState('all')
   const refresh = useCallback(async () => {
     setLoading(true)
     try {
@@ -50,6 +82,25 @@ export const FeesPage = ({ year, month }) => {
   const debtCount = rows.filter(r => r.paid < r.expected).length
   const totalDebt = rows.reduce((s, r) => s + Math.max(0, r.expected - r.paid), 0)
 
+  const tabCounts = {
+    all:     rows.length,
+    debt:    rows.filter(r => getPaymentStatus(r.paid, r.expected) === 'debt').length,
+    paid:    rows.filter(r => getPaymentStatus(r.paid, r.expected) === 'paid').length,
+    partial: rows.filter(r => getPaymentStatus(r.paid, r.expected) === 'partial').length,
+  }
+
+  const filteredRows = payStatusFilter === 'all'
+    ? rows
+    : rows.filter(r => getPaymentStatus(r.paid, r.expected) === payStatusFilter)
+
+  const exportRows = filteredRows.map(r => ({
+    ...r,
+    expectedFmt: fmtVND(r.expected),
+    paidFmt:     fmtVND(r.paid),
+    debtFmt:     fmtVND(Math.max(0, r.expected - r.paid)),
+    status:      STATUS_LABELS[getPaymentStatus(r.paid, r.expected)],
+  }))
+
   return (
     <div className="flex flex-col gap-6 animate-fade-in">
       {/* Header */}
@@ -60,10 +111,18 @@ export const FeesPage = ({ year, month }) => {
             Tháng {month}/{year}
           </p>
         </div>
-        <Button onClick={() => openAdd()} className="shrink-0">
-          <Plus size={15} className="mr-1.5" />
-          Ghi nhận thanh toán
-        </Button>
+        <div className="flex items-center gap-2 flex-wrap">
+          <ExportExcelButton
+            rows={exportRows}
+            columns={FEE_EXPORT_COLUMNS}
+            filename={`hoc-phi-thang-${month}-${year}`}
+            disabled={loading || filteredRows.length === 0}
+          />
+          <Button onClick={() => openAdd()} className="shrink-0">
+            <Plus size={15} className="mr-1.5" />
+            Ghi nhận thanh toán
+          </Button>
+        </div>
       </div>
 
       {/* Summary cards */}
@@ -102,6 +161,32 @@ export const FeesPage = ({ year, month }) => {
         )}
       </div>
 
+      {/* Payment status filter tabs */}
+      {!loading && rows.length > 0 && (
+        <div className="flex gap-1 flex-wrap">
+          {PAYMENT_TABS.map(tab => (
+            <button
+              key={tab.id}
+              onClick={() => setPayStatusFilter(tab.id)}
+              className={clsx(
+                'px-3 py-1.5 rounded-xl text-sm font-medium transition-all',
+                payStatusFilter === tab.id
+                  ? 'bg-navy-800 text-white'
+                  : 'bg-white text-navy-500 border border-navy-100 hover:text-navy-800 hover:border-navy-300'
+              )}
+            >
+              {tab.label}
+              <span className={clsx(
+                'ml-1.5 text-xs font-normal',
+                payStatusFilter === tab.id ? 'text-navy-200' : 'text-navy-400'
+              )}>
+                ({tabCounts[tab.id]})
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
+
       {/* Table or empty state */}
       {loading ? (
         <div className="flex flex-col gap-2">
@@ -120,12 +205,18 @@ export const FeesPage = ({ year, month }) => {
             </Button>
           }
         />
+      ) : filteredRows.length === 0 ? (
+        <Empty
+          icon="🔍"
+          title={`Không có học sinh nào trong nhóm "${PAYMENT_TABS.find(t => t.id === payStatusFilter)?.label}"`}
+          desc="Thử chọn bộ lọc khác"
+        />
       ) : (
         <FeesTable
-          rows={rows}
-          period={currentPeriod}
-          onAddPayment={openAdd}
-          onRefresh={refresh}
+            rows={filteredRows}
+            period={currentPeriod}
+            onAddPayment={openAdd}
+            onRefresh={refresh}
         />
       )}
 
