@@ -38,6 +38,30 @@
 | # | Chỗ | Vấn đề |
 |---|-----|--------|
 | E1 | `ClassDetailPage` | Không có breadcrumb/back rõ ràng khi navigate từ Dashboard |
-| E2 | `Sidebar` | Đưa page lớp học và học viên lên trên, sau dashboard, vì đây là 2 page dùng nhiều nhất |
 
+## F. Fees
+
+| # | Chỗ | Vấn đề |
+|---|-----|--------|
+| F1 | `FeesPage` | Không có bộ lọc trạng thái thanh toán — cần lọc theo: **Tất cả / Còn nợ / Đã đóng đủ / Đóng một phần** để giáo viên nhanh chóng xác định học sinh cần nhắc phí |
+
+## G. Lịch & Điểm danh
+
+| # | Chỗ | Vấn đề |
+|---|-----|--------|
+| G1 | `SchedulePage` | Không có conflict detection khi tạo lịch — giáo viên có thể tạo 2 lớp trùng giờ cùng ngày mà không bị cảnh báo |
+| G2 | `DashboardPage` | Link từ card "Lịch hôm nay" (B1) nên dẫn thẳng đến trang điểm danh của lớp đó, không chỉ hiện thông tin |
+
+## H. Reports
+
+| # | Chỗ | Vấn đề |
+|---|-----|--------|
+| H1 | `ReportsPage` → biểu đồ | Biểu đồ không clickable/drill-down — click vào bar tháng X nên mở bảng chi tiết buổi/học sinh trong tháng đó |
+| H2 | `ClassDetailPage → MockTestTab` | Sidebar học sinh không có ô tìm kiếm (khác với `ReviewsPage` có search) — lớp nhiều học sinh khó dùng |
+
+## J. Students Directory
+
+| # | Chỗ | Vấn đề |
+|---|-----|--------|
+| J1 | `StudentsDirectoryPage` | Không có export Excel cho danh sách học sinh đang hiển thị sau khi lọc/tìm kiếm |
 
