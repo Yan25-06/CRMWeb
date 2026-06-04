@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
-import { GraduationCap } from 'lucide-react'
+import logoStacked from '/logo-stacked-color.png'
 
 export function SetPasswordPage({ onDone }) {
   const [displayName, setDisplayName] = useState('')
@@ -41,10 +41,8 @@ export function SetPasswordPage({ onDone }) {
   return (
     <div className="min-h-screen bg-surface-secondary flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
-        <div className="flex flex-col items-center gap-3 mb-8">
-          <div className="w-14 h-14 rounded-full bg-navy-900 flex items-center justify-center text-blue-400">
-            <GraduationCap size={28} strokeWidth={2} />
-          </div>
+        <div className="flex flex-col items-center gap-4 mb-8">
+          <img src={logoStacked} alt="Anh Ngữ Ms.Phương" className="h-28 w-auto object-contain" />
           <h1 className="font-display text-navy-900 font-bold text-2xl tracking-tight">
             Đặt mật khẩu
           </h1>

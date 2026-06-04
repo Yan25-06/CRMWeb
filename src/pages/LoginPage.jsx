@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { useAuth } from '@/hooks/useAuth'
-import { GraduationCap } from 'lucide-react'
+import logoStacked from '/logo-stacked-color.png'
 
 export function LoginPage() {
   const { login } = useAuth()
@@ -26,13 +26,8 @@ export function LoginPage() {
     <div className="min-h-screen bg-surface-secondary flex items-center justify-center p-4">
       <div className="w-full max-w-sm">
         {/* Logo */}
-        <div className="flex flex-col items-center gap-3 mb-8">
-          <div className="w-14 h-14 rounded-full bg-navy-900 flex items-center justify-center text-blue-400">
-            <GraduationCap size={28} strokeWidth={2} />
-          </div>
-          <h1 className="font-display text-navy-900 font-bold text-2xl tracking-tight">
-            Anh Ngữ Ms.Phương
-          </h1>
+        <div className="flex flex-col items-center gap-4 mb-8">
+          <img src={logoStacked} alt="Anh Ngữ Ms.Phương" className="h-28 w-auto object-contain" />
           <p className="text-navy-400 text-sm">Đăng nhập để tiếp tục</p>
         </div>
 
