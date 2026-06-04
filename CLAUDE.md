@@ -24,6 +24,13 @@ Web app quản lý điểm danh + học phí cho giáo viên/trung tâm tiếng 
 ## Env bắt buộc
 `.env` cần `VITE_SUPABASE_URL` và `VITE_SUPABASE_ANON_KEY`, nếu thiếu `src/lib/supabase.js` sẽ throw.
 
+## Mock Seed Data
+- **File:** `supabase/seed/seed_mock_data.sql`
+- **Mục đích:** Dựng bộ dữ liệu mẫu đầy đủ (10 học viên, 4 lớp, 9 enrollment, 12 session, điểm danh, bài tập, học phí, đánh giá, mock test...) để test mọi tính năng.
+- **Cách chạy:** Điền 3 placeholder email (`<<TEACHER_1_EMAIL>>`, `<<TEACHER_2_EMAIL>>`, `<<TEACHER_ADMIN_EMAIL>>`), rồi dán toàn bộ file vào **Supabase SQL Editor** và Run (phải dùng SQL Editor để bypass RLS).
+- **Idempotent:** Chạy lại nhiều lần an toàn — cleanup tự động scope theo teacher mock trước khi insert.
+- **ĐỒNG BỘ:** Nếu đổi schema (thêm cột NOT NULL, đổi CHECK, đổi shape jsonb) thì phải cập nhật file seed cho khớp.
+
 ---
 
 ## ⭐ Data Layer: Supabase Service Layer (hoàn tất)

@@ -6,6 +6,7 @@ import { SessionSelector } from '@/components/classes/SessionSelector'
 import { SessionModal } from '@/components/classes/SessionModal'
 import { AttendanceToggle } from '@/components/attendance/AttendanceToggle'
 import { StudentAttendancePanel } from '@/components/attendance/StudentAttendancePanel'
+import { HomeworkNoteCell } from '@/components/homework/HomeworkNoteCell'
 import { sessionService } from '@/services/sessionService'
 import { attendanceService } from '@/services/attendanceService'
 import { studentService } from '@/services/studentService'
@@ -133,17 +134,6 @@ export const AttendanceTab = ({ classId }) => {
     persistCell(studentId, { present })
   }
 
-  // Edit note locally as the teacher types; persist (optimistically) on blur.
-  const handleNoteInput = (studentId, note) => {
-    setAttendance(curr => patchCell(curr, activeSessionId, studentId, { note }))
-  }
-
-  const handleNoteCommit = (studentId) => {
-    if (!activeSessionId) return
-    const att = attendance.find(a => a.studentId === studentId)
-    persistCell(studentId, { present: att ? att.present : true, note: att ? (att.note ?? '') : '' })
-  }
-
   // Per-student attendance rate over past sessions, computed from the class-wide
   // fetch with the active session overridden by the (possibly optimistic) grid.
   const attendanceRates = useMemo(() => {
@@ -205,7 +195,7 @@ export const AttendanceTab = ({ classId }) => {
   }
 
   return (
-    <div className="flex flex-col gap-6 relative">
+    <div className="flex flex-col gap-6 relative h-full min-h-[500px]">
       {/* Toolbar */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 bg-white p-4 rounded-2xl border border-navy-100 shadow-navy-sm">
         <SessionSelector
@@ -249,10 +239,10 @@ export const AttendanceTab = ({ classId }) => {
           </Button>
         </Card>
       ) : (
-        <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm overflow-hidden">
-          <div className="overflow-x-auto">
+        <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm overflow-hidden flex flex-col flex-1">
+          <div className="overflow-x-auto flex-1">
             <table className="w-full text-left text-sm whitespace-nowrap table-fixed">
-              <thead>
+              <thead className="sticky top-0 bg-white z-10">
                 <tr className="bg-navy-50/50 border-b border-navy-100">
                   <th className="px-6 py-4 font-semibold text-navy-800 w-1/4">Học viên</th>
                   <th className="px-6 py-4 font-semibold text-navy-800 w-1/4 text-center">Chuyên cần</th>
@@ -311,17 +301,12 @@ export const AttendanceTab = ({ classId }) => {
                         />
                       </td>
                       <td className="px-6 py-3">
-                        {!isPaused && (
-                          <input
-                            type="text"
-                            placeholder="Nhập ghi chú..."
-                            className="input h-8 text-xs bg-navy-50/30 border-navy-100 focus:border-navy-300 focus:ring-navy-100 w-full max-w-xs"
-                            value={note || ''}
-                            onChange={(e) => handleNoteInput(student.id, e.target.value)}
-                            onBlur={() => handleNoteCommit(student.id)}
+                        {!isPaused ? (
+                          <HomeworkNoteCell
+                            note={note || ''}
+                            onSave={(val) => persistCell(student.id, { present, note: val })}
                           />
-                        )}
-                        {isPaused && (
+                        ) : (
                           <span className="text-xs text-navy-400 italic">Không áp dụng</span>
                         )}
                       </td>
