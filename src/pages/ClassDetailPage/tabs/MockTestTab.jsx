@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Plus, Pencil, Trash2, FileSpreadsheet, FileText, ChevronDown, ChevronUp, ClipboardList } from 'lucide-react'
 import { clsx } from 'clsx'
-import { Button, Card, toast } from '@/components/ui'
+import { Button, Card, Skeleton, toast } from '@/components/ui'
 import { MockTestModal } from '@/components/mock-test/MockTestModal'
 import { MockTestScoreTable } from '@/components/mock-test/MockTestScoreTable'
 import { StudentTestProfile } from '@/components/mock-test/StudentTestProfile'
@@ -117,12 +117,14 @@ export const MockTestTab = ({ classId, className, skillConfig }) => {
   const [modalOpen, setModalOpen]       = useState(false)
   const [editingTest, setEditingTest]   = useState(null)
   const [centerName, setCenterName]     = useState('')
+  const [loading, setLoading]           = useState(true)
 
   useEffect(() => {
     settingsService.get().then(s => setCenterName(s.centerName)).catch(() => {})
   }, [])
 
   const loadData = useCallback(async () => {
+    setLoading(true)
     try {
       const [tests, allResults, enrollments] = await Promise.all([
         mockTestService.getByClass(classId),
@@ -136,6 +138,8 @@ export const MockTestTab = ({ classId, className, skillConfig }) => {
       setStudents(enrollments.map(e => e.student).filter(Boolean))
     } catch (err) {
       toast.error('Không tải được dữ liệu: ' + err.message)
+    } finally {
+      setLoading(false)
     }
   }, [classId])
 
@@ -171,6 +175,21 @@ export const MockTestTab = ({ classId, className, skillConfig }) => {
     const results = allResults.filter(r => r.studentId === stu.id && r.totalScore > 0)
     latestResultByStudent[stu.id] = results[0] ?? null
   })
+
+  if (loading) {
+    return (
+      <div className="flex gap-4 h-full min-h-0">
+        <div className="w-56 shrink-0 flex flex-col gap-2 p-3">
+          <Skeleton className="h-10 rounded-xl" />
+          {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-12 rounded-xl" />)}
+        </div>
+        <div className="flex-1 flex flex-col gap-3">
+          <Skeleton className="h-14 rounded-2xl" />
+          {[1,2,3].map(i => <Skeleton key={i} className="h-16 rounded-2xl" />)}
+        </div>
+      </div>
+    )
+  }
 
   return (
     <div className="flex gap-4 h-full min-h-0">

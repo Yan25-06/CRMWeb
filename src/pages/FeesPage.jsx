@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react'
-import { StatCard, Button, Empty } from '@/components/ui'
+import { StatCard, Button, Empty, Skeleton } from '@/components/ui'
 import { toast } from '@/components/ui'
 import { Banknote, Users, AlertCircle, Plus } from 'lucide-react'
 import { PaymentModal } from '@/components/fees/PaymentModal'
@@ -68,37 +68,46 @@ export const FeesPage = ({ year, month }) => {
 
       {/* Summary cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Tổng thu tháng này"
-          value={fmtVND(totalPaid)}
-          icon={<Banknote size={16} />}
-          accent="success"
-        />
-        <StatCard
-          label="Kỳ vọng"
-          value={fmtVND(totalExpected)}
-          icon={<Banknote size={16} />}
-          accent="navy"
-        />
-        <StatCard
-          label="Đã đóng đủ"
-          value={`${paidCount}/${rows.length}`}
-          sub="học viên"
-          icon={<Users size={16} />}
-          accent="navy"
-        />
-        <StatCard
-          label="Còn nợ"
-          value={fmtVND(totalDebt)}
-          sub={debtCount > 0 ? `${debtCount} học viên` : 'Không có nợ'}
-          icon={<AlertCircle size={16} />}
-          accent={debtCount > 0 ? 'danger' : 'success'}
-        />
+        {loading ? (
+          [1,2,3,4].map(i => <Skeleton key={i} className="h-24 rounded-2xl" />)
+        ) : (
+          <>
+            <StatCard
+              label="Tổng thu tháng này"
+              value={fmtVND(totalPaid)}
+              icon={<Banknote size={16} />}
+              accent="success"
+            />
+            <StatCard
+              label="Kỳ vọng"
+              value={fmtVND(totalExpected)}
+              icon={<Banknote size={16} />}
+              accent="navy"
+            />
+            <StatCard
+              label="Đã đóng đủ"
+              value={`${paidCount}/${rows.length}`}
+              sub="học viên"
+              icon={<Users size={16} />}
+              accent="navy"
+            />
+            <StatCard
+              label="Còn nợ"
+              value={fmtVND(totalDebt)}
+              sub={debtCount > 0 ? `${debtCount} học viên` : 'Không có nợ'}
+              icon={<AlertCircle size={16} />}
+              accent={debtCount > 0 ? 'danger' : 'success'}
+            />
+          </>
+        )}
       </div>
 
       {/* Table or empty state */}
       {loading ? (
-        <div className="flex justify-center py-16 text-navy-400 text-sm">Đang tải...</div>
+        <div className="flex flex-col gap-2">
+          <Skeleton className="h-10 rounded-xl" />
+          {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-14 rounded-xl" />)}
+        </div>
       ) : rows.length === 0 ? (
         <Empty
           icon="💰"

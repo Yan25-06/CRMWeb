@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import * as XLSX from 'xlsx'
 import { FileSpreadsheet, Users } from 'lucide-react'
+import { Skeleton } from '@/components/ui'
 import { reviewService } from '@/services/reviewService'
 import { enrollmentService } from '@/services/enrollmentService'
 import { studentService } from '@/services/studentService'
@@ -48,6 +49,7 @@ export const ClassOverviewTable = ({ classId, cls, dateRange }) => {
   const [activeStudents, setActiveStudents] = useState([])
   const [attData,        setAttData]        = useState({ sessionCount: 0, records: [] })
   const [hwRecords,      setHwRecords]      = useState([])
+  const [loading,        setLoading]        = useState(false)
 
   // Load students once per class
   useEffect(() => {
@@ -67,6 +69,7 @@ export const ClassOverviewTable = ({ classId, cls, dateRange }) => {
       setHwRecords([])
       return
     }
+    setLoading(true)
     Promise.all([
       reviewService.getByClass(classId),
       attendanceService.getByClassRange(classId, dateRange.fromDate, dateRange.toDate),
@@ -75,7 +78,7 @@ export const ClassOverviewTable = ({ classId, cls, dateRange }) => {
       setAllReviews(reviews)
       setAttData(att)
       setHwRecords(hw)
-    }).catch(() => {})
+    }).catch(() => {}).finally(() => setLoading(false))
   }, [classId, dateRange.fromDate, dateRange.toDate])
 
   const rows = useMemo(() => {
@@ -125,6 +128,18 @@ export const ClassOverviewTable = ({ classId, cls, dateRange }) => {
       <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-16 flex flex-col items-center justify-center gap-3 text-center">
         <Users size={28} className="text-navy-200" strokeWidth={1.5} />
         <p className="text-navy-400">Chọn lớp để xem tổng quan</p>
+      </div>
+    )
+  }
+
+  if (loading) {
+    return (
+      <div className="flex flex-col gap-4">
+        <Skeleton className="h-10 w-64 rounded-xl" />
+        <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm overflow-hidden">
+          <Skeleton className="h-10 rounded-none" />
+          {[1,2,3,4,5].map(i => <Skeleton key={i} className="h-12 rounded-none border-t border-navy-50" />)}
+        </div>
       </div>
     )
   }

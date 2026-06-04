@@ -84,17 +84,19 @@ export const ClassDetailPage = ({ classId, onBack }) => {
     <div className="flex flex-col gap-0 animate-fade-in min-h-full">
       {/* Header */}
       <div className="flex items-center gap-3 mb-5">
-        <button
-          onClick={onBack}
-          className="p-1.5 text-navy-400 hover:text-navy-700 hover:bg-navy-100 rounded-lg transition-colors"
-          title="Quay lại"
-          aria-label="Quay lại"
-        >
-          <ChevronLeft size={20} />
-        </button>
         <div className="flex-1 min-w-0">
-          <h1 className="text-xl font-display font-bold text-navy-900 leading-tight">{currentClass.name}</h1>
-          <p className="text-xs text-navy-400 mt-0.5">
+          {/* Breadcrumb */}
+          <div className="flex items-center gap-1.5 text-sm text-navy-400 mb-1">
+            <button
+              onClick={onBack}
+              className="hover:text-navy-700 transition-colors font-medium"
+            >
+              Lớp học
+            </button>
+            <ChevronLeft size={14} className="rotate-180 shrink-0" />
+            <span className="text-navy-700 font-semibold truncate">{currentClass.name}</span>
+          </div>
+          <p className="text-xs text-navy-400">
             {currentClass.scheduleDays} · {currentClass.scheduleTime}
           </p>
         </div>

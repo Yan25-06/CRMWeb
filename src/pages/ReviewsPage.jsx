@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { GraduationCap, FileText, Users, User, Search, UserCircle } from 'lucide-react'
 import { clsx } from 'clsx'
-import { Button, toast } from '@/components/ui'
+import { Button, Skeleton, toast } from '@/components/ui'
 import { RadarChartPanel }       from '@/components/reviews/RadarChartPanel'
 import { ReviewHistory }         from '@/components/reviews/ReviewHistory'
 import { ReviewForm }            from '@/components/reviews/ReviewForm'
@@ -9,7 +9,6 @@ import { ReportCardModal }       from '@/components/reviews/ReportCardModal'
 import { DateRangeFilter }       from '@/components/reviews/DateRangeFilter'
 import { AttendancePanel }       from '@/components/reviews/AttendancePanel'
 import { HomeworkPanel }         from '@/components/reviews/HomeworkPanel'
-import { GeneralCommentPanel }   from '@/components/reviews/GeneralCommentPanel'
 import { ClassOverviewTable }    from '@/components/reviews/ClassOverviewTable'
 import { useDebounce }           from '@/utils/useDebounce'
 import { reviewService }         from '@/services/reviewService'
@@ -363,39 +362,48 @@ export const ReviewsPage = ({ settings = {} }) => {
                   </span>
                 </div>
 
-                {/* Radar + history */}
-                <div className="flex flex-col md:flex-row gap-4 items-start">
-                  <div className="w-full md:w-1/2">
-                    <RadarChartPanel reviews={filteredReviews} skillConfig={selectedClass?.skillConfig} onAddReview={openAdd} />
-                  </div>
-                  <div className="w-full md:w-1/2">
-                    <ReviewHistory reviews={filteredReviews} skillConfig={selectedClass?.skillConfig} onEdit={openEdit} />
-                  </div>
-                </div>
+                {reviewsLoading ? (
+                  <>
+                    <div className="flex flex-col md:flex-row gap-4 items-start">
+                      <Skeleton className="w-full md:w-1/2 h-64 rounded-2xl" />
+                      <Skeleton className="w-full md:w-1/2 h-64 rounded-2xl" />
+                    </div>
+                    <div className="flex flex-col md:flex-row gap-4 items-start">
+                      <Skeleton className="w-full md:w-1/2 h-40 rounded-2xl" />
+                      <Skeleton className="w-full md:w-1/2 h-40 rounded-2xl" />
+                    </div>
+                  </>
+                ) : (
+                  <>
+                    {/* Radar + history */}
+                    <div className="flex flex-col md:flex-row gap-4 items-start">
+                      <div className="w-full md:w-1/2">
+                        <RadarChartPanel reviews={filteredReviews} skillConfig={selectedClass?.skillConfig} onAddReview={openAdd} />
+                      </div>
+                      <div className="w-full md:w-1/2">
+                        <ReviewHistory reviews={filteredReviews} skillConfig={selectedClass?.skillConfig} onEdit={openEdit} />
+                      </div>
+                    </div>
 
-                {/* Attendance + homework */}
-                <div className="flex flex-col md:flex-row gap-4 items-start">
-                  <div className="w-full md:w-1/2">
-                    <AttendancePanel
-                      studentId={selectedStudentId}
-                      classId={selectedClassId}
-                      dateRange={dateRange}
-                    />
-                  </div>
-                  <div className="w-full md:w-1/2">
-                    <HomeworkPanel
-                      studentId={selectedStudentId}
-                      classId={selectedClassId}
-                      dateRange={dateRange}
-                    />
-                  </div>
-                </div>
-
-                {/* General comment */}
-                <GeneralCommentPanel
-                  studentId={selectedStudentId}
-                  classId={selectedClassId}
-                />
+                    {/* Attendance + homework */}
+                    <div className="flex flex-col md:flex-row gap-4 items-start">
+                      <div className="w-full md:w-1/2">
+                        <AttendancePanel
+                          studentId={selectedStudentId}
+                          classId={selectedClassId}
+                          dateRange={dateRange}
+                        />
+                      </div>
+                      <div className="w-full md:w-1/2">
+                        <HomeworkPanel
+                          studentId={selectedStudentId}
+                          classId={selectedClassId}
+                          dateRange={dateRange}
+                        />
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
             )
           )}
