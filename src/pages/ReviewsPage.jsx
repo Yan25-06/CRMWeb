@@ -18,6 +18,8 @@ import { studentService }        from '@/services/studentService'
 import { enrollmentService }     from '@/services/enrollmentService'
 import { attendanceService }     from '@/services/attendanceService'
 import { homeworkService }       from '@/services/homeworkService'
+import { mockTestService }       from '@/services/mockTestService'
+import { mockTestResultService } from '@/services/mockTestResultService'
 
 const STORAGE_KEY = 'reviews_ui_state'
 
@@ -141,6 +143,7 @@ export const ReviewsPage = ({ settings = {} }) => {
   const [reviews,        setReviews]        = useState([])
   const [generalComment, setGeneralComment] = useState(null)
   const [reviewsLoading, setReviewsLoading] = useState(false)
+  const [mocksByStudent, setMocksByStudent] = useState(new Map())
 
   // Load classes + students once on mount
   useEffect(() => {
@@ -158,6 +161,36 @@ export const ReviewsPage = ({ settings = {} }) => {
         setEnrollmentMap(new Map([[selectedClassId, ids]]))
       })
       .catch(() => {})
+  }, [selectedClassId])
+
+  // Load mock test data for overview table (task 1.2)
+  useEffect(() => {
+    if (!selectedClassId) { setMocksByStudent(new Map()); return }
+    Promise.all([
+      mockTestService.getByClass(selectedClassId),
+      mockTestResultService.getByClass(selectedClassId),
+    ]).then(([tests, results]) => {
+      const testMap = new Map(tests.map(t => [t.id, t]))
+      const map = new Map()
+      results.forEach(r => {
+        if (r.totalScore <= 0) return
+        const mt = testMap.get(r.mockTestId)
+        if (!mt) return
+        const arr = map.get(r.studentId) ?? []
+        arr.push({ result: r, mockTest: mt })
+        map.set(r.studentId, arr)
+      })
+      // Sort each student's results: newest test date first, then createdAt for tie-breaking (task 2.3)
+      map.forEach(entries => {
+        entries.sort((a, b) => {
+          const dateA = a.mockTest.date || ''
+          const dateB = b.mockTest.date || ''
+          if (dateB !== dateA) return dateB.localeCompare(dateA)
+          return (b.result.createdAt || '').localeCompare(a.result.createdAt || '')
+        })
+      })
+      setMocksByStudent(map)
+    }).catch(() => {})
   }, [selectedClassId])
 
   const selectedStudent = students.find(s => s.id === selectedStudentId) ?? null
@@ -332,6 +365,7 @@ export const ReviewsPage = ({ settings = {} }) => {
               classId={selectedClassId}
               cls={selectedClass}
               dateRange={dateRange}
+              mocksByStudent={mocksByStudent}
             />
           )}
 

@@ -1,5 +1,5 @@
-import { useState, useEffect, useCallback } from 'react'
-import { Plus, Pencil, Trash2, FileSpreadsheet, FileText, ChevronDown, ChevronUp, ClipboardList } from 'lucide-react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
+import { Plus, Pencil, Trash2, FileSpreadsheet, FileText, ChevronDown, ChevronUp, ClipboardList, Search } from 'lucide-react'
 import { clsx } from 'clsx'
 import { Button, Card, Skeleton, toast } from '@/components/ui'
 import { MockTestModal } from '@/components/mock-test/MockTestModal'
@@ -11,6 +11,7 @@ import { enrollmentService } from '@/services/enrollmentService'
 import { settingsService } from '@/services/settingsService'
 import { exportMockTestExcel, exportStudentResultText } from '@/utils/mockTestExport'
 import { getInitials } from '@/utils/helpers'
+import { useDebounce } from '@/utils/useDebounce'
 
 const fmt = (iso) =>
   iso ? new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'
@@ -118,6 +119,8 @@ export const MockTestTab = ({ classId, className, skillConfig }) => {
   const [editingTest, setEditingTest]   = useState(null)
   const [centerName, setCenterName]     = useState('')
   const [loading, setLoading]           = useState(true)
+  const [sidebarSearch, setSidebarSearch] = useState('')
+  const debouncedSearch = useDebounce(sidebarSearch, 200)
 
   useEffect(() => {
     settingsService.get().then(s => setCenterName(s.centerName)).catch(() => {})
@@ -176,6 +179,12 @@ export const MockTestTab = ({ classId, className, skillConfig }) => {
     latestResultByStudent[stu.id] = results[0] ?? null
   })
 
+  // filter sidebar students by search (task 3.2)
+  const filteredStudents = useMemo(() => {
+    const q = debouncedSearch.trim().toLowerCase()
+    return q ? students.filter(s => s.name.toLowerCase().includes(q)) : students
+  }, [students, debouncedSearch])
+
   if (loading) {
     return (
       <div className="flex gap-4 h-full min-h-0">
@@ -212,16 +221,33 @@ export const MockTestTab = ({ classId, className, skillConfig }) => {
           <p className="text-sm font-medium text-navy-800">Tổng quan lớp</p>
         </button>
 
-        <div className="flex-1 overflow-y-auto">
-          {students.map(stu => (
-            <SidebarStudentItem
-              key={stu.id}
-              student={stu}
-              latestResult={latestResultByStudent[stu.id]}
-              isActive={selectedStudentId === stu.id}
-              onClick={() => setSelectedStudentId(stu.id)}
+        {/* Search input (task 3.1) */}
+        <div className="px-3 py-2 border-b border-navy-50">
+          <div className="relative">
+            <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-navy-400 pointer-events-none" />
+            <input
+              className="input pl-7 text-xs w-full py-1.5"
+              placeholder="Tìm học viên..."
+              value={sidebarSearch}
+              onChange={e => setSidebarSearch(e.target.value)}
             />
-          ))}
+          </div>
+        </div>
+
+        <div className="flex-1 overflow-y-auto">
+          {filteredStudents.length === 0 ? (
+            <p className="text-xs text-navy-400 text-center py-4 px-3">Không tìm thấy</p>
+          ) : (
+            filteredStudents.map(stu => (
+              <SidebarStudentItem
+                key={stu.id}
+                student={stu}
+                latestResult={latestResultByStudent[stu.id]}
+                isActive={selectedStudentId === stu.id}
+                onClick={() => setSelectedStudentId(stu.id)}
+              />
+            ))
+          )}
         </div>
       </div>
 

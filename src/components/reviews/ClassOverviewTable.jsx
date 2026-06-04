@@ -1,6 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import * as XLSX from 'xlsx'
 import { FileSpreadsheet, Users } from 'lucide-react'
+import { clsx } from 'clsx'
 import { Skeleton } from '@/components/ui'
 import { reviewService } from '@/services/reviewService'
 import { enrollmentService } from '@/services/enrollmentService'
@@ -26,6 +27,34 @@ const calcHomeworkPct = (studentId, hwRecords) => {
   return Math.round((done * 100 + inProg * 50) / recs.length)
 }
 
+// Extract latest + previous mock scores for a student from the prebuilt map (task 1.1)
+const getMockInfo = (studentId, mocksByStudent) => {
+  const entries = mocksByStudent?.get(studentId) ?? []
+  if (entries.length === 0) return { latestScore: null, latestMax: null, delta: null }
+  const latest = entries[0]
+  const prev   = entries[1] ?? null
+  const latestScore = latest.result.totalScore
+  const latestMax   = (latest.mockTest.sections ?? []).reduce((s, sec) => s + (sec.maxScore || 0), 0)
+  const delta = prev != null ? latestScore - prev.result.totalScore : null
+  return { latestScore, latestMax, delta }
+}
+
+const MockScoreCell = ({ score, max }) => {
+  if (score == null) return <span className="text-xs text-navy-300">—</span>
+  return <span className="text-xs font-semibold text-navy-700">{score}/{max}</span>
+}
+
+const MockDeltaCell = ({ delta }) => {
+  if (delta == null) return <span className="text-xs text-navy-300">—</span>
+  if (delta === 0) return <span className="text-xs text-navy-400">—</span>
+  const up = delta > 0
+  return (
+    <span className={clsx('text-xs font-semibold', up ? 'text-emerald-600' : 'text-red-500')}>
+      {up ? '▲' : '▼'} {up ? '+' : ''}{delta}
+    </span>
+  )
+}
+
 const PctBadge = ({ pct }) => {
   if (pct == null) return <span className="text-xs text-navy-300">—</span>
   const cls = pct >= 80 ? 'bg-emerald-100 text-emerald-700'
@@ -44,7 +73,7 @@ const fmtDateVN = (d) => {
  * ClassOverviewTable — summary table of all students in a class.
  * Props: classId, cls (object), dateRange = { fromDate, toDate }
  */
-export const ClassOverviewTable = ({ classId, cls, dateRange }) => {
+export const ClassOverviewTable = ({ classId, cls, dateRange, mocksByStudent = new Map() }) => {
   const [allReviews,     setAllReviews]     = useState([])
   const [activeStudents, setActiveStudents] = useState([])
   const [attData,        setAttData]        = useState({ sessionCount: 0, records: [] })
@@ -91,9 +120,10 @@ export const ClassOverviewTable = ({ classId, cls, dateRange }) => {
       const hwPct        = calcHomeworkPct(s.id, hwRecords)
       const tags         = Array.isArray(latestReview?.tags) ? latestReview.tags : []
       const lastRemark   = latestReview?.remark || tags[0] || '—'
-      return { student: s, attPct, hwPct, lastRemark }
+      const mockInfo     = getMockInfo(s.id, mocksByStudent)
+      return { student: s, attPct, hwPct, lastRemark, mockInfo }
     })
-  }, [classId, activeStudents, allReviews, attData, hwRecords, dateRange.fromDate, dateRange.toDate])
+  }, [classId, activeStudents, allReviews, attData, hwRecords, dateRange.fromDate, dateRange.toDate, mocksByStudent])
 
   const handleExportExcel = () => {
     if (!rows.length) return
@@ -101,11 +131,15 @@ export const ClassOverviewTable = ({ classId, cls, dateRange }) => {
     const fromVN = fmtDateVN(dateRange.fromDate)
     const toVN   = fmtDateVN(dateRange.toDate)
 
-    const header = ['Họ tên', '% Chuyên cần', '% Bài tập', 'Nhận xét gần nhất']
-    const data = rows.map(({ student, attPct, hwPct, lastRemark }) => [
+    const header = ['Họ tên', '% Chuyên cần', '% Bài tập', 'Mock gần nhất', 'Chênh lệch', 'Nhận xét gần nhất']
+    const data = rows.map(({ student, attPct, hwPct, lastRemark, mockInfo }) => [
       student.name,
       attPct != null ? `${attPct}%` : '—',
       hwPct  != null ? `${hwPct}%`  : '—',
+      mockInfo.latestScore != null ? `${mockInfo.latestScore}/${mockInfo.latestMax}` : '—',
+      mockInfo.delta != null && mockInfo.delta !== 0
+        ? `${mockInfo.delta > 0 ? '+' : ''}${mockInfo.delta}`
+        : '—',
       lastRemark,
     ])
 
@@ -114,7 +148,7 @@ export const ClassOverviewTable = ({ classId, cls, dateRange }) => {
     const emptyRow  = []
 
     const ws = XLSX.utils.aoa_to_sheet([titleRow, rangeRow, emptyRow, header, ...data])
-    ws['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 12 }, { wch: 40 }]
+    ws['!cols'] = [{ wch: 28 }, { wch: 14 }, { wch: 12 }, { wch: 14 }, { wch: 10 }, { wch: 40 }]
 
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, 'Tổng Quan Lớp')
@@ -180,15 +214,19 @@ export const ClassOverviewTable = ({ classId, cls, dateRange }) => {
                 <th className="text-left px-4 py-3 font-semibold text-navy-600 text-xs uppercase tracking-wide">Họ tên</th>
                 <th className="text-center px-3 py-3 font-semibold text-navy-600 text-xs uppercase tracking-wide">Chuyên cần</th>
                 <th className="text-center px-3 py-3 font-semibold text-navy-600 text-xs uppercase tracking-wide">Bài tập</th>
+                <th className="text-center px-3 py-3 font-semibold text-navy-600 text-xs uppercase tracking-wide">Mock gần nhất</th>
+                <th className="text-center px-3 py-3 font-semibold text-navy-600 text-xs uppercase tracking-wide">Chênh lệch</th>
                 <th className="text-left px-4 py-3 font-semibold text-navy-600 text-xs uppercase tracking-wide">Nhận xét gần nhất</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-navy-50">
-              {rows.map(({ student, attPct, hwPct, lastRemark }) => (
+              {rows.map(({ student, attPct, hwPct, lastRemark, mockInfo }) => (
                 <tr key={student.id} className="hover:bg-navy-50/50 transition-colors">
                   <td className="px-4 py-3 font-medium text-navy-800">{student.name}</td>
                   <td className="px-3 py-3 text-center"><PctBadge pct={attPct} /></td>
                   <td className="px-3 py-3 text-center"><PctBadge pct={hwPct} /></td>
+                  <td className="px-3 py-3 text-center"><MockScoreCell score={mockInfo.latestScore} max={mockInfo.latestMax} /></td>
+                  <td className="px-3 py-3 text-center"><MockDeltaCell delta={mockInfo.delta} /></td>
                   <td className="px-4 py-3 text-navy-500 text-xs max-w-[200px] truncate">{lastRemark}</td>
                 </tr>
               ))}
