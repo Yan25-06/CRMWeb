@@ -57,10 +57,11 @@ Services đã có: `studentService`, `classService` (+`teacherService`), `enroll
 
 ## Routing & Layout
 - **Không dùng react-router.** Routing là state `page` trong `App.jsx` (`useState` + `switch` trong `renderPage()`).
-- Trang: `dashboard`, `fees`, `reports`, `reviews`, `schedule`, `classes`, `settings`, **`admin`** (chỉ khi `is_admin = true`).
+- Trang: `dashboard`, `fees`, `reports`, `reviews`, `schedule`, `classes`, `settings`, **`admin`** (chỉ khi `is_admin = true`), **`students`** (danh bạ học viên).
 - `classes` có 2 chế độ: list (`ClassesOverviewPage`) ↔ detail (`ClassDetailPage`) qua `selectedClassId` (persist trong localStorage).
 - `ClassDetailPage` có các tab: Students, Attendance, Homework, MockTest.
 - **Admin Panel** (`AdminPanelPage`): route `/admin` (page `'admin'`), hiển thị danh sách giáo viên, form tạo/giao/đổi lớp, xem read-only dữ liệu các giáo viên. Guard với `teacher.is_admin` (redirect về dashboard nếu không phải admin). Link "Admin" chỉ hiện trong Navbar khi `is_admin = true`.
+- **Students Directory** (`StudentsDirectoryPage`): route `students`, danh bạ tổng tất cả học sinh, lọc theo trạng thái/lớp/loại khóa, tìm kiếm, thêm nhanh, import Excel, bulk delete, sidebar chi tiết, điều hướng đến lớp. Prop `onNavigateToClass(classId)` từ `App.jsx`.
 - Month/year picker ở top bar chỉ hiện cho trang `dashboard` và `fees`.
 - Layout: `Navbar` (sidebar/mobile nav) bên trái + main content, `ToastContainer` global.
 
@@ -75,6 +76,7 @@ src/
 │   ├── DashboardPage / FeesPage / ReportsPage / ReviewsPage / SchedulePage / SettingsPage
 │   ├── LoginPage / SetPasswordPage / PlaceholderPages
 │   ├── AdminPanelPage.jsx  ← Admin Panel (tạo/giao lớp, xem read-only data)
+│   ├── StudentsDirectoryPage.jsx  ← Danh bạ học viên tổng (lọc, tìm, import Excel)
 │   └── ClassDetailPage/ (index.jsx + tabs/)
 ├── services/   ← Supabase service layer (toàn bộ data)
 ├── hooks/useAuth.jsx, useOnlineStatus.js
@@ -123,6 +125,11 @@ Project quản lý thay đổi qua OpenSpec (`openspec/`). Có skill tích hợp
 - Admin read-only = không cấp policy ghi cho admin ở DB.
 - Invite giáo viên qua Supabase Dashboard; DB trigger tự tạo row `teachers` — không dùng Edge Function.
 - Optimistic UI + retry (không offline-first thật).
+
+## Model học sinh (migration 20260603000002)
+- **`students.email`** (text, nullable): thêm vào bảng `students`. `studentService.fromDB/toDB` map thêm `email`. `StudentModal` có input email (optional, prop `requireClass={false}` cho phép tạo học sinh không lớp).
+- `enrollmentService.getAllForTeacher()`: đọc tất cả enrollment của teacher (dùng trong StudentsDirectoryPage để gộp map `studentId → [enrollments]`).
+- `src/components/students/ImportStudentsModal.jsx`: modal import hàng loạt từ Excel (.xlsx), map header linh hoạt, preview + validation, tạo qua `studentService`.
 
 ## Model đánh giá kỹ năng (đã chốt — migration 20260603000001)
 - **`classes.skill_config`** (jsonb): mảng `[{ name, maxScore, order }]` định nghĩa kỹ năng của lớp. Default IELTS 4 kỹ năng thang 0–9.

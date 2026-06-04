@@ -75,6 +75,14 @@ export const enrollmentService = {
     return fromDB(data)
   },
 
+  async getAllForTeacher() {
+    const { data, error } = await supabase
+      .from('enrollments')
+      .select('*')
+    if (error) throw new Error(error.message)
+    return data.map(fromDB)
+  },
+
   async upsert(data) {
     const payload = toDB(data)
     if (!payload.enrolled_at) {

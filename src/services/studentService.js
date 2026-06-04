@@ -11,6 +11,7 @@ const fromDB = (row) => row ? {
   name: row.name,
   grade: row.grade,
   phone: row.phone,
+  email: row.email ?? null,
   createdAt: row.created_at,
 } : null
 
@@ -18,6 +19,7 @@ const toDB = (data) => ({
   name: data.name,
   grade: data.grade ?? null,
   phone: data.phone ?? null,
+  email: data.email ?? null,
 })
 
 export const studentService = {

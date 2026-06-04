@@ -13,7 +13,7 @@ const STATUS_OPTIONS = [
   { value: 'dropped', label: 'Đã nghỉ' },
 ]
 
-const EMPTY_NEW = { name: '', phone: '', grade: '', feeType: 'monthly', monthlyFee: '', courseFee: '', note: '' }
+const EMPTY_NEW = { name: '', phone: '', grade: '', email: '', feeType: 'monthly', monthlyFee: '', courseFee: '', note: '' }
 
 const FeeInputs = ({ feeType, setFeeType, monthlyFee, setMonthlyFee, courseFee, setCourseFee }) => (
   <div className="flex flex-col gap-2">
@@ -103,22 +103,26 @@ export const EnrollmentModal = ({
   useEffect(() => {
     if (!open) return
     if (mode === 'add') {
-      const load = async () => {
-        try {
-          const [allStudents, classEnrollments] = await Promise.all([
-            studentService.getAll(),
-            enrollmentService.getByClass(classId),
-          ])
-          const enrolled = classEnrollments.map(e => e.studentId)
-          setAvailableStudents(allStudents.filter(s => !enrolled.includes(s.id)))
-        } catch {
-          setAvailableStudents([])
+      if (classId) {
+        const load = async () => {
+          try {
+            const [allStudents, classEnrollments] = await Promise.all([
+              studentService.getAll(),
+              enrollmentService.getByClass(classId),
+            ])
+            const enrolled = classEnrollments.map(e => e.studentId)
+            setAvailableStudents(allStudents.filter(s => !enrolled.includes(s.id)))
+          } catch {
+            setAvailableStudents([])
+          }
         }
+        load()
+        setAddSubMode('existing')
+      } else {
+        setAddSubMode('new')
       }
-      load()
       setSelectedStudentId('')
       setStudentSearch('')
-      setAddSubMode('existing')
       setNewForm(EMPTY_NEW)
       setNewErrors({})
       setGoal('')
@@ -185,20 +189,25 @@ export const EnrollmentModal = ({
             name: newForm.name.trim(),
             phone: newForm.phone.trim(),
             grade: newForm.grade.trim(),
+            email: newForm.email.trim() || null,
           })
-          const ft = newForm.feeType || 'monthly'
-          await enrollmentService.upsert({
-            studentId: created.id,
-            classId,
-            status: 'active',
-            feeType: ft,
-            monthlyFee: ft === 'monthly' ? (Number(newForm.monthlyFee) || 0) : null,
-            courseFee: ft === 'course' ? (Number(newForm.courseFee) || 0) : null,
-            goal,
-            note: '',
-            enrolledAt: new Date().toISOString(),
-          })
-          uiToast.success(`Đã tạo và thêm "${created.name}" vào lớp`)
+          if (classId) {
+            const ft = newForm.feeType || 'monthly'
+            await enrollmentService.upsert({
+              studentId: created.id,
+              classId,
+              status: 'active',
+              feeType: ft,
+              monthlyFee: ft === 'monthly' ? (Number(newForm.monthlyFee) || 0) : null,
+              courseFee: ft === 'course' ? (Number(newForm.courseFee) || 0) : null,
+              goal,
+              note: '',
+              enrolledAt: new Date().toISOString(),
+            })
+            uiToast.success(`Đã tạo và thêm "${created.name}" vào lớp`)
+          } else {
+            uiToast.success(`Đã thêm học sinh "${created.name}"`)
+          }
         }
       } else {
         const now = new Date().toISOString()
@@ -247,7 +256,7 @@ export const EnrollmentModal = ({
 
   const submitLabel =
     mode !== 'add' ? 'Lưu thay đổi' :
-      addSubMode === 'new' ? 'Tạo & Thêm vào lớp' : 'Thêm vào lớp'
+      addSubMode === 'new' ? (classId ? 'Tạo & Thêm vào lớp' : 'Thêm học sinh') : 'Thêm vào lớp'
 
   return (
     <div
@@ -259,7 +268,9 @@ export const EnrollmentModal = ({
         {/* ── Header ── */}
         <div className="px-6 pt-6 pb-4 border-b border-navy-50 flex items-center justify-between">
           <h2 className="text-base font-semibold text-navy-900">
-            {mode === 'add' ? '+ Thêm học viên vào lớp' : 'Sửa thông tin học viên'}
+            {mode === 'add'
+              ? (classId ? '+ Thêm học viên vào lớp' : 'Thêm học sinh mới')
+              : 'Sửa thông tin học viên'}
           </h2>
           <button
             onClick={onClose}
@@ -272,7 +283,7 @@ export const EnrollmentModal = ({
         {/* ── Body ── */}
         <div className="px-6 py-5 flex flex-col gap-4 max-h-[72vh] overflow-y-auto">
 
-          {mode === 'add' && (
+          {mode === 'add' && classId && (
             <div className="flex gap-1 p-1 bg-navy-50 rounded-xl">
               <button
                 onClick={() => { setAddSubMode('existing'); setNewErrors({}) }}
@@ -362,9 +373,11 @@ export const EnrollmentModal = ({
 
           {mode === 'add' && addSubMode === 'new' && (
             <div className="flex flex-col gap-3">
-              <p className="text-xs text-navy-400">
-                Tạo học viên mới và tự động thêm vào lớp này
-              </p>
+              {classId && (
+                <p className="text-xs text-navy-400">
+                  Tạo học viên mới và tự động thêm vào lớp này
+                </p>
+              )}
 
               <div className="flex flex-col gap-1">
                 <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
@@ -411,63 +424,79 @@ export const EnrollmentModal = ({
                 </div>
               </div>
 
-              {/* Fee inputs for new student form */}
-              <div className="flex flex-col gap-2">
-                <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Loại học phí</label>
-                <div className="flex gap-1 p-1 bg-navy-50 rounded-xl">
-                  <button
-                    type="button"
-                    onClick={() => setNewForm(f => ({ ...f, feeType: 'monthly' }))}
-                    className={clsx(
-                      'flex-1 py-1.5 text-xs font-medium rounded-lg transition-all',
-                      newForm.feeType !== 'course' ? 'bg-white shadow-sm text-navy-800' : 'text-navy-500 hover:text-navy-700'
-                    )}
-                  >
-                    Theo tháng
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setNewForm(f => ({ ...f, feeType: 'course' }))}
-                    className={clsx(
-                      'flex-1 py-1.5 text-xs font-medium rounded-lg transition-all',
-                      newForm.feeType === 'course' ? 'bg-white shadow-sm text-navy-800' : 'text-navy-500 hover:text-navy-700'
-                    )}
-                  >
-                    Theo khóa
-                  </button>
-                </div>
-                {newForm.feeType !== 'course' ? (
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Học phí tháng (VNĐ)</label>
-                    <input
-                      type="number"
-                      name="monthlyFee"
-                      value={newForm.monthlyFee}
-                      onChange={handleNewFormChange}
-                      placeholder="VD: 800000"
-                      min="0"
-                      step="10000"
-                      className="input text-sm"
-                    />
-                  </div>
-                ) : (
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Học phí cả khóa (VNĐ)</label>
-                    <input
-                      type="number"
-                      name="courseFee"
-                      value={newForm.courseFee}
-                      onChange={handleNewFormChange}
-                      placeholder="VD: 3000000"
-                      min="0"
-                      step="100000"
-                      className="input text-sm"
-                    />
-                  </div>
-                )}
+              <div className="flex flex-col gap-1">
+                <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
+                  Email (tùy chọn)
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={newForm.email}
+                  onChange={handleNewFormChange}
+                  placeholder="email@example.com"
+                  className="input text-sm"
+                />
               </div>
 
-              <div className="border-t border-navy-100 pt-1" />
+              {/* Fee inputs only when enrolling into a class */}
+              {classId && (
+                <div className="flex flex-col gap-2">
+                  <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Loại học phí</label>
+                  <div className="flex gap-1 p-1 bg-navy-50 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setNewForm(f => ({ ...f, feeType: 'monthly' }))}
+                      className={clsx(
+                        'flex-1 py-1.5 text-xs font-medium rounded-lg transition-all',
+                        newForm.feeType !== 'course' ? 'bg-white shadow-sm text-navy-800' : 'text-navy-500 hover:text-navy-700'
+                      )}
+                    >
+                      Theo tháng
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setNewForm(f => ({ ...f, feeType: 'course' }))}
+                      className={clsx(
+                        'flex-1 py-1.5 text-xs font-medium rounded-lg transition-all',
+                        newForm.feeType === 'course' ? 'bg-white shadow-sm text-navy-800' : 'text-navy-500 hover:text-navy-700'
+                      )}
+                    >
+                      Theo khóa
+                    </button>
+                  </div>
+                  {newForm.feeType !== 'course' ? (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Học phí tháng (VNĐ)</label>
+                      <input
+                        type="number"
+                        name="monthlyFee"
+                        value={newForm.monthlyFee}
+                        onChange={handleNewFormChange}
+                        placeholder="VD: 800000"
+                        min="0"
+                        step="10000"
+                        className="input text-sm"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Học phí cả khóa (VNĐ)</label>
+                      <input
+                        type="number"
+                        name="courseFee"
+                        value={newForm.courseFee}
+                        onChange={handleNewFormChange}
+                        placeholder="VD: 3000000"
+                        min="0"
+                        step="100000"
+                        className="input text-sm"
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {classId && <div className="border-t border-navy-100 pt-1" />}
             </div>
           )}
 
@@ -508,6 +537,7 @@ export const EnrollmentModal = ({
             />
           )}
 
+          {(mode === 'edit' || (mode === 'add' && classId)) && (
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
               Mục tiêu
@@ -520,8 +550,9 @@ export const EnrollmentModal = ({
               className="input resize-none text-sm"
             />
           </div>
+          )}
 
-          {(mode === 'edit' || addSubMode === 'existing') && (
+          {(mode === 'edit' || (mode === 'add' && classId && addSubMode === 'existing')) && (
             <div className="flex flex-col gap-1">
               <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
                 Ghi chú nội bộ

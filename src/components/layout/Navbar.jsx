@@ -2,7 +2,7 @@ import { clsx } from 'clsx'
 import {
   LayoutDashboard, BookOpen,
   Calendar, Users, Settings, Menu, X,
-  GraduationCap, BarChart2, LogOut, Shield,
+  GraduationCap, BarChart2, LogOut, Shield, UserRound,
 } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from '@/components/ui'
@@ -10,11 +10,12 @@ import { useAuth } from '@/hooks/useAuth'
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { id: 'classes', label: 'Lớp Học', icon: Users },
+  { id: 'students', label: 'Học Sinh', icon: UserRound },
   { id: 'fees', label: 'Học Phí', icon: BookOpen },
   { id: 'reports', label: 'Báo Cáo', icon: BarChart2 },
   { id: 'reviews', label: 'Nhận Xét', icon: GraduationCap },
   { id: 'schedule', label: 'Lịch Dạy', icon: Calendar },
-  { id: 'classes', label: 'Lớp Học', icon: Users },
 ]
 
 export const Navbar = ({ activePage, onNavigate, centerName, isAdmin }) => {

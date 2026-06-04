@@ -1,12 +1,13 @@
 import { useState, useEffect } from 'react'
 import { Modal, Input, Select, Button, toast } from '@/components/ui'
 
-export const StudentModal = ({ open, onClose, student = null, classes = [], onSave, isClassContext = false }) => {
+export const StudentModal = ({ open, onClose, student = null, classes = [], onSave, isClassContext = false, requireClass = true }) => {
   const [formData, setFormData] = useState({
     name: '',
     classId: '',
     grade: '',
     phone: '',
+    email: '',
     note: '',
   })
   const [errors, setErrors] = useState({})
@@ -19,6 +20,7 @@ export const StudentModal = ({ open, onClose, student = null, classes = [], onSa
           classId: student.classId || '',
           grade: student.grade || '',
           phone: student.phone || '',
+          email: student.email || '',
           note: student.note || '',
         })
       } else {
@@ -27,6 +29,7 @@ export const StudentModal = ({ open, onClose, student = null, classes = [], onSa
           classId: classes.length > 0 ? classes[0].id : '',
           grade: '',
           phone: '',
+          email: '',
           note: '',
         })
       }
@@ -47,7 +50,7 @@ export const StudentModal = ({ open, onClose, student = null, classes = [], onSa
 
     const newErrors = {}
     if (!formData.name.trim()) newErrors.name = 'Họ và tên là bắt buộc'
-    if (!formData.classId) newErrors.classId = 'Lớp học là bắt buộc'
+    if (requireClass && !formData.classId) newErrors.classId = 'Lớp học là bắt buộc'
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
@@ -81,19 +84,21 @@ export const StudentModal = ({ open, onClose, student = null, classes = [], onSa
           placeholder="Nhập họ và tên..."
         />
 
-        <Select
-          label="Lớp học"
-          name="classId"
-          value={formData.classId}
-          onChange={handleChange}
-          error={errors.classId}
-          disabled={isClassContext}
-        >
-          <option value="">-- Chọn lớp học --</option>
-          {classes.map(c => (
-            <option key={c.id} value={c.id}>{c.name}</option>
-          ))}
-        </Select>
+        {(requireClass || classes.length > 0) && (
+          <Select
+            label={requireClass ? 'Lớp học' : 'Lớp học (tùy chọn)'}
+            name="classId"
+            value={formData.classId}
+            onChange={handleChange}
+            error={errors.classId}
+            disabled={isClassContext}
+          >
+            <option value="">-- Chọn lớp học --</option>
+            {classes.map(c => (
+              <option key={c.id} value={c.id}>{c.name}</option>
+            ))}
+          </Select>
+        )}
 
         <div className="grid grid-cols-2 gap-4">
           <Input
@@ -111,6 +116,15 @@ export const StudentModal = ({ open, onClose, student = null, classes = [], onSa
             placeholder="SĐT Phụ huynh"
           />
         </div>
+
+        <Input
+          label="Email (tùy chọn)"
+          name="email"
+          type="email"
+          value={formData.email}
+          onChange={handleChange}
+          placeholder="email@example.com"
+        />
 
         <Input
           label="Ghi chú"

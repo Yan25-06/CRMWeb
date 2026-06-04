@@ -11,6 +11,7 @@ import { ReportsPage } from '@/pages/ReportsPage'
 import { ClassesOverviewPage } from '@/pages/ClassesOverviewPage'
 import { ClassDetailPage } from '@/pages/ClassDetailPage'
 import { AdminPanelPage } from '@/pages/AdminPanelPage'
+import { StudentsDirectoryPage } from '@/pages/StudentsDirectoryPage'
 import { settingsService, DEFAULT_SETTINGS } from '@/services/settingsService'
 import { useAuth } from '@/hooks/useAuth'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -74,6 +75,14 @@ export default function App() {
       case 'reviews':    return <ReviewsPage settings={settings} />
       case 'schedule':   return <SchedulePage onNavigate={handleNavigate} />
       case 'admin':      return <AdminPanelPage />
+      case 'students':   return (
+        <StudentsDirectoryPage
+          onNavigateToClass={(classId) => {
+            setSelectedClassId(classId)
+            handleNavigate('classes')
+          }}
+        />
+      )
       case 'classes':
         if (selectedClassId) {
           return <ClassDetailPage
