@@ -16,8 +16,8 @@ const TABS = [
   { id: 'mocktest',    label: 'Mock Test',  disabled: false },
 ]
 
-export const ClassDetailPage = ({ classId, onBack }) => {
-  const [activeTab, setActiveTab] = useState('students')
+export const ClassDetailPage = ({ classId, onBack, initialTab = 'students' }) => {
+  const [activeTab, setActiveTab] = useState(initialTab)
   const [currentClass, setCurrentClass] = useState(null)
   const [studentCount, setStudentCount] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -39,6 +39,7 @@ export const ClassDetailPage = ({ classId, onBack }) => {
 
   useEffect(() => {
     setLoading(true)
+    setActiveTab(initialTab)
     loadHeader()
   }, [classId])
 

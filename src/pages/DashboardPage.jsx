@@ -1,35 +1,74 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
-  Users, TrendingUp, Calendar, DollarSign,
-  BookOpen,
+  Users, Calendar, DollarSign,
+  BookOpen, AlertCircle,
 } from 'lucide-react'
 import { StatCard, Card, Badge, Skeleton } from '@/components/ui'
 import { studentService } from '@/services/studentService'
 import { classService } from '@/services/classService'
 import { paymentService } from '@/services/paymentService'
+import { scheduleService } from '@/services/scheduleService'
+import { enrollmentService } from '@/services/enrollmentService'
+import { feeService } from '@/services/feeService'
+import { DailyAgenda } from '@/components/schedule/DailyAgenda'
 
 const fmt = (n) =>
   new Intl.NumberFormat('vi-VN').format(n) + 'đ'
 
-export const DashboardPage = ({ year, month, onNavigate }) => {
+export const DashboardPage = ({ year, month, onNavigate, onAttendance }) => {
   const [students, setStudents]             = useState([])
   const [classes,  setClasses]              = useState([])
+  const [schedule, setSchedule]             = useState([])
+  const [enrollments, setEnrollments]       = useState([])
   const [monthlyRevenue, setMonthlyRevenue] = useState(0)
-  const [loading, setLoading]              = useState(true)
+  const [debtCount, setDebtCount]           = useState(0)
+  const [loading, setLoading]               = useState(true)
 
   useEffect(() => {
-    Promise.all([studentService.getAll(), classService.getAll()])
-      .then(([s, c]) => { setStudents(s); setClasses(c) })
+    Promise.all([
+      studentService.getAll(),
+      classService.getAll(),
+      scheduleService.getAll(),
+      enrollmentService.getAll(),
+    ])
+      .then(([s, c, sched, enr]) => {
+        setStudents(s)
+        setClasses(c)
+        setSchedule(sched)
+        setEnrollments(enr)
+      })
       .catch(() => {})
       .finally(() => setLoading(false))
   }, [])
 
   useEffect(() => {
     const period = `${year}-${String(month).padStart(2, '0')}`
-    paymentService.getByPeriod(period)
-      .then(payments => setMonthlyRevenue(payments.reduce((s, p) => s + (p.amount ?? 0), 0)))
-      .catch(() => setMonthlyRevenue(0))
+    Promise.all([
+      paymentService.getByPeriod(period),
+      feeService.buildFeesRows(year, month),
+    ])
+      .then(([payments, feeRows]) => {
+        setMonthlyRevenue(payments.reduce((s, p) => s + (p.amount ?? 0), 0))
+        setDebtCount(feeRows.filter(r => r.paid < r.expected).length)
+      })
+      .catch(() => { setMonthlyRevenue(0); setDebtCount(0) })
   }, [year, month])
+
+  const todayDow = new Date().getDay()
+
+  const todayItems = useMemo(
+    () => schedule.filter(s => s.dayOfWeek === todayDow),
+    [schedule, todayDow]
+  )
+
+  const studentCounts = useMemo(() => {
+    const map = new Map()
+    for (const cls of classes) {
+      const active = enrollments.filter(e => e.classId === cls.id && e.status === 'active').length
+      map.set(cls.id, active)
+    }
+    return map
+  }, [classes, enrollments])
 
   const monthName = new Date(year, month - 1).toLocaleString('vi-VN', { month: 'long' })
 
@@ -43,6 +82,7 @@ export const DashboardPage = ({ year, month, onNavigate }) => {
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
           {[1,2,3,4].map(i => <Skeleton key={i} className="h-24 rounded-2xl" />)}
         </div>
+        <Skeleton className="h-40 rounded-2xl" />
         <div className="grid lg:grid-cols-2 gap-6">
           {[1,2].map(card => (
             <div key={card} className="rounded-2xl border border-navy-100 overflow-hidden">
@@ -81,35 +121,55 @@ export const DashboardPage = ({ year, month, onNavigate }) => {
 
       {/* ── Stats grid ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard
-          label="Học Sinh"
-          value={students.length}
-          sub={`${classes.length} lớp`}
-          icon={<Users size={16} />}
-          accent="navy"
-        />
-        <StatCard
-          label="Lớp Học"
-          value={classes.length}
-          sub="đang hoạt động"
-          icon={<BookOpen size={16} />}
-          accent="navy"
-        />
-        <StatCard
-          label={`Thu ${monthName}`}
-          value={fmt(monthlyRevenue)}
-          sub="tổng học phí tháng"
-          icon={<DollarSign size={16} />}
-          accent="warning"
-        />
-        <StatCard
-          label="Năm"
-          value={year}
-          sub="năm học hiện tại"
-          icon={<TrendingUp size={16} />}
-          accent="navy"
-        />
+        <div className="cursor-pointer" onClick={() => onNavigate('students')}>
+          <StatCard
+            label="Học Sinh"
+            value={students.length}
+            sub={`${classes.length} lớp`}
+            icon={<Users size={16} />}
+            accent="navy"
+            className="h-full"
+          />
+        </div>
+        <div className="cursor-pointer" onClick={() => onNavigate('classes')}>
+          <StatCard
+            label="Lớp Học"
+            value={classes.length}
+            sub="đang hoạt động"
+            icon={<BookOpen size={16} />}
+            accent="navy"
+            className="h-full"
+          />
+        </div>
+        <div className="cursor-pointer" onClick={() => onNavigate('fees')}>
+          <StatCard
+            label={`Thu ${monthName}`}
+            value={fmt(monthlyRevenue)}
+            sub="tổng học phí tháng"
+            icon={<DollarSign size={16} />}
+            accent="warning"
+            className="h-full"
+          />
+        </div>
+        <div className="cursor-pointer" onClick={() => onNavigate('fees')}>
+          <StatCard
+            label="Chưa đóng phí"
+            value={debtCount}
+            sub="học sinh tháng này"
+            icon={<AlertCircle size={16} />}
+            accent={debtCount > 0 ? 'danger' : 'success'}
+            className="h-full"
+          />
+        </div>
       </div>
+
+      {/* ── Lịch hôm nay ── */}
+      <DailyAgenda
+        todayItems={todayItems}
+        classes={classes}
+        studentCounts={studentCounts}
+        onAttendance={onAttendance}
+      />
 
       {/* ── Student list quick view ── */}
       <div className="grid lg:grid-cols-2 gap-6">
@@ -117,7 +177,7 @@ export const DashboardPage = ({ year, month, onNavigate }) => {
           <div className="px-5 py-4 border-b border-navy-50 flex items-center justify-between">
             <h2 className="font-semibold text-navy-800 text-sm">Danh Sách Học Sinh</h2>
             <button
-              onClick={() => onNavigate('classes')}
+              onClick={() => onNavigate('students')}
               className="text-xs text-navy-500 hover:text-navy-800 font-medium transition-colors"
             >
               Xem tất cả →

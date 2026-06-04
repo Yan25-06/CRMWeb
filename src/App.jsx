@@ -29,6 +29,7 @@ export default function App() {
     const stored = localStorage.getItem('selectedClassId')
     return stored || null
   })
+  const [classInitialTab, setClassInitialTab] = useState('students')
 
   useEffect(() => {
     settingsService.get().then(setSettings).catch(() => {})
@@ -69,7 +70,7 @@ export default function App() {
 
   const renderPage = () => {
     switch (currentPage) {
-      case 'dashboard':  return <DashboardPage year={year} month={month} onNavigate={handleNavigate} />
+      case 'dashboard':  return <DashboardPage year={year} month={month} onNavigate={handleNavigate} onAttendance={(classId) => { setSelectedClassId(classId); setClassInitialTab('attendance'); handleNavigate('classes') }} />
       case 'fees':       return <FeesPage year={year} month={month} />
       case 'reports':    return <ReportsPage />
       case 'reviews':    return <ReviewsPage settings={settings} />
@@ -87,7 +88,8 @@ export default function App() {
         if (selectedClassId) {
           return <ClassDetailPage
             classId={selectedClassId}
-            onBack={() => setSelectedClassId(null)}
+            onBack={() => { setSelectedClassId(null); setClassInitialTab('students') }}
+            initialTab={classInitialTab}
           />
         }
         return <ClassesOverviewPage onSelectClass={setSelectedClassId} />

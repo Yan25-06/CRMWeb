@@ -62,7 +62,8 @@ Services đã có: `studentService`, `classService` (+`teacherService`), `enroll
 - **Không dùng react-router.** Routing là state `page` trong `App.jsx` (`useState` + `switch` trong `renderPage()`).
 - Trang: `dashboard`, `fees`, `reports`, `reviews`, `schedule`, `classes`, `settings`, **`admin`** (chỉ khi `is_admin = true`), **`students`** (danh bạ học viên).
 - `classes` có 2 chế độ: list (`ClassesOverviewPage`) ↔ detail (`ClassDetailPage`) qua `selectedClassId` (persist trong localStorage).
-- `ClassDetailPage` có các tab: Students, Attendance, Homework, MockTest.
+- `ClassDetailPage` có các tab: Students, Attendance, Homework, MockTest. Prop `initialTab` (default `'students'`) cho phép mở thẳng tab Attendance từ Dashboard.
+- **Dashboard** (`DashboardPage`): prop `onAttendance(classId)` từ `App.jsx` → đặt `selectedClassId` + `classInitialTab='attendance'` + mở trang `classes`. Card "Lịch hôm nay" dùng `DailyAgenda`, stat card "Chưa đóng phí" thay thế "Năm học" — click → `FeesPage`.
 - **Admin Panel** (`AdminPanelPage`): route `/admin` (page `'admin'`), hiển thị danh sách giáo viên, form tạo/giao/đổi lớp, xem read-only dữ liệu các giáo viên. Guard với `teacher.is_admin` (redirect về dashboard nếu không phải admin). Link "Admin" chỉ hiện trong Navbar khi `is_admin = true`.
 - **Students Directory** (`StudentsDirectoryPage`): route `students`, danh bạ tổng tất cả học sinh, lọc theo trạng thái/lớp/loại khóa, tìm kiếm, thêm nhanh, import Excel, bulk delete, sidebar chi tiết, điều hướng đến lớp. Prop `onNavigateToClass(classId)` từ `App.jsx`.
 - Month/year picker ở top bar chỉ hiện cho trang `dashboard` và `fees`.
