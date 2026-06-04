@@ -50,9 +50,12 @@ Services đã có: `studentService`, `classService` (+`teacherService`), `enroll
 ---
 
 ## Auth
-- `src/hooks/useAuth.jsx` — `AuthProvider` + `useAuth()`. Cung cấp `user`, `teacher` (profile từ bảng `teachers`), `loading`, `needsPassword`, `login`, `logout`, `completePasswordSetup`.
+- `src/hooks/useAuth.jsx` — `AuthProvider` + `useAuth()`. Cung cấp `user`, `teacher` (profile từ bảng `teachers`), `loading`, `needsPassword`, `login`, `logout`, `completePasswordSetup(name)`.
 - **Lưu ý deadlock:** không `await` supabase trong callback `onAuthStateChange` (auth lock). Profile teacher nạp ở `useEffect` riêng theo `user.id`.
 - Flow invite/recovery: cờ bắt từ URL hash ngay khi module load (trước khi Supabase xóa hash) → `SetPasswordPage`.
+- `SetPasswordPage`: form có 3 ô — **Tên hiển thị** (bắt buộc), Mật khẩu mới, Xác nhận mật khẩu. Khi submit thành công gọi `onDone(name)` = `completePasswordSetup(name)`.
+- `completePasswordSetup(name)`: ghi `teachers.name` vào DB, refresh `teacher` state, tắt cờ `needsPassword`, dọn URL hash.
+- Hiển thị danh tính: `teacher?.name || user.email` — `Navbar` đã đúng pattern này. Giáo viên cũ chưa có tên sẽ fallback email.
 - `src/main.jsx` → `AuthGate`: loading spinner → SetPassword (nếu invite) → `LoginPage` (nếu chưa đăng nhập) → `App`.
 
 ## Routing & Layout

@@ -59,8 +59,15 @@ export function AuthProvider({ children }) {
     setTeacher(null)
   }
 
-  // Gọi sau khi đặt mật khẩu xong: tắt cờ invite + dọn hash khỏi URL.
-  function completePasswordSetup() {
+  // Gọi sau khi đặt mật khẩu xong: lưu tên, tắt cờ invite + dọn hash khỏi URL.
+  async function completePasswordSetup(name) {
+    const uid = (await supabase.auth.getUser()).data?.user?.id
+    if (uid && name) {
+      await supabase.from('teachers').update({ name }).eq('id', uid)
+      // Refresh teacher profile in state — safe to await here (outside onAuthStateChange).
+      const { data } = await supabase.from('teachers').select('*').eq('id', uid).single()
+      setTeacher(data ?? null)
+    }
     setNeedsPassword(false)
     history.replaceState(null, '', window.location.pathname + window.location.search)
   }

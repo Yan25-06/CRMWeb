@@ -3,6 +3,7 @@ import { supabase } from '@/lib/supabase'
 import { GraduationCap } from 'lucide-react'
 
 export function SetPasswordPage({ onDone }) {
+  const [displayName, setDisplayName] = useState('')
   const [password, setPassword] = useState('')
   const [confirm, setConfirm] = useState('')
   const [error, setError] = useState('')
@@ -12,6 +13,10 @@ export function SetPasswordPage({ onDone }) {
   async function handleSubmit(e) {
     e.preventDefault()
     setError('')
+    if (!displayName.trim()) {
+      setError('Vui lòng nhập tên hiển thị.')
+      return
+    }
     if (password.length < 6) {
       setError('Mật khẩu phải có ít nhất 6 ký tự.')
       return
@@ -25,7 +30,7 @@ export function SetPasswordPage({ onDone }) {
       const { error: updateError } = await supabase.auth.updateUser({ password })
       if (updateError) throw updateError
       setSuccess(true)
-      setTimeout(() => onDone?.(), 1500)
+      setTimeout(() => onDone?.(displayName.trim()), 1500)
     } catch (err) {
       setError('Không thể đặt mật khẩu. Liên kết có thể đã hết hạn — vui lòng liên hệ admin để được mời lại.')
     } finally {
@@ -50,10 +55,24 @@ export function SetPasswordPage({ onDone }) {
 
         {success ? (
           <div className="bg-white rounded-2xl shadow-navy-sm border border-navy-100 p-6 text-center text-green-600 font-medium">
-            Mật khẩu đã được đặt thành công! Đang chuyển hướng…
+            Tài khoản đã được kích hoạt! Đang chuyển hướng…
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="bg-white rounded-2xl shadow-navy-sm border border-navy-100 p-6 flex flex-col gap-4">
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-navy-700">Tên hiển thị</label>
+              <input
+                type="text"
+                required
+                autoComplete="name"
+                autoFocus
+                value={displayName}
+                onChange={e => setDisplayName(e.target.value)}
+                placeholder="VD: Nguyễn Thị Phương"
+                className="border border-navy-200 rounded-xl px-3 py-2.5 text-sm text-navy-900 placeholder:text-navy-300 focus:outline-none focus:ring-2 focus:ring-navy-400 focus:border-transparent transition"
+              />
+            </div>
+
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-navy-700">Mật khẩu mới</label>
               <input

@@ -51,6 +51,14 @@ export const teacherService = {
     if (error) throw new Error(error.message)
     return data
   },
+
+  async update(id, { name }) {
+    const { error } = await supabase
+      .from('teachers')
+      .update({ name })
+      .eq('id', id)
+    if (error) throw new Error(error.message)
+  },
 }
 
 export const classService = {
