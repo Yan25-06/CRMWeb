@@ -18,7 +18,7 @@
 
 ## 4. Kiểm thử
 
-- [ ] 4.1 Test onboarding: nhập tên + mật khẩu → `teachers.name` được lưu, app hiển thị tên
-- [ ] 4.2 Test validate thiếu tên
-- [ ] 4.3 Test fallback email cho giáo viên cũ chưa có tên
+- [x] 4.1 Test onboarding: nhập tên + mật khẩu → `teachers.name` được lưu, app hiển thị tên
+- [x] 4.2 Test validate thiếu tên
+- [x] 4.3 Test fallback email cho giáo viên cũ chưa có tên
 - [x] 4.4 Cập nhật `CLAUDE.md` nếu mô tả luồng auth/onboarding thay đổi
