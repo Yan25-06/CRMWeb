@@ -43,12 +43,15 @@ const ScoreCell = ({ section, value, onChange }) => {
 export const MockTestScoreTable = ({ mockTest, results = [], students = [], onResultChange }) => {
   const noteTimers = useRef({})
   const [notes, setNotes] = useState({})
+  const [localResults, setLocalResults] = useState(results)
 
+  // Sync from prop only when switching to a different mockTest (fresh load), not on every save
   useEffect(() => {
+    setLocalResults(results)
     const m = {}
     results.forEach(r => { m[r.studentId] = r.teacherNote ?? '' })
     setNotes(m)
-  }, [results])
+  }, [mockTest?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!mockTest) return null
 
@@ -57,19 +60,31 @@ export const MockTestScoreTable = ({ mockTest, results = [], students = [], onRe
 
   const activeSectionIds = new Set(sections.map(s => s.id))
   const orphanIds = new Set()
-  results.forEach(r => Object.keys(r.scores ?? {}).forEach(sid => {
+  localResults.forEach(r => Object.keys(r.scores ?? {}).forEach(sid => {
     if (!activeSectionIds.has(sid)) orphanIds.add(sid)
   }))
   const orphanArr = [...orphanIds]
 
   const handleScoreChange = async (student, sectionId, val) => {
-    const result = results.find(r => r.studentId === student.id)
-    const newScores = { ...(result?.scores ?? {}), [sectionId]: val }
+    const existing = localResults.find(r => r.studentId === student.id)
+    const newScores = { ...(existing?.scores ?? {}), [sectionId]: val }
+    const newTotal = sections.reduce((s, sec) => s + (Number(newScores[sec.id]) || 0), 0)
+
+    // Optimistic local update — does not touch other students' cells
+    setLocalResults(prev => {
+      if (prev.some(r => r.studentId === student.id)) {
+        return prev.map(r => r.studentId === student.id
+          ? { ...r, scores: newScores, totalScore: newTotal }
+          : r)
+      }
+      return [...prev, { mockTestId: mockTest.id, studentId: student.id, scores: newScores, totalScore: newTotal, teacherNote: '' }]
+    })
+
     const data = {
       mockTestId: mockTest.id,
       studentId: student.id,
       scores: newScores,
-      teacherNote: result?.teacherNote ?? '',
+      teacherNote: existing?.teacherNote ?? '',
     }
     try {
       const updated = await mockTestResultService.upsert(data)
@@ -88,7 +103,7 @@ export const MockTestScoreTable = ({ mockTest, results = [], students = [], onRe
     setNotes(prev => ({ ...prev, [studentId]: val }))
     clearTimeout(noteTimers.current[studentId])
     noteTimers.current[studentId] = setTimeout(async () => {
-      const result = results.find(r => r.studentId === studentId)
+      const result = localResults.find(r => r.studentId === studentId)
       const data = {
         mockTestId: mockTest.id,
         studentId,
@@ -107,11 +122,11 @@ export const MockTestScoreTable = ({ mockTest, results = [], students = [], onRe
   }
 
   const avgPerSection = sections.map(sec => {
-    const vals = results.map(r => r.scores?.[sec.id]).filter(v => v !== undefined && v !== '')
+    const vals = localResults.map(r => r.scores?.[sec.id]).filter(v => v !== undefined && v !== '')
     if (!vals.length) return null
     return Math.round(vals.reduce((a, b) => a + Number(b), 0) / vals.length)
   })
-  const totals = results.map(r => r.totalScore ?? 0).filter(v => v > 0)
+  const totals = localResults.map(r => r.totalScore ?? 0).filter(v => v > 0)
   const avgTotal = totals.length ? Math.round(totals.reduce((a, b) => a + b, 0) / totals.length) : null
 
   return (
@@ -136,7 +151,7 @@ export const MockTestScoreTable = ({ mockTest, results = [], students = [], onRe
         </thead>
         <tbody className="divide-y divide-navy-50">
           {students.map(student => {
-            const result = results.find(r => r.studentId === student.id)
+            const result = localResults.find(r => r.studentId === student.id)
             const scores = result?.scores ?? {}
             const total = result?.totalScore ?? 0
             const pct = maxTotal > 0 && total > 0 ? Math.round((total / maxTotal) * 100) : null

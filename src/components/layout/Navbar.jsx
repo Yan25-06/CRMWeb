@@ -4,6 +4,7 @@ import {
   Calendar, Users, Settings, Menu, X,
   GraduationCap, BarChart2, LogOut, Shield, UserRound,
 } from 'lucide-react'
+import logoWhite from '/logo-horizontal-white.png'
 import { useState } from 'react'
 import { toast } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
@@ -32,15 +33,10 @@ export const Navbar = ({ activePage, onNavigate, centerName, isAdmin }) => {
       {/* ─── Desktop sidebar ─── */}
       <aside className="hidden lg:flex flex-col w-1/5 shrink-0 bg-navy-900 h-screen sticky top-0 overflow-y-auto">
         {/* Logo */}
-        <div className="px-6 py-8">
-          <div className="flex items-center gap-2">
-            <div className="w-12 h-12 rounded-full bg-blue-500/15 flex items-center justify-center text-blue-400 shrink-0">
-              <GraduationCap size={20} strokeWidth={2} />
-            </div>
-            <span className="font-display text-white font-bold text-xl leading-[1.1] tracking-tight">
-              {centerName || 'Anh Ngữ Ms.Phương'}
-            </span>
-          </div>
+        <div className="px-8 py-5 border-b border-navy-800">
+          <button onClick={() => onNavigate('dashboard')} className="block w-full">
+            <img src={logoWhite} alt="Anh Ngữ Ms.Phương" className="w-auto h-15" />
+          </button>
         </div>
 
         {/* Nav items */}
@@ -109,14 +105,9 @@ export const Navbar = ({ activePage, onNavigate, centerName, isAdmin }) => {
 
       {/* ─── Mobile top bar ─── */}
       <header className="lg:hidden bg-navy-900 text-white px-4 py-3 flex items-center justify-between sticky top-0 z-30 shadow-navy">
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-full bg-blue-500/15 flex items-center justify-center text-blue-400 shrink-0">
-            <GraduationCap size={20} strokeWidth={2} />
-          </div>
-          <span className="font-display text-white font-bold text-base leading-[1.1] tracking-tight">
-            {centerName || 'Anh Ngữ Ms.Phương'}
-          </span>
-        </div>
+        <button onClick={() => onNavigate('dashboard')}>
+          <img src={logoWhite} alt="Anh Ngữ Ms.Phương" className="h-8 w-auto object-contain" />
+        </button>
         <button onClick={() => setMenuOpen(!menuOpen)} className="p-1.5 rounded-lg hover:bg-white/10 transition-colors">
           {menuOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
@@ -131,7 +122,9 @@ export const Navbar = ({ activePage, onNavigate, centerName, isAdmin }) => {
             onClick={e => e.stopPropagation()}
           >
             <div className="px-5 py-6 border-b border-navy-800 flex items-center justify-between">
-              <span className="text-white font-semibold">{centerName || 'Anh Ngữ Ms.Phương'}</span>
+              <button onClick={() => { onNavigate('dashboard'); setMenuOpen(false) }}>
+                <img src={logoWhite} alt="Anh Ngữ Ms.Phương" className="h-10 w-auto object-contain brightness-0 invert" />
+              </button>
               <button onClick={() => setMenuOpen(false)} className="text-navy-400 hover:text-white p-1">
                 <X size={18} />
               </button>

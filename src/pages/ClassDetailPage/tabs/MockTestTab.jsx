@@ -162,7 +162,20 @@ export const MockTestTab = ({ classId, className, skillConfig }) => {
   }
 
   const handleModalSaved = () => { setEditingTest(null); loadData() }
-  const handleResultChange = () => { loadData() }
+
+  const handleResultChange = useCallback((updated) => {
+    if (!updated) return
+    setResultsByTest(prev => {
+      const testId = updated.mockTestId
+      const existing = prev[testId] ?? []
+      return {
+        ...prev,
+        [testId]: existing.some(r => r.studentId === updated.studentId)
+          ? existing.map(r => r.studentId === updated.studentId ? updated : r)
+          : [...existing, updated],
+      }
+    })
+  }, [])
 
   const selectedStudent = students.find(s => s.id === selectedStudentId) ?? null
 
