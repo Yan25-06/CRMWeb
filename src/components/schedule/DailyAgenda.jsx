@@ -12,7 +12,7 @@ const DAY_NAMES = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ 
  * @param {Map}      studentCounts - Map<classId, count>
  * @param {Function} onAttendance  - callback(classId) navigate to attendance
  */
-export const DailyAgenda = ({ todayItems = [], classes = [], studentCounts = new Map(), onAttendance }) => {
+export const DailyAgenda = ({ todayItems = [], classes = [], studentCounts = new Map(), showTeacher = false, onAttendance }) => {
   const [collapsed, setCollapsed] = useState(false)
   const today = new Date()
   const todayLabel = `${DAY_NAMES[today.getDay()]}, ${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`
@@ -67,6 +67,9 @@ export const DailyAgenda = ({ todayItems = [], classes = [], studentCounts = new
                         <p className={clsx('text-sm font-semibold truncate', color.text)}>
                           {cls?.name ?? '—'}
                         </p>
+                        {showTeacher && cls?.teacherName && (
+                          <p className="text-xs text-navy-400 truncate">{cls.teacherName}</p>
+                        )}
                         <div className="flex items-center gap-3 mt-0.5">
                           <span className="flex items-center gap-1 text-xs text-navy-400">
                             <Clock size={11} />

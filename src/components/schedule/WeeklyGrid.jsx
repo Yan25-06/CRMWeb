@@ -13,7 +13,7 @@ const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]
  * @param {Function} onEdit     - callback(item) when a card is clicked
  * @param {Function} onAddDay   - callback(dayOfWeek) when "+" in column header clicked
  */
-export const WeeklyGrid = ({ scheduleItems = [], classes = [], studentCounts = new Map(), onEdit, onAddDay }) => {
+export const WeeklyGrid = ({ scheduleItems = [], classes = [], studentCounts = new Map(), showTeacher = false, onEdit, onAddDay }) => {
   const byDay = {}
   for (const day of DAY_ORDER) {
     byDay[day] = scheduleItems
@@ -62,6 +62,7 @@ export const WeeklyGrid = ({ scheduleItems = [], classes = [], studentCounts = n
                     item={item}
                     cls={getClass(item.classId)}
                     studentCount={studentCounts.get(item.classId)}
+                    showTeacher={showTeacher}
                     onEdit={onEdit}
                   />
                 ))
@@ -95,6 +96,7 @@ export const WeeklyGrid = ({ scheduleItems = [], classes = [], studentCounts = n
                     item={item}
                     cls={getClass(item.classId)}
                     studentCount={studentCounts.get(item.classId)}
+                    showTeacher={showTeacher}
                     onEdit={onEdit}
                   />
                 ))}

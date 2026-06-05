@@ -6,8 +6,9 @@ import { WeeklyGrid } from '@/components/schedule/WeeklyGrid'
 import { DailyAgenda } from '@/components/schedule/DailyAgenda'
 import { ScheduleModal } from '@/components/schedule/ScheduleModal'
 import { scheduleService } from '@/services/scheduleService'
-import { classService } from '@/services/classService'
+import { classService, teacherService } from '@/services/classService'
 import { enrollmentService } from '@/services/enrollmentService'
+import { useAuth } from '@/hooks/useAuth'
 
 // ─── Helpers ────────────────────────────────────────────────
 const getWeekStart = (date) => {
@@ -32,6 +33,9 @@ const formatWeekLabel = (weekStart) => {
 
 // ─── SchedulePage ────────────────────────────────────────────
 export const SchedulePage = ({ onNavigate }) => {
+  const { teacher } = useAuth()
+  const isAdmin = teacher?.is_admin === true
+
   // Week navigation state
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()))
 
@@ -44,43 +48,66 @@ export const SchedulePage = ({ onNavigate }) => {
   const [schedule, setSchedule] = useState([])
   const [classes, setClasses] = useState([])
   const [enrollments, setEnrollments] = useState([])
+  const [teachers, setTeachers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+
+  // Admin filter
+  const [selectedTeacherId, setSelectedTeacherId] = useState('')
 
   const loadData = useCallback(async () => {
     setLoading(true)
     setError(false)
     try {
-      const [scheduleItems, allClasses, allEnrollments] = await Promise.all([
+      const requests = [
         scheduleService.getAll(),
         classService.getAll(),
         enrollmentService.getAll(),
-      ])
+      ]
+      if (isAdmin) requests.push(teacherService.getAll())
+      const [scheduleItems, allClasses, allEnrollments, allTeachers] = await Promise.all(requests)
       setSchedule(scheduleItems)
       setClasses(allClasses)
       setEnrollments(allEnrollments)
+      if (allTeachers) setTeachers(allTeachers)
     } catch {
       setError(true)
     } finally {
       setLoading(false)
     }
-  }, [])
+  }, [isAdmin])
 
   useEffect(() => { loadData() }, [loadData])
+
+  // Admin filter: narrow classes and schedule by selected teacher
+  const visibleClasses = useMemo(() => {
+    if (!isAdmin || !selectedTeacherId) return classes
+    return classes.filter(c => c.teacherId === selectedTeacherId)
+  }, [classes, isAdmin, selectedTeacherId])
+
+  const visibleClassIds = useMemo(() => new Set(visibleClasses.map(c => c.id)), [visibleClasses])
+
+  const visibleSchedule = useMemo(() => {
+    if (!isAdmin || !selectedTeacherId) return schedule
+    return schedule.filter(s => visibleClassIds.has(s.classId))
+  }, [schedule, isAdmin, selectedTeacherId, visibleClassIds])
 
   // Build student count map (classId → active student count)
   const studentCounts = useMemo(() => {
     const map = new Map()
-    for (const cls of classes) {
+    for (const cls of visibleClasses) {
       const active = enrollments.filter(e => e.classId === cls.id && e.status === 'active').length
       map.set(cls.id, active)
     }
     return map
-  }, [classes, enrollments])
+  }, [visibleClasses, enrollments])
 
   // Today's items
   const todayDow = new Date().getDay()
-  const todayItems = schedule.filter(s => s.dayOfWeek === todayDow)
+  const todayItems = visibleSchedule.filter(s => s.dayOfWeek === todayDow)
+
+  // Whether to show teacher name on cards (admin viewing all teachers)
+  const showTeacher = isAdmin && !selectedTeacherId
 
   // Handlers
   const openAdd = useCallback((day) => {
@@ -154,35 +181,56 @@ export const SchedulePage = ({ onNavigate }) => {
         </Button>
       </div>
 
-      {/* ── Week navigation ──────────────────────────── */}
-      <div className="flex items-center gap-3 bg-white rounded-2xl border border-navy-100 shadow-navy-sm px-4 py-3">
+      {/* ── Week navigation + Teacher filter ─────────── */}
+      <div className="flex items-center gap-2 bg-white rounded-2xl border border-navy-100 shadow-navy-sm px-3 py-2">
+        {/* Week prev/next */}
         <button
           onClick={prevWeek}
-          className="p-1.5 rounded-lg text-navy-400 hover:text-navy-700 hover:bg-navy-50 transition-colors"
+          className="p-1 rounded-lg text-navy-400 hover:text-navy-700 hover:bg-navy-50 transition-colors shrink-0"
           title="Tuần trước"
         >
-          <ChevronLeft size={18} />
+          <ChevronLeft size={16} />
         </button>
 
-        <div className="flex-1 text-center">
-          <p className="text-sm font-semibold text-navy-800">{formatWeekLabel(weekStart)}</p>
+        <div className="text-center shrink-0">
+          <p className="text-xs font-semibold text-navy-800 whitespace-nowrap">{formatWeekLabel(weekStart)}</p>
         </div>
 
         <button
           onClick={nextWeek}
-          className="p-1.5 rounded-lg text-navy-400 hover:text-navy-700 hover:bg-navy-50 transition-colors"
+          className="p-1 rounded-lg text-navy-400 hover:text-navy-700 hover:bg-navy-50 transition-colors shrink-0"
           title="Tuần sau"
         >
-          <ChevronRight size={18} />
+          <ChevronRight size={16} />
         </button>
 
         {!isCurrentWeek && (
           <button
             onClick={goToday}
-            className="text-xs font-medium text-navy-600 hover:text-navy-900 bg-navy-50 hover:bg-navy-100 px-3 py-1.5 rounded-lg transition-colors"
+            className="text-xs font-medium text-navy-600 hover:text-navy-900 bg-navy-50 hover:bg-navy-100 px-2.5 py-1 rounded-lg transition-colors shrink-0"
           >
             Hôm nay
           </button>
+        )}
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Admin: Teacher filter dropdown */}
+        {isAdmin && teachers.length > 0 && (
+          <div className="flex items-center gap-2 shrink-0">
+            <span className="text-xs text-navy-400 hidden sm:block">Giáo viên:</span>
+            <select
+              value={selectedTeacherId}
+              onChange={e => setSelectedTeacherId(e.target.value)}
+              className="text-xs border border-navy-200 rounded-lg px-2.5 py-1.5 text-navy-700 bg-navy-50 hover:bg-navy-100 focus:outline-none focus:ring-2 focus:ring-navy-300 transition-colors cursor-pointer"
+            >
+              <option value="">Tất cả giáo viên</option>
+              {teachers.map(t => (
+                <option key={t.id} value={t.id}>{t.name || t.email}</option>
+              ))}
+            </select>
+          </div>
         )}
       </div>
 
@@ -215,12 +263,12 @@ export const SchedulePage = ({ onNavigate }) => {
                 }
               />
             </div>
-          ) : schedule.length === 0 ? (
+          ) : visibleSchedule.length === 0 ? (
             <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-12">
               <Empty
                 icon={<Calendar size={40} />}
-                title="Chưa có lịch dạy nào"
-                desc="Bấm '+ Xếp Lịch' để thêm ca dạy đầu tiên vào thời khóa biểu."
+                title={selectedTeacherId ? 'Giáo viên này chưa có lịch dạy' : 'Chưa có lịch dạy nào'}
+                desc={selectedTeacherId ? 'Thử chọn giáo viên khác hoặc bấm "+ Xếp Lịch".' : "Bấm '+ Xếp Lịch' để thêm ca dạy đầu tiên vào thời khóa biểu."}
                 action={
                   <Button variant="primary" size="sm" onClick={() => openAdd(null)} className="flex items-center gap-1.5">
                     <Plus size={14} />
@@ -232,9 +280,10 @@ export const SchedulePage = ({ onNavigate }) => {
           ) : (
             <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-4">
               <WeeklyGrid
-                scheduleItems={schedule}
-                classes={classes}
+                scheduleItems={visibleSchedule}
+                classes={visibleClasses}
                 studentCounts={studentCounts}
+                showTeacher={showTeacher}
                 onEdit={openEdit}
                 onAddDay={openAdd}
               />
@@ -246,8 +295,9 @@ export const SchedulePage = ({ onNavigate }) => {
         <div className="w-72 shrink-0 hidden md:block">
           <DailyAgenda
             todayItems={todayItems}
-            classes={classes}
+            classes={visibleClasses}
             studentCounts={studentCounts}
+            showTeacher={showTeacher}
             onAttendance={handleAttendance}
           />
         </div>
@@ -257,8 +307,9 @@ export const SchedulePage = ({ onNavigate }) => {
       <div className="md:hidden -mt-2">
         <DailyAgenda
           todayItems={todayItems}
-          classes={classes}
+          classes={visibleClasses}
           studentCounts={studentCounts}
+          showTeacher={showTeacher}
           onAttendance={handleAttendance}
         />
       </div>
@@ -274,6 +325,7 @@ export const SchedulePage = ({ onNavigate }) => {
         onSave={handleSave}
         onDelete={handleDelete}
       />
+
     </div>
   )
 }

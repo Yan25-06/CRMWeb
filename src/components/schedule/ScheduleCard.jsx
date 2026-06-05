@@ -13,7 +13,7 @@ export const getCourseColor = (courseType) =>
   COURSE_COLORS[courseType] ?? COURSE_COLORS['default']
 
 // ─── ScheduleCard ──────────────────────────────────────────
-export const ScheduleCard = ({ item, cls, studentCount, onEdit }) => {
+export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit }) => {
   const color = getCourseColor(cls?.courseType)
 
   return (
@@ -38,6 +38,13 @@ export const ScheduleCard = ({ item, cls, studentCount, onEdit }) => {
           <Edit2 size={11} className={color.text} />
         </button>
       </div>
+
+      {/* Teacher name — only shown in admin "all teachers" view */}
+      {showTeacher && cls?.teacherName && (
+        <div className={clsx('text-xs mb-1 truncate opacity-70', color.text)}>
+          {cls.teacherName}
+        </div>
+      )}
 
       {/* Time */}
       <div className={clsx('flex items-center gap-1 text-xs', color.text)}>
