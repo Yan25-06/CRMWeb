@@ -57,13 +57,19 @@ Services đã có: `studentService`, `classService` (+`teacherService`), `enroll
 ---
 
 ## Auth
-- `src/hooks/useAuth.jsx` — `AuthProvider` + `useAuth()`. Cung cấp `user`, `teacher` (profile từ bảng `teachers`), `loading`, `needsPassword`, `login`, `logout`, `completePasswordSetup(name)`.
+- `src/hooks/useAuth.jsx` — `AuthProvider` + `useAuth()`. Cung cấp `user`, `teacher` (profile từ bảng `teachers`), `loading`, `needsPassword`, `login`, `logout`, `completePasswordSetup(name)`, `updateTeacherName(name)`, `requestPasswordReset(email)`.
+- **Quên mật khẩu:** `LoginPage` có 2 chế độ (`login` ↔ `forgot`). Chế độ forgot gọi `requestPasswordReset(email)` → `supabase.auth.resetPasswordForEmail` với `redirectTo = origin + import.meta.env.BASE_URL`. Luôn hiện thông báo xác nhận chung (chống dò tài khoản). Mở link reset → cờ `type=recovery` → `SetPasswordPage` (tái dùng luồng invite).
 - **Lưu ý deadlock:** không `await` supabase trong callback `onAuthStateChange` (auth lock). Profile teacher nạp ở `useEffect` riêng theo `user.id`.
 - Flow invite/recovery: cờ bắt từ URL hash ngay khi module load (trước khi Supabase xóa hash) → `SetPasswordPage`.
 - `SetPasswordPage`: form có 3 ô — **Tên hiển thị** (bắt buộc), Mật khẩu mới, Xác nhận mật khẩu. Khi submit thành công gọi `onDone(name)` = `completePasswordSetup(name)`.
 - `completePasswordSetup(name)`: ghi `teachers.name` vào DB, refresh `teacher` state, tắt cờ `needsPassword`, dọn URL hash.
 - Hiển thị danh tính: `teacher?.name || user.email` — `Navbar` đã đúng pattern này. Giáo viên cũ chưa có tên sẽ fallback email.
-- `src/main.jsx` → `AuthGate`: loading spinner → SetPassword (nếu invite) → `LoginPage` (nếu chưa đăng nhập) → `App`.
+- `src/main.jsx` → `ErrorBoundary` bọc `AuthProvider` + `AuthGate`: loading spinner → SetPassword (nếu invite) → `LoginPage` (nếu chưa đăng nhập) → `App`.
+- **ErrorBoundary** (`src/components/ErrorBoundary.jsx`): class component (ngoại lệ hợp lệ với quy tắc "chỉ functional") bắt lỗi render toàn cục → màn hình khôi phục tiếng Việt + nút "Tải lại trang"; vẫn `console.error` stack để debug.
+
+## Triển khai production
+- Runbook bắt buộc trước go-live ở **`DEPLOYMENT.md`** (root, KHÔNG đặt trong `docs/` vì `docs/` là output build): bootstrap admin (`is_admin` set qua SQL Editor), cấu hình Auth Site/Redirect URL, tắt tự đăng ký, bật backup, kiểm thử tài khoản giáo viên thường. KHÔNG chạy seed mock lên production.
+- **Lazy-load export:** `xlsx`/`jspdf`/`html2canvas` dùng `await import()` trong handler (giảm bundle khởi động), bọc try/catch + `toast.error`. Áp dụng ở `ExportExcelButton`, `ExportPdfButton`, `mockTestExport.js`, `ClassOverviewTable`, `ImportStudentsModal`.
 
 ## Routing & Layout
 - **Không dùng react-router.** Routing là state `page` trong `App.jsx` (`useState` + `switch` trong `renderPage()`).

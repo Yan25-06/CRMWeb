@@ -1,8 +1,6 @@
 import { useRef, useState } from 'react'
-import html2canvas from 'html2canvas'
-import { jsPDF } from 'jspdf'
 import { X, Download, FileImage, Loader2 } from 'lucide-react'
-import { Button } from '@/components/ui'
+import { Button, toast } from '@/components/ui'
 import { buildTagSummary, POSITIVE_TAGS } from './QuickTagEditor'
 import { DEFAULT_SKILL_CONFIG } from '@/services/classService'
 
@@ -38,6 +36,7 @@ export const ReportCardModal = ({ open, onClose, student, cls, latestReview, set
     if (!cardRef.current || !hasReview) return
     setLoading(type)
     try {
+      const { default: html2canvas } = await import('html2canvas')
       const canvas = await html2canvas(cardRef.current, { scale: 2, useCORS: true, logging: false })
 
       const studentName = student?.name ?? 'hoc-vien'
@@ -50,6 +49,7 @@ export const ReportCardModal = ({ open, onClose, student, cls, latestReview, set
         link.href = canvas.toDataURL('image/png')
         link.click()
       } else {
+        const { jsPDF } = await import('jspdf')
         const imgData = canvas.toDataURL('image/png')
         const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
         const pageW = pdf.internal.pageSize.getWidth()
@@ -57,6 +57,9 @@ export const ReportCardModal = ({ open, onClose, student, cls, latestReview, set
         pdf.addImage(imgData, 'PNG', 0, 0, pageW, imgH)
         pdf.save(`${filename}.pdf`)
       }
+    } catch (e) {
+      console.error('Report card export failed:', e)
+      toast.error('Xuất phiếu nhận xét thất bại. Vui lòng thử lại.')
     } finally {
       setLoading(null)
     }

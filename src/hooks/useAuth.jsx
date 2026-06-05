@@ -53,6 +53,14 @@ export function AuthProvider({ children }) {
     if (error) throw error
   }
 
+  // Gửi email khôi phục mật khẩu. redirectTo trỏ về app để mở luồng recovery
+  // (useAuth bắt cờ type=recovery ngay khi module load → SetPasswordPage).
+  async function requestPasswordReset(email) {
+    const redirectTo = window.location.origin + import.meta.env.BASE_URL
+    const { error } = await supabase.auth.resetPasswordForEmail(email, { redirectTo })
+    if (error) throw error
+  }
+
   async function logout() {
     await supabase.auth.signOut()
     setUser(null)
@@ -83,7 +91,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, teacher, loading, needsPassword, login, logout, completePasswordSetup, updateTeacherName }}>
+    <AuthContext.Provider value={{ user, teacher, loading, needsPassword, login, logout, completePasswordSetup, updateTeacherName, requestPasswordReset }}>
       {children}
     </AuthContext.Provider>
   )

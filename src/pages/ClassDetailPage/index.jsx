@@ -43,6 +43,12 @@ export const ClassDetailPage = ({ classId, onBack, initialTab = 'students', isAd
     loadHeader()
   }, [classId])
 
+  // Fallback: lớp đã lưu (localStorage) không còn truy cập được (bị xóa / mất quyền)
+  // → tự quay về danh sách lớp để xóa id rác, không kẹt ở màn hình lỗi.
+  useEffect(() => {
+    if (!loading && !currentClass) onBack?.()
+  }, [loading, currentClass])
+
   if (loading) {
     return (
       <div className="flex flex-col gap-4 p-4">

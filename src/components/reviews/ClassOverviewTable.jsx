@@ -1,8 +1,7 @@
 import { useState, useEffect, useMemo } from 'react'
-import * as XLSX from 'xlsx'
 import { FileSpreadsheet, Users } from 'lucide-react'
 import { clsx } from 'clsx'
-import { Skeleton } from '@/components/ui'
+import { Skeleton, toast } from '@/components/ui'
 import { reviewService } from '@/services/reviewService'
 import { enrollmentService } from '@/services/enrollmentService'
 import { studentService } from '@/services/studentService'
@@ -125,8 +124,16 @@ export const ClassOverviewTable = ({ classId, cls, dateRange, mocksByStudent = n
     })
   }, [classId, activeStudents, allReviews, attData, hwRecords, dateRange.fromDate, dateRange.toDate, mocksByStudent])
 
-  const handleExportExcel = () => {
+  const handleExportExcel = async () => {
     if (!rows.length) return
+
+    let XLSX
+    try {
+      XLSX = await import('xlsx')
+    } catch {
+      toast.error('Không tải được thư viện xuất Excel. Vui lòng thử lại.')
+      return
+    }
 
     const fromVN = fmtDateVN(dateRange.fromDate)
     const toVN   = fmtDateVN(dateRange.toDate)

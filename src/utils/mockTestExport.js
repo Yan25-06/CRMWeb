@@ -1,4 +1,4 @@
-import * as XLSX from 'xlsx'
+import { toast } from '@/components/ui'
 
 const slugify = (str = '') =>
   str.toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]/g, '')
@@ -6,7 +6,14 @@ const slugify = (str = '') =>
 const fmtDate = (iso) =>
   iso ? new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' }) : '—'
 
-export const exportMockTestExcel = (mockTest, results = [], students = [], className = '') => {
+export const exportMockTestExcel = async (mockTest, results = [], students = [], className = '') => {
+  let XLSX
+  try {
+    XLSX = await import('xlsx')
+  } catch {
+    toast.error('Không tải được thư viện xuất Excel. Vui lòng thử lại.')
+    return
+  }
   const sections = mockTest.sections ?? []
   const maxTotal = sections.reduce((s, sec) => s + sec.maxScore, 0)
 

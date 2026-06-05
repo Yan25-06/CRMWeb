@@ -1,14 +1,15 @@
 import { useState } from 'react'
 import { FileSpreadsheet } from 'lucide-react'
-import * as XLSX from 'xlsx'
+import { toast } from '@/components/ui'
 
 export const ExportExcelButton = ({ rows, columns, filename, disabled }) => {
   const [loading, setLoading] = useState(false)
 
-  const handleClick = () => {
+  const handleClick = async () => {
     if (!rows?.length || disabled) return
     setLoading(true)
     try {
+      const XLSX = await import('xlsx')
       const header = columns.map(c => c.label)
       const data = rows.map(row => columns.map(c => row[c.key] ?? ''))
       const ws = XLSX.utils.aoa_to_sheet([header, ...data])
@@ -16,6 +17,9 @@ export const ExportExcelButton = ({ rows, columns, filename, disabled }) => {
       XLSX.utils.book_append_sheet(wb, ws, 'Dữ liệu')
       const date = new Date().toISOString().split('T')[0]
       XLSX.writeFile(wb, `${filename}-${date}.xlsx`)
+    } catch (e) {
+      console.error('Excel export failed:', e)
+      toast.error('Xuất Excel thất bại. Vui lòng thử lại.')
     } finally {
       setLoading(false)
     }

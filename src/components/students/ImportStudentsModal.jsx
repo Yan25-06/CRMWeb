@@ -1,5 +1,4 @@
 import { useState, useRef } from 'react'
-import * as XLSX from 'xlsx'
 import { Upload, FileSpreadsheet, Download, AlertCircle, CheckCircle } from 'lucide-react'
 import { clsx } from 'clsx'
 import { Modal, Button, Badge } from '@/components/ui'
@@ -29,7 +28,8 @@ function validateRow(row) {
   return { errors }
 }
 
-function generateTemplate() {
+async function generateTemplate() {
+  const XLSX = await import('xlsx')
   const ws = XLSX.utils.aoa_to_sheet([
     ['Tên', 'Khối', 'SĐT', 'Email'],
     ['Nguyễn Văn A', 'Lớp 9', '0901234567', 'a@example.com'],
@@ -79,8 +79,9 @@ export const ImportStudentsModal = ({ open, onClose, onImportDone, classes = [] 
     }
 
     const reader = new FileReader()
-    reader.onload = (evt) => {
+    reader.onload = async (evt) => {
       try {
+        const XLSX = await import('xlsx')
         const wb = XLSX.read(evt.target.result, { type: 'array' })
         const ws = wb.Sheets[wb.SheetNames[0]]
         const raw = XLSX.utils.sheet_to_json(ws, { defval: '' })

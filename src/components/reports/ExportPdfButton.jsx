@@ -1,7 +1,6 @@
 import { useState } from 'react'
 import { FileText } from 'lucide-react'
-import html2canvas from 'html2canvas'
-import jsPDF from 'jspdf'
+import { toast } from '@/components/ui'
 
 export const ExportPdfButton = ({ targetRef, filename, disabled }) => {
   const [loading, setLoading] = useState(false)
@@ -10,6 +9,10 @@ export const ExportPdfButton = ({ targetRef, filename, disabled }) => {
     if (!targetRef?.current || disabled) return
     setLoading(true)
     try {
+      const [{ default: html2canvas }, { default: jsPDF }] = await Promise.all([
+        import('html2canvas'),
+        import('jspdf'),
+      ])
       const canvas = await html2canvas(targetRef.current, { scale: 2, useCORS: true })
       const imgData = canvas.toDataURL('image/png')
       const pdf = new jsPDF({ orientation: 'landscape', unit: 'px', format: [canvas.width / 2, canvas.height / 2] })
@@ -18,6 +21,7 @@ export const ExportPdfButton = ({ targetRef, filename, disabled }) => {
       pdf.save(`${filename}-${date}.pdf`)
     } catch (e) {
       console.error('PDF export failed:', e)
+      toast.error('Xuất PDF thất bại. Vui lòng thử lại.')
     } finally {
       setLoading(false)
     }
