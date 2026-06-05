@@ -59,6 +59,16 @@ export function AuthProvider({ children }) {
     setTeacher(null)
   }
 
+  // Cập nhật tên hiển thị (teachers.name) từ trang Cài Đặt + refresh state teacher tại chỗ.
+  async function updateTeacherName(name) {
+    const uid = user?.id
+    if (!uid) throw new Error('Chưa đăng nhập')
+    const { error } = await supabase.from('teachers').update({ name }).eq('id', uid)
+    if (error) throw new Error(error.message)
+    const { data } = await supabase.from('teachers').select('*').eq('id', uid).single()
+    setTeacher(data ?? null)
+  }
+
   // Gọi sau khi đặt mật khẩu xong: lưu tên, tắt cờ invite + dọn hash khỏi URL.
   async function completePasswordSetup(name) {
     const uid = (await supabase.auth.getUser()).data?.user?.id
@@ -73,7 +83,7 @@ export function AuthProvider({ children }) {
   }
 
   return (
-    <AuthContext.Provider value={{ user, teacher, loading, needsPassword, login, logout, completePasswordSetup }}>
+    <AuthContext.Provider value={{ user, teacher, loading, needsPassword, login, logout, completePasswordSetup, updateTeacherName }}>
       {children}
     </AuthContext.Provider>
   )

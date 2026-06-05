@@ -2,21 +2,18 @@ import { supabase } from '@/lib/supabase'
 import { getUid } from './studentService'
 
 export const DEFAULT_SETTINGS = {
-  teacherName: '',
   centerName: 'Anh Ngữ Ms.Phương',
   defaultFeePerSession: 0,
   currency: 'đ',
 }
 
 const fromDB = (row) => row ? {
-  teacherName: row.teacher_name,
   centerName: row.center_name,
   defaultFeePerSession: row.default_fee_per_session,
   currency: row.currency,
 } : { ...DEFAULT_SETTINGS }
 
 const toDB = (data) => ({
-  teacher_name: data.teacherName ?? '',
   center_name: data.centerName ?? '',
   default_fee_per_session: data.defaultFeePerSession ?? 0,
   currency: data.currency ?? 'đ',
