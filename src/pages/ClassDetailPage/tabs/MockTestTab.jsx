@@ -39,7 +39,7 @@ const SidebarStudentItem = ({ student, latestResult, isActive, onClick }) => {
   )
 }
 
-const MockTestCard = ({ mockTest, results, students, className, onEdit, onDelete, onResultChange }) => {
+const MockTestCard = ({ mockTest, results, students, className, onEdit, onDelete, onResultChange, isAdmin }) => {
   const [expanded, setExpanded] = useState(false)
   const sections = mockTest.sections ?? []
   const maxTotal = sections.reduce((s, sec) => s + sec.maxScore, 0)
@@ -79,20 +79,24 @@ const MockTestCard = ({ mockTest, results, students, className, onEdit, onDelete
           >
             <FileSpreadsheet size={15} />
           </button>
-          <button
-            onClick={() => onEdit(mockTest)}
-            className="p-1.5 text-navy-400 hover:text-navy-700 hover:bg-navy-100 rounded-lg transition-colors"
-            title="Chỉnh sửa"
-          >
-            <Pencil size={15} />
-          </button>
-          <button
-            onClick={() => onDelete(mockTest)}
-            className="p-1.5 text-navy-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
-            title="Xóa"
-          >
-            <Trash2 size={15} />
-          </button>
+          {isAdmin && (
+            <>
+              <button
+                onClick={() => onEdit(mockTest)}
+                className="p-1.5 text-navy-400 hover:text-navy-700 hover:bg-navy-100 rounded-lg transition-colors"
+                title="Chỉnh sửa"
+              >
+                <Pencil size={15} />
+              </button>
+              <button
+                onClick={() => onDelete(mockTest)}
+                className="p-1.5 text-navy-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors"
+                title="Xóa"
+              >
+                <Trash2 size={15} />
+              </button>
+            </>
+          )}
         </div>
       </div>
 
@@ -110,7 +114,7 @@ const MockTestCard = ({ mockTest, results, students, className, onEdit, onDelete
   )
 }
 
-export const MockTestTab = ({ classId, className, skillConfig }) => {
+export const MockTestTab = ({ classId, className, skillConfig, isAdmin = false }) => {
   const [mockTests, setMockTests]       = useState([])
   const [resultsByTest, setResultsByTest] = useState({})
   const [students, setStudents]         = useState([])
@@ -270,27 +274,33 @@ export const MockTestTab = ({ classId, className, skillConfig }) => {
           <>
             <div className="flex items-center justify-between bg-white p-4 rounded-2xl border border-navy-100 shadow-navy-sm">
               <h2 className="text-base font-semibold text-navy-800">Mock Tests</h2>
-              <Button
-                variant="primary"
-                size="sm"
-                onClick={() => { setEditingTest(null); setModalOpen(true) }}
-              >
-                <Plus size={14} className="mr-1" />
-                Tạo Mock Test mới
-              </Button>
+              {isAdmin && (
+                <Button
+                  variant="primary"
+                  size="sm"
+                  onClick={() => { setEditingTest(null); setModalOpen(true) }}
+                >
+                  <Plus size={14} className="mr-1" />
+                  Tạo Mock Test mới
+                </Button>
+              )}
             </div>
 
             {mockTests.length === 0 ? (
               <Card className="p-16 flex flex-col items-center justify-center text-center gap-3">
                 <ClipboardList size={48} className="text-navy-200" />
                 <p className="font-semibold text-navy-700">Chưa có bài kiểm tra nào</p>
-                <p className="text-sm text-navy-400">Tạo mock test đầu tiên để bắt đầu nhập điểm</p>
-                <Button
-                  onClick={() => { setEditingTest(null); setModalOpen(true) }}
-                  className="mt-2"
-                >
-                  + Tạo Mock Test mới
-                </Button>
+                <p className="text-sm text-navy-400">
+                  {isAdmin ? 'Tạo mock test đầu tiên để bắt đầu nhập điểm' : 'Chưa có mock test nào cho lớp này'}
+                </p>
+                {isAdmin && (
+                  <Button
+                    onClick={() => { setEditingTest(null); setModalOpen(true) }}
+                    className="mt-2"
+                  >
+                    + Tạo Mock Test mới
+                  </Button>
+                )}
               </Card>
             ) : (
               <div className="flex flex-col gap-3">
@@ -304,6 +314,7 @@ export const MockTestTab = ({ classId, className, skillConfig }) => {
                     onEdit={handleEdit}
                     onDelete={handleDelete}
                     onResultChange={handleResultChange}
+                    isAdmin={isAdmin}
                   />
                 ))}
               </div>

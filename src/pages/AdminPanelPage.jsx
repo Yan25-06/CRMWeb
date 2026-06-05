@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
+import { usePermissions } from '@/hooks/usePermissions'
 import { teacherService, classService } from '@/services/classService'
 import { studentService } from '@/services/studentService'
 import { feeService } from '@/services/feeService'
@@ -10,6 +11,7 @@ import clsx from 'clsx'
 
 export function AdminPanelPage() {
   const { teacher } = useAuth()
+  const { canAccessAdmin } = usePermissions()
   const [teachers, setTeachers] = useState([])
   const [classes, setClasses] = useState([])
   const [loadingTeachers, setLoadingTeachers] = useState(true)
@@ -130,7 +132,7 @@ export function AdminPanelPage() {
     return acc
   }, {})
 
-  if (!teacher?.is_admin) {
+  if (!canAccessAdmin) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <div className="text-center">

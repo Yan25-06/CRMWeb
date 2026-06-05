@@ -16,7 +16,7 @@ const TABS = [
   { id: 'mocktest',    label: 'Mock Test',  disabled: false },
 ]
 
-export const ClassDetailPage = ({ classId, onBack, initialTab = 'students' }) => {
+export const ClassDetailPage = ({ classId, onBack, initialTab = 'students', isAdmin = false }) => {
   const [activeTab, setActiveTab] = useState(initialTab)
   const [currentClass, setCurrentClass] = useState(null)
   const [studentCount, setStudentCount] = useState(0)
@@ -141,7 +141,7 @@ export const ClassDetailPage = ({ classId, onBack, initialTab = 'students' }) =>
       {/* Tab content */}
       <div className="flex-1 pt-5">
         {activeTab === 'students' && (
-          <StudentsTab classId={classId} onEnrollmentChange={loadHeader} />
+          <StudentsTab classId={classId} isAdmin={isAdmin} onEnrollmentChange={loadHeader} />
         )}
         {activeTab === 'attendance' && (
           <AttendanceTab classId={classId} />
@@ -150,7 +150,7 @@ export const ClassDetailPage = ({ classId, onBack, initialTab = 'students' }) =>
           <HomeworkTab classId={classId} />
         )}
         {activeTab === 'mocktest' && (
-          <MockTestTab classId={classId} className={currentClass?.name ?? ''} skillConfig={currentClass?.skillConfig} />
+          <MockTestTab classId={classId} isAdmin={isAdmin} className={currentClass?.name ?? ''} skillConfig={currentClass?.skillConfig} />
         )}
       </div>
     </div>

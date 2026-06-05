@@ -8,6 +8,7 @@ import logoWhite from '/logo-horizontal-white.png'
 import { useState } from 'react'
 import { toast } from '@/components/ui'
 import { useAuth } from '@/hooks/useAuth'
+import { usePermissions } from '@/hooks/usePermissions'
 
 const NAV_ITEMS = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -19,9 +20,10 @@ const NAV_ITEMS = [
   { id: 'schedule', label: 'Lịch Dạy', icon: Calendar },
 ]
 
-export const Navbar = ({ activePage, onNavigate, centerName, isAdmin }) => {
+export const Navbar = ({ activePage, onNavigate, centerName }) => {
   const [menuOpen, setMenuOpen] = useState(false)
   const { user, teacher, logout } = useAuth()
+  const { isAdmin } = usePermissions()
 
   // "Học Phí" chỉ hiển thị với admin
   const navItems = NAV_ITEMS.filter(item => item.id !== 'fees' || isAdmin)

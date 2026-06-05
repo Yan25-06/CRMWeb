@@ -35,7 +35,7 @@ function calcStatus(enrollments) {
 }
 
 // ─── Student row ─────────────────────────────────────────────────────────────
-const StudentRow = ({ student, enrollments, classes, selected, onSelect, onClick, classMap }) => {
+const StudentRow = ({ student, enrollments, classes, selected, onSelect, onClick, classMap, isAdmin }) => {
   const status = calcStatus(enrollments)
   const badge = STATUS_BADGE[status]
   const activeEnrollments = enrollments.filter(e => e.status === 'active')
@@ -46,14 +46,16 @@ const StudentRow = ({ student, enrollments, classes, selected, onSelect, onClick
       className={clsx('border-b border-navy-50 hover:bg-navy-50/50 cursor-pointer transition-colors', selected && 'bg-navy-50')}
       onClick={onClick}
     >
-      <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-        <input
-          type="checkbox"
-          checked={selected}
-          onChange={onSelect}
-          className="rounded border-navy-300 text-navy-800 focus:ring-navy-500"
-        />
-      </td>
+      {isAdmin && (
+        <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+          <input
+            type="checkbox"
+            checked={selected}
+            onChange={onSelect}
+            className="rounded border-navy-300 text-navy-800 focus:ring-navy-500"
+          />
+        </td>
+      )}
       <td className="px-4 py-3">
         <div className="flex items-center gap-3">
           <div className="w-8 h-8 rounded-full bg-navy-100 text-navy-700 flex items-center justify-center text-xs font-semibold shrink-0">
@@ -186,7 +188,7 @@ const QuickEnrollModal = ({ open, onClose, student, classes, onSaved }) => {
 }
 
 // ─── Student detail sidebar ───────────────────────────────────────────────────
-const StudentDetailSidebar = ({ student, enrollments, classMap, onClose, onEdit, onEnroll, onNavigateToClass }) => {
+const StudentDetailSidebar = ({ student, enrollments, classMap, onClose, onEdit, onEnroll, onNavigateToClass, isAdmin }) => {
   const status = calcStatus(enrollments)
   const badge = STATUS_BADGE[status]
   const now = new Date()
@@ -272,18 +274,22 @@ const StudentDetailSidebar = ({ student, enrollments, classMap, onClose, onEdit,
       </div>
 
       {/* Actions */}
-      <div className="p-4 border-t border-navy-100 flex gap-2">
-        <Button variant="secondary" size="sm" onClick={onEdit} className="flex-1">Sửa</Button>
-        {enrollments.length === 0 && (
-          <Button variant="ghost" size="sm" onClick={onEnroll} className="flex-1">+ Ghi danh</Button>
-        )}
-      </div>
+      {(isAdmin || enrollments.length === 0) && (
+        <div className="p-4 border-t border-navy-100 flex gap-2">
+          {isAdmin && (
+            <Button variant="secondary" size="sm" onClick={onEdit} className="flex-1">Sửa</Button>
+          )}
+          {enrollments.length === 0 && (
+            <Button variant="ghost" size="sm" onClick={onEnroll} className="flex-1">+ Ghi danh</Button>
+          )}
+        </div>
+      )}
     </div>
   )
 }
 
 // ─── Main page ────────────────────────────────────────────────────────────────
-export const StudentsDirectoryPage = ({ onNavigateToClass }) => {
+export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) => {
   const [students, setStudents] = useState([])
   const [classes, setClasses] = useState([])
   const [enrollments, setEnrollments] = useState([])
@@ -544,23 +550,27 @@ export const StudentsDirectoryPage = ({ onNavigateToClass }) => {
 
         {/* Action row */}
         <div className="flex gap-2 flex-wrap items-center">
-          {/* Quick add */}
-          <input
-            value={quickAddName}
-            onChange={e => setQuickAddName(e.target.value)}
-            onKeyDown={handleQuickAdd}
-            placeholder="Thêm nhanh (Tên + Enter)"
-            disabled={quickAddLoading}
-            className="input py-2 text-sm flex-1 min-w-48"
-          />
-          <Button variant="primary" size="sm" onClick={() => setAddModalOpen(true)}>
-            <Plus size={14} className="mr-1" />
-            Thêm học sinh
-          </Button>
-          <Button variant="secondary" size="sm" onClick={() => setShowImportModal(true)}>
-            <Upload size={14} className="mr-1" />
-            Import Excel
-          </Button>
+          {/* Quick add — admin only */}
+          {isAdmin && (
+            <>
+              <input
+                value={quickAddName}
+                onChange={e => setQuickAddName(e.target.value)}
+                onKeyDown={handleQuickAdd}
+                placeholder="Thêm nhanh (Tên + Enter)"
+                disabled={quickAddLoading}
+                className="input py-2 text-sm flex-1 min-w-48"
+              />
+              <Button variant="primary" size="sm" onClick={() => setAddModalOpen(true)}>
+                <Plus size={14} className="mr-1" />
+                Thêm học sinh
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => setShowImportModal(true)}>
+                <Upload size={14} className="mr-1" />
+                Import Excel
+              </Button>
+            </>
+          )}
           <ExportExcelButton
             rows={filteredStudents.map(s => {
               const enrs = enrollmentsByStudent[s.id] || []
@@ -591,7 +601,7 @@ export const StudentsDirectoryPage = ({ onNavigateToClass }) => {
             filename="danh-ba-hoc-vien"
             disabled={filteredStudents.length === 0}
           />
-          {selectedIds.size > 0 && (
+          {isAdmin && selectedIds.size > 0 && (
             <Button variant="danger" size="sm" onClick={handleBulkDelete}>
               <Trash2 size={14} className="mr-1" />
               Xóa {selectedIds.size}
@@ -606,7 +616,7 @@ export const StudentsDirectoryPage = ({ onNavigateToClass }) => {
               icon={<UserRound size={40} />}
               title="Không có học sinh nào"
               desc={students.length === 0 ? 'Bắt đầu thêm học sinh vào danh bạ' : 'Thử thay đổi bộ lọc'}
-              action={students.length === 0 && (
+              action={isAdmin && students.length === 0 && (
                 <Button variant="primary" size="sm" onClick={() => setAddModalOpen(true)}>
                   <Plus size={14} className="mr-1" />
                   Thêm học sinh
@@ -620,14 +630,16 @@ export const StudentsDirectoryPage = ({ onNavigateToClass }) => {
               <table className="w-full text-left">
                 <thead className="bg-navy-50 border-b border-navy-100">
                   <tr>
-                    <th className="px-4 py-3 w-10">
-                      <input
-                        type="checkbox"
-                        checked={allSelected}
-                        onChange={toggleAll}
-                        className="rounded border-navy-300 text-navy-800 focus:ring-navy-500"
-                      />
-                    </th>
+                    {isAdmin && (
+                      <th className="px-4 py-3 w-10">
+                        <input
+                          type="checkbox"
+                          checked={allSelected}
+                          onChange={toggleAll}
+                          className="rounded border-navy-300 text-navy-800 focus:ring-navy-500"
+                        />
+                      </th>
+                    )}
                     <th className="px-4 py-3 text-xs font-semibold text-navy-600 uppercase tracking-wide">Học viên</th>
                     <th className="px-4 py-3 text-xs font-semibold text-navy-600 uppercase tracking-wide">Trạng thái</th>
                     <th className="px-4 py-3 text-xs font-semibold text-navy-600 uppercase tracking-wide">Lớp học</th>
@@ -643,6 +655,7 @@ export const StudentsDirectoryPage = ({ onNavigateToClass }) => {
                       student={student}
                       enrollments={enrollmentsByStudent[student.id] || []}
                       classMap={classMap}
+                      isAdmin={isAdmin}
                       selected={selectedIds.has(student.id)}
                       onSelect={() => toggleOne(student.id)}
                       onClick={() => setSelectedStudent(prev => prev?.id === student.id ? null : student)}
@@ -669,6 +682,7 @@ export const StudentsDirectoryPage = ({ onNavigateToClass }) => {
             onEdit={() => setEditModalOpen(true)}
             onEnroll={() => setShowEnrollModal(true)}
             onNavigateToClass={onNavigateToClass}
+            isAdmin={isAdmin}
           />
         </div>
       )}
@@ -679,6 +693,7 @@ export const StudentsDirectoryPage = ({ onNavigateToClass }) => {
         onClose={() => setAddModalOpen(false)}
         mode="add"
         onSaved={() => { setAddModalOpen(false); handleStudentSaved() }}
+        isAdmin={isAdmin}
       />
 
       {/* Edit student modal — StudentModal for editing profile (name, phone, grade, email) */}

@@ -8,7 +8,7 @@ import { EnrollmentModal } from '@/components/students/EnrollmentModal'
 import { studentService } from '@/services/studentService'
 import { enrollmentService } from '@/services/enrollmentService'
 
-export const StudentsTab = ({ classId, onEnrollmentChange }) => {
+export const StudentsTab = ({ classId, onEnrollmentChange, isAdmin = false }) => {
   const [loading, setLoading] = useState(true)
   const [students, setStudents] = useState([])
   const [enrollments, setEnrollments] = useState([])
@@ -76,8 +76,8 @@ export const StudentsTab = ({ classId, onEnrollmentChange }) => {
         <Card className="p-16 flex flex-col items-center justify-center text-center gap-3">
           <Users size={48} className="text-navy-200" />
           <p className="font-semibold text-navy-700">Lớp chưa có học viên nào</p>
-          <p className="text-sm text-navy-400">Bấm nút bên dưới để thêm học viên đầu tiên</p>
-          <Button onClick={handleAddStudent} className="mt-2">+ Thêm học viên</Button>
+          {isAdmin && <p className="text-sm text-navy-400">Bấm nút bên dưới để thêm học viên đầu tiên</p>}
+          {isAdmin && <Button onClick={handleAddStudent} className="mt-2">+ Thêm học viên</Button>}
         </Card>
         <EnrollmentModal
           open={modalOpen}
@@ -85,6 +85,7 @@ export const StudentsTab = ({ classId, onEnrollmentChange }) => {
           mode="add"
           classId={classId}
           onSaved={handleModalSaved}
+          isAdmin={isAdmin}
         />
       </>
     )
@@ -121,6 +122,7 @@ export const StudentsTab = ({ classId, onEnrollmentChange }) => {
             activeId={selectedStudentId}
             onSelect={handleSelectStudent}
             onAddStudent={handleAddStudent}
+            isAdmin={isAdmin}
           />
         </div>
 
@@ -131,6 +133,7 @@ export const StudentsTab = ({ classId, onEnrollmentChange }) => {
               enrollment={selectedEnrollment}
               onEdit={handleEditEnrollment}
               onStatusChange={loadData}
+              isAdmin={isAdmin}
             />
           ) : (
             <div className="flex items-center justify-center h-full text-navy-400">
@@ -154,6 +157,7 @@ export const StudentsTab = ({ classId, onEnrollmentChange }) => {
             activeId={selectedStudentId}
             onSelect={handleSelectStudent}
             onAddStudent={handleAddStudent}
+            isAdmin={isAdmin}
           />
         </div>
 
@@ -177,6 +181,7 @@ export const StudentsTab = ({ classId, onEnrollmentChange }) => {
               enrollment={selectedEnrollment}
               onEdit={handleEditEnrollment}
               onStatusChange={loadData}
+              isAdmin={isAdmin}
             />
           ) : null}
         </div>
@@ -191,6 +196,7 @@ export const StudentsTab = ({ classId, onEnrollmentChange }) => {
         enrollment={modalMode === 'edit' ? selectedEnrollment : undefined}
         student={modalMode === 'edit' ? selectedStudent : undefined}
         onSaved={handleModalSaved}
+        isAdmin={isAdmin}
       />
     </>
   )

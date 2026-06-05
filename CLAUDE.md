@@ -112,6 +112,11 @@ src/
 - Dùng component từ `@/components/ui`: `Button`, `Badge`, `Card`, `Input`, `Select`, `Modal`, `Toast`/`ToastContainer` (+ `StatCard`, `Empty` nếu có). Không tự tạo button/input mới trừ khi thật cần.
 - Navy tokens chính: navy-950 `#06142B`, navy-900 `#0F2044` (sidebar/header), navy-800 `#1B3A6B` (primary), navy-600 `#2E5FA3` (accent), navy-50 `#E8EEF7` (hover).
 
+### Phân quyền UI (BẮT BUỘC)
+- **Check quyền của người dùng hiện tại qua `usePermissions()`** (`src/hooks/usePermissions.js`) — **KHÔNG đọc `teacher.is_admin` trực tiếp trong component**. Hook là nguồn chân lý gating UI ở client, trả về cờ ngữ nghĩa theo năng lực: `isAdmin`, `canViewFees`, `canAccessAdmin`, `canManageCenterSettings`, `canManageStudents`, `canCreateMockTest`, `canManageClasses`, `canFilterByTeacher` (hiện tất cả = `isAdmin`, đổi rule chỉ sửa một dòng trong hook).
+- Đây chỉ là lớp UX — **RLS ở Postgres vẫn là nguồn chân lý bảo mật**, không thay thế.
+- **Ngoại lệ (KHÔNG dùng hook):** thao tác dữ liệu trên `is_admin` của *giáo viên khác* (vd `classService.setAdmin`, `AdminPanelPage` toggle `t.is_admin` trong danh sách) và prop ngữ cảnh `isAdmin` của component tái dùng (`ClassModal`, AdminPanel truyền `true` cứng) — đây là dữ liệu/ngữ cảnh, không phải quyền của caller.
+
 ### Data & format
 - Đọc/ghi data qua service layer — **không gọi `supabase.*` trực tiếp trong component** (trừ auth trong `useAuth.jsx`).
 - Tiền tệ: `new Intl.NumberFormat('vi-VN').format(n) + 'đ'`
@@ -137,6 +142,9 @@ Project quản lý thay đổi qua OpenSpec (`openspec/`). Có skill tích hợp
 ## Quyết định kiến trúc đã chốt (từ ROADMAP)
 - RLS enforce ở PostgreSQL, **không** filter quyền ở frontend.
 - **Admin toàn quyền ghi** (migration `20260604000001_admin_full_write_access.sql`): admin có INSERT/UPDATE/DELETE trên TẤT CẢ bảng nghiệp vụ (không giới hạn `teacher_id`) — admin cũng đứng lớp như giáo viên. Cách làm: thêm policy admin **độc lập** điều kiện `is_admin()` song song policy teacher (Postgres OR-combine permissive policy → policy teacher giữ nguyên). `classes` đã có policy admin write từ trước nên KHÔNG thêm lại. Rollback = drop riêng các policy `"<table>: admin insert/update/delete"`.
+- **Teacher read-only `students` + `mock_tests`** (migration `20260605000001_restrict_teacher_students_mocktests.sql`): giáo viên thường **mất** INSERT/UPDATE/DELETE trên bảng `students` và `mock_tests` (đề Mock Test), chỉ còn SELECT. Drop 3 policy `"students: teacher insert/update/delete"` + 3 policy `"mock_tests: teacher insert/update/delete"`; giữ policy SELECT của teacher và toàn bộ policy admin. `mock_test_results` (nhập điểm) và mọi bảng nghiệp vụ khác (điểm danh, bài tập, nhận xét, `enrollments`...) **không đổi** — teacher vẫn ghi được. Rollback = re-create 6 policy đã drop (nội dung gốc trong `20260602000001`).
+  - **UI khớp DB qua prop `isAdmin`**: `App.jsx` truyền `isAdmin={teacher?.is_admin}` xuống `StudentsDirectoryPage` và `ClassDetailPage` → `StudentsTab`/`MockTestTab` → con (`StudentSidebar`, `StudentDetailPanel`, `MockTestCard`, `EnrollmentModal`). Khi `!isAdmin`: ẩn mọi nút thêm/sửa/xóa học sinh (quick-add, "Thêm học sinh", Import Excel, bulk delete + checkbox chọn, nút Sửa ở sidebar/`StudentDetailPanel`) và nút tạo/sửa/xóa đề Mock Test; **giữ** nhập điểm, điểm danh, bài tập, đổi trạng thái/sửa enrollment.
+  - **Ghi danh (`EnrollmentModal`)**: khi `!isAdmin` ẩn toggle "Tạo học viên mới" → giáo viên chỉ gắn học sinh **đã tồn tại** vào lớp (admin phải tạo học sinh trước). Chế độ `edit` chỉ sửa field enrollment (status, học phí, mục tiêu, ghi chú), không đụng bảng `students`.
 - **Học phí ẩn với giáo viên ở tầng UI** (không ở DB): Navbar ẩn mục "Học Phí" và `App.jsx` chặn route `fees` khi `!is_admin`. Policy SELECT `fees`/`payments` của teacher vẫn còn → nếu cần chặn thật phải drop ở change sau.
 - `studentService.create()` và `classService.create()` chấp nhận `data.teacherId` tường minh (fallback `getUid()`) → admin gán học sinh/lớp cho giáo viên khác.
 - Invite giáo viên qua Supabase Dashboard; DB trigger tự tạo row `teachers` — không dùng Edge Function.

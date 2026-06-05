@@ -3,6 +3,7 @@ import { Pencil, Building2, User, Lock } from 'lucide-react'
 import { Card, Input, Button, toast, Skeleton } from '@/components/ui'
 import { settingsService } from '@/services/settingsService'
 import { useAuth } from '@/hooks/useAuth'
+import { usePermissions } from '@/hooks/usePermissions'
 import { supabase } from '@/lib/supabase'
 
 // ─── Section wrapper với pattern edit button ─────────────
@@ -33,7 +34,7 @@ const ReadField = ({ label, value }) => (
 
 export const SettingsPage = () => {
   const { user, teacher, updateTeacherName } = useAuth()
-  const isAdmin = !!teacher?.is_admin
+  const { canManageCenterSettings } = usePermissions()
 
   // ─── Section Tài khoản cá nhân ─────────────────────────
   const [editingName, setEditingName] = useState(false)
@@ -93,11 +94,11 @@ export const SettingsPage = () => {
   const [savingCenter, setSavingCenter]   = useState(false)
 
   useEffect(() => {
-    if (!isAdmin) { setLoadingCenter(false); return }
+    if (!canManageCenterSettings) { setLoadingCenter(false); return }
     settingsService.get()
       .then(s => { setCenterName(s.centerName || ''); setLoadingCenter(false) })
       .catch(() => setLoadingCenter(false))
-  }, [isAdmin])
+  }, [canManageCenterSettings])
 
   const startEditCenter = () => { setCenterInput(centerName); setEditingCenter(true) }
   const saveCenter = async () => {
@@ -199,7 +200,7 @@ export const SettingsPage = () => {
       </Section>
 
       {/* Thông tin trung tâm (admin) */}
-      {isAdmin && (
+      {canManageCenterSettings && (
         <Section
           icon={Building2}
           title="Thông Tin Trung Tâm"

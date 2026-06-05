@@ -8,7 +8,7 @@ import { ScheduleModal } from '@/components/schedule/ScheduleModal'
 import { scheduleService } from '@/services/scheduleService'
 import { classService, teacherService } from '@/services/classService'
 import { enrollmentService } from '@/services/enrollmentService'
-import { useAuth } from '@/hooks/useAuth'
+import { usePermissions } from '@/hooks/usePermissions'
 
 // ─── Helpers ────────────────────────────────────────────────
 const getWeekStart = (date) => {
@@ -33,8 +33,7 @@ const formatWeekLabel = (weekStart) => {
 
 // ─── SchedulePage ────────────────────────────────────────────
 export const SchedulePage = ({ onNavigate }) => {
-  const { teacher } = useAuth()
-  const isAdmin = teacher?.is_admin === true
+  const { canFilterByTeacher: isAdmin } = usePermissions()
 
   // Week navigation state
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()))

@@ -29,8 +29,24 @@ Hệ thống SHALL giới hạn giáo viên chỉ đọc/ghi được dữ liệ
 - **WHEN** giáo viên A cố đọc lớp hoặc học sinh thuộc giáo viên B
 - **THEN** hệ thống trả về rỗng, không lộ dữ liệu của B
 
-#### Scenario: Teacher ghi dữ liệu trong phạm vi của mình
-- **WHEN** giáo viên tạo/sửa/xóa học sinh, điểm danh, điểm số trong lớp được giao
+#### Scenario: Teacher đọc được học sinh và đề kiểm tra trong phạm vi của mình
+- **WHEN** giáo viên truy vấn danh sách học sinh hoặc đề Mock Test của lớp được giao
+- **THEN** hệ thống trả về đầy đủ dữ liệu để giáo viên xem
+
+#### Scenario: Teacher bị chặn ghi học sinh
+- **WHEN** giáo viên cố tạo, sửa hoặc xóa một bản ghi trong bảng `students`
+- **THEN** hệ thống từ chối thao tác ghi ở tầng DB
+
+#### Scenario: Teacher bị chặn ghi đề Mock Test
+- **WHEN** giáo viên cố tạo, sửa hoặc xóa một bản ghi trong bảng `mock_tests`
+- **THEN** hệ thống từ chối thao tác ghi ở tầng DB
+
+#### Scenario: Teacher vẫn nhập được điểm Mock Test
+- **WHEN** giáo viên tạo/sửa/xóa kết quả điểm trong bảng `mock_test_results` cho học sinh thuộc lớp được giao
+- **THEN** hệ thống cho phép thao tác ghi thành công
+
+#### Scenario: Teacher ghi dữ liệu nghiệp vụ khác trong phạm vi của mình
+- **WHEN** giáo viên tạo/sửa/xóa điểm danh, bài tập, nhận xét trong lớp được giao
 - **THEN** hệ thống cho phép thao tác ghi thành công
 
 #### Scenario: Teacher bị chặn ghi dữ liệu của người khác
@@ -59,6 +75,48 @@ Hệ thống SHALL cho admin đọc VÀ ghi (INSERT/UPDATE/DELETE) dữ liệu c
 #### Scenario: Quyền của teacher không đổi
 - **WHEN** một giáo viên thao tác đọc/ghi dữ liệu
 - **THEN** giáo viên vẫn chỉ truy cập được dữ liệu lớp được giao và học sinh của mình như trước, không bị mở rộng cũng không bị thu hẹp
+
+### Requirement: UI ẩn thao tác ghi học sinh và đề Mock Test với teacher
+Giao diện SHALL ẩn hoặc vô hiệu hóa mọi điều khiển tạo/sửa/xóa học sinh và tạo/sửa/xóa đề Mock Test khi người dùng hiện tại không phải admin (`is_admin = false`), khớp với giới hạn RLS ở tầng DB. Luồng ghi danh học sinh vào lớp SHALL KHÔNG cho giáo viên tạo học sinh mới — giáo viên chỉ gắn học sinh đã tồn tại vào lớp. Các thao tác giáo viên vẫn được phép (nhập điểm Mock Test, điểm danh, bài tập, đổi trạng thái/sửa enrollment) SHALL vẫn hiển thị bình thường.
+
+#### Scenario: Giáo viên không thấy nút thêm/sửa/xóa học sinh
+- **WHEN** một giáo viên (không phải admin) mở trang Danh bạ học viên hoặc tab Học Viên trong lớp
+- **THEN** giao diện không hiển thị nút thêm nhanh, "Thêm học sinh", "Import Excel", "Xóa hàng loạt", cũng như nút sửa/xóa thông tin học sinh
+
+#### Scenario: Giáo viên không tạo được học sinh mới khi ghi danh
+- **WHEN** một giáo viên ghi danh học sinh vào lớp
+- **THEN** giao diện chỉ cho chọn học sinh đã tồn tại, không cung cấp lối tạo học sinh mới
+
+#### Scenario: Giáo viên không thấy nút tạo/sửa/xóa đề Mock Test
+- **WHEN** một giáo viên mở tab Mock Test của lớp
+- **THEN** giao diện không hiển thị nút "Tạo Mock Test mới" và nút sửa/xóa đề, nhưng vẫn hiển thị chức năng nhập điểm
+
+#### Scenario: Admin thấy đầy đủ thao tác
+- **WHEN** một admin mở các trang trên
+- **THEN** giao diện hiển thị đầy đủ nút thêm/sửa/xóa học sinh và tạo/sửa/xóa đề Mock Test
+
+### Requirement: Nguồn chân lý phân quyền ở client tập trung
+Mọi quyết định ẩn/hiện hoặc cho phép thao tác theo quyền trên giao diện SHALL được suy ra từ một hook tập trung (`usePermissions`) dựa trên `teacher` của người dùng hiện tại, thay vì từng component tự đọc cờ `teachers.is_admin` trực tiếp. Hook SHALL trả về các cờ ngữ nghĩa theo từng năng lực (ví dụ "được xem học phí", "được vào trang admin", "được quản lý học sinh") để component không phải tự diễn dịch từ cờ kỹ thuật. Yêu cầu này SHALL KHÔNG thay thế hay nới lỏng việc enforce quyền thật ở tầng DB (RLS vẫn là nguồn chân lý bảo mật); nó chỉ đảm bảo nhất quán cho lớp UI.
+
+#### Scenario: Cờ phân quyền suy ra từ một nguồn
+- **WHEN** một component cần biết người dùng hiện tại có được thực hiện một thao tác có giới hạn quyền hay không
+- **THEN** component lấy cờ tương ứng từ hook phân quyền tập trung thay vì tự đọc `teacher.is_admin`
+
+#### Scenario: Nhất quán giữa các màn hình
+- **WHEN** cùng một năng lực bị giới hạn quyền được kiểm soát ở nhiều màn hình khác nhau
+- **THEN** tất cả màn hình phản ánh cùng một quyết định cho phép/không cho phép vì cùng đọc từ một nguồn
+
+#### Scenario: Người dùng không phải admin
+- **WHEN** một giáo viên thường (không phải admin) đăng nhập
+- **THEN** hook trả về các cờ quyền quản lý ở trạng thái không cho phép, và UI ẩn các thao tác tương ứng giống như hành vi trước khi refactor
+
+#### Scenario: Admin
+- **WHEN** một admin đăng nhập
+- **THEN** hook trả về các cờ quyền quản lý ở trạng thái cho phép, và UI hiển thị đầy đủ thao tác giống như hành vi trước khi refactor
+
+#### Scenario: Không đổi quyền thật ở tầng DB
+- **WHEN** việc gating ở UI được tập trung qua hook
+- **THEN** các RLS policy và quyền ghi/đọc thực tế ở DB không thay đổi
 
 ### Requirement: Admin tạo và giao lớp
 Hệ thống SHALL cho phép admin INSERT lớp và gán/đổi `teacher_id` của lớp. Teacher SHALL chỉ cập nhật nội dung lớp được giao và SHALL KHÔNG đổi `teacher_id` sang giáo viên khác.

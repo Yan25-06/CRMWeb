@@ -5,11 +5,10 @@ import { classService, teacherService } from '@/services/classService'
 import { enrollmentService } from '@/services/enrollmentService'
 import { ClassModal } from '@/components/classes/ClassModal'
 import { ClassCard } from '@/components/classes/ClassCard'
-import { useAuth } from '@/hooks/useAuth'
+import { usePermissions } from '@/hooks/usePermissions'
 
 export const ClassesOverviewPage = ({ onSelectClass }) => {
-  const { teacher } = useAuth()
-  const isAdmin = teacher?.is_admin === true
+  const { canManageClasses: isAdmin } = usePermissions()
 
   const [classes, setClasses] = useState([])
   const [enrollments, setEnrollments] = useState([])

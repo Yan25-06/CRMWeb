@@ -80,6 +80,7 @@ export const EnrollmentModal = ({
   enrollment,
   student,
   onSaved,
+  isAdmin = false,
 }) => {
   const [addSubMode, setAddSubMode] = useState('existing')
 
@@ -283,7 +284,7 @@ export const EnrollmentModal = ({
         {/* ── Body ── */}
         <div className="px-6 py-5 flex flex-col gap-4 max-h-[72vh] overflow-y-auto">
 
-          {mode === 'add' && classId && (
+          {mode === 'add' && classId && isAdmin && (
             <div className="flex gap-1 p-1 bg-navy-50 rounded-xl">
               <button
                 onClick={() => { setAddSubMode('existing'); setNewErrors({}) }}

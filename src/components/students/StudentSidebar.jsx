@@ -23,6 +23,7 @@ export const StudentSidebar = ({
   activeId,
   onSelect,
   onAddStudent,
+  isAdmin = false,
 }) => {
   const [search, setSearch] = useState('')
   const [debouncedSearch, setDebouncedSearch] = useState('')
@@ -69,14 +70,16 @@ export const StudentSidebar = ({
             <Users size={14} className="text-navy-500" />
             Danh sách học viên
           </span>
-          <button
-            id="add-student-btn"
-            onClick={onAddStudent}
-            className="flex items-center gap-1 px-2.5 py-1.5 bg-navy-800 text-white text-xs font-medium rounded-lg hover:bg-navy-700 transition-colors"
-          >
-            <Plus size={12} />
-            Thêm
-          </button>
+          {isAdmin && (
+            <button
+              id="add-student-btn"
+              onClick={onAddStudent}
+              className="flex items-center gap-1 px-2.5 py-1.5 bg-navy-800 text-white text-xs font-medium rounded-lg hover:bg-navy-700 transition-colors"
+            >
+              <Plus size={12} />
+              Thêm
+            </button>
+          )}
         </div>
 
         {/* Search */}

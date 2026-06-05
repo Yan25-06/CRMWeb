@@ -125,7 +125,7 @@ const QuickRemarkInput = ({ student, enrollment, onRefresh }) => {
 }
 
 // ─── Main Component ──────────────────────────────────────
-export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange }) => {
+export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange, isAdmin = false }) => {
   const [editingGoal, setEditingGoal] = useState(false)
   const [goalText, setGoalText] = useState(enrollment?.goal || '')
   const goalInputRef = useRef(null)
@@ -261,14 +261,16 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
                 <h2 className="text-xl font-display font-bold text-navy-900 leading-tight">{student.name}</h2>
                 <p className="text-sm text-navy-400 mt-0.5">{student.phone || 'Chưa có SĐT'}</p>
               </div>
-              <button
-                id="edit-enrollment-btn"
-                onClick={onEdit}
-                className="p-1.5 text-navy-400 hover:text-navy-700 hover:bg-navy-100 rounded-lg transition-colors shrink-0"
-                title="Sửa thông tin"
-              >
-                <Edit2 size={15} />
-              </button>
+              {isAdmin && (
+                <button
+                  id="edit-enrollment-btn"
+                  onClick={onEdit}
+                  className="p-1.5 text-navy-400 hover:text-navy-700 hover:bg-navy-100 rounded-lg transition-colors shrink-0"
+                  title="Sửa thông tin"
+                >
+                  <Edit2 size={15} />
+                </button>
+              )}
             </div>
 
             <div className="flex items-center gap-2 mt-2">

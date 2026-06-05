@@ -14,6 +14,7 @@ import { AdminPanelPage } from '@/pages/AdminPanelPage'
 import { StudentsDirectoryPage } from '@/pages/StudentsDirectoryPage'
 import { settingsService, DEFAULT_SETTINGS } from '@/services/settingsService'
 import { useAuth } from '@/hooks/useAuth'
+import { usePermissions } from '@/hooks/usePermissions'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { clsx } from 'clsx'
 
@@ -21,6 +22,7 @@ const MONTHS = ['Th.1','Th.2','Th.3','Th.4','Th.5','Th.6','Th.7','Th.8','Th.9','
 
 export default function App() {
   const { teacher } = useAuth()
+  const { canAccessAdmin, canViewFees } = usePermissions()
   const [page, setPage]   = useState('dashboard')
   const [year, setYear]   = useState(() => new Date().getFullYear())
   const [month, setMonth] = useState(() => new Date().getMonth() + 1)
@@ -55,7 +57,7 @@ export default function App() {
 
   // Guard admin-only routes (admin panel + học phí)
   const handleNavigate = (newPage) => {
-    if ((newPage === 'admin' || newPage === 'fees') && !teacher?.is_admin) {
+    if ((newPage === 'admin' && !canAccessAdmin) || (newPage === 'fees' && !canViewFees)) {
       setPage('dashboard')
       return
     }
@@ -66,7 +68,7 @@ export default function App() {
   const showPicker = pagesWithMonthPicker.includes(page)
 
   // If trying to view an admin-only page but not admin, show dashboard
-  const currentPage = (page === 'admin' || page === 'fees') && !teacher?.is_admin ? 'dashboard' : page
+  const currentPage = ((page === 'admin' && !canAccessAdmin) || (page === 'fees' && !canViewFees)) ? 'dashboard' : page
 
   const renderPage = () => {
     switch (currentPage) {
@@ -78,6 +80,7 @@ export default function App() {
       case 'admin':      return <AdminPanelPage />
       case 'students':   return (
         <StudentsDirectoryPage
+          isAdmin={teacher?.is_admin}
           onNavigateToClass={(classId) => {
             setSelectedClassId(classId)
             handleNavigate('classes')
@@ -88,6 +91,7 @@ export default function App() {
         if (selectedClassId) {
           return <ClassDetailPage
             classId={selectedClassId}
+            isAdmin={teacher?.is_admin}
             onBack={() => { setSelectedClassId(null); setClassInitialTab('students') }}
             initialTab={classInitialTab}
           />
@@ -107,7 +111,6 @@ export default function App() {
         activePage={currentPage}
         onNavigate={handleNavigate}
         centerName={settings.centerName}
-        isAdmin={teacher?.is_admin}
       />
 
       {/* Main content */}
