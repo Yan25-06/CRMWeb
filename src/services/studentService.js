@@ -15,12 +15,16 @@ const fromDB = (row) => row ? {
   createdAt: row.created_at,
 } : null
 
-const toDB = (data) => ({
-  name: data.name,
-  grade: data.grade ?? null,
-  phone: data.phone ?? null,
-  email: data.email ?? null,
-})
+const toDB = (data) => {
+  const obj = {
+    name: data.name,
+    grade: data.grade ?? null,
+    phone: data.phone ?? null,
+    email: data.email ?? null,
+  }
+  if (data.teacherId) obj.teacher_id = data.teacherId
+  return obj
+}
 
 export const studentService = {
   async getAll() {
@@ -43,7 +47,7 @@ export const studentService = {
   },
 
   async create(data) {
-    const teacher_id = await getUid()
+    const teacher_id = data.teacherId ?? await getUid()
     const { data: row, error } = await supabase
       .from('students')
       .insert({ ...toDB(data), teacher_id })

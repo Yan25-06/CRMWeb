@@ -23,6 +23,9 @@ export const Navbar = ({ activePage, onNavigate, centerName, isAdmin }) => {
   const [menuOpen, setMenuOpen] = useState(false)
   const { user, teacher, logout } = useAuth()
 
+  // "Học Phí" chỉ hiển thị với admin
+  const navItems = NAV_ITEMS.filter(item => item.id !== 'fees' || isAdmin)
+
   const handleLogout = async () => {
     await logout()
     toast.success('Đã đăng xuất!')
@@ -41,7 +44,7 @@ export const Navbar = ({ activePage, onNavigate, centerName, isAdmin }) => {
 
         {/* Nav items */}
         <nav className="flex-1 px-3 py-4 flex flex-col gap-1">
-          {NAV_ITEMS.map(({ id, label, icon: Icon }) => (
+          {navItems.map(({ id, label, icon: Icon }) => (
             <button
               key={id}
               onClick={() => onNavigate(id)}
@@ -130,7 +133,7 @@ export const Navbar = ({ activePage, onNavigate, centerName, isAdmin }) => {
               </button>
             </div>
             <nav className="flex-1 px-3 py-4 flex flex-col gap-1 overflow-y-auto">
-              {[...NAV_ITEMS, ...(isAdmin ? [{ id: 'admin', label: 'Admin', icon: Shield }] : []), { id: 'settings', label: 'Cài Đặt', icon: Settings }].map(({ id, label, icon: Icon }) => (
+              {[...navItems, ...(isAdmin ? [{ id: 'admin', label: 'Admin', icon: Shield }] : []), { id: 'settings', label: 'Cài Đặt', icon: Settings }].map(({ id, label, icon: Icon }) => (
                 <button
                   key={id}
                   onClick={() => { onNavigate(id); setMenuOpen(false) }}
@@ -157,7 +160,7 @@ export const Navbar = ({ activePage, onNavigate, centerName, isAdmin }) => {
 
       {/* Mobile bottom nav */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-30 bg-white border-t border-navy-100 flex">
-        {NAV_ITEMS.slice(0, 5).map(({ id, label, icon: Icon }) => (
+        {navItems.slice(0, 5).map(({ id, label, icon: Icon }) => (
           <button
             key={id}
             onClick={() => onNavigate(id)}

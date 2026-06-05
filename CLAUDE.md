@@ -71,7 +71,8 @@ Services đã có: `studentService`, `classService` (+`teacherService`), `enroll
 - `classes` có 2 chế độ: list (`ClassesOverviewPage`) ↔ detail (`ClassDetailPage`) qua `selectedClassId` (persist trong localStorage).
 - `ClassDetailPage` có các tab: Students, Attendance, Homework, MockTest. Prop `initialTab` (default `'students'`) cho phép mở thẳng tab Attendance từ Dashboard.
 - **Dashboard** (`DashboardPage`): prop `onAttendance(classId)` từ `App.jsx` → đặt `selectedClassId` + `classInitialTab='attendance'` + mở trang `classes`. Card "Lịch hôm nay" dùng `DailyAgenda`, stat card "Chưa đóng phí" thay thế "Năm học" — click → `FeesPage`.
-- **Admin Panel** (`AdminPanelPage`): route `/admin` (page `'admin'`), hiển thị danh sách giáo viên, form tạo/giao/đổi lớp, xem read-only dữ liệu các giáo viên. Guard với `teacher.is_admin` (redirect về dashboard nếu không phải admin). Link "Admin" chỉ hiện trong Navbar khi `is_admin = true`.
+- **Admin Panel** (`AdminPanelPage`): route `/admin` (page `'admin'`), dải 4 `StatCard` tổng quan (Tổng học viên, Lớp đang hoạt động, Số giáo viên, HS chưa đóng phí tháng hiện tại — số chưa đóng dùng cùng công thức `feeService.buildFeesRows` rồi đếm `paid < expected`) + danh sách giáo viên + form tạo/giao/đổi lớp. Guard với `teacher.is_admin` (redirect về dashboard nếu không phải admin). Link "Admin" chỉ hiện trong Navbar khi `is_admin = true`.
+- **Mục "Học Phí" chỉ admin**: Navbar lọc bỏ item `fees` khi `!isAdmin`; `App.jsx` `handleNavigate` + `currentPage` chặn route `fees` về `dashboard` nếu không phải admin (cùng cơ chế guard `admin`).
 - **Students Directory** (`StudentsDirectoryPage`): route `students`, danh bạ tổng tất cả học sinh, lọc theo trạng thái/lớp/loại khóa, tìm kiếm, thêm nhanh, import Excel, bulk delete, sidebar chi tiết, điều hướng đến lớp. Prop `onNavigateToClass(classId)` từ `App.jsx`.
 - **Reports** (`ReportsPage`): 4 card báo cáo — Điểm Danh, Mock Test, Học Phí, Bài Tập. Bộ chọn lớp **chung** ở đầu trang áp dụng cho mọi card; filter khoảng tháng / học viên giữ cục bộ trong từng card. MockTestCard hiển thị toàn bộ học sinh (không giới hạn 5), legend ẩn/hiện series. Card Bài Tập dùng `homeworkService.getByClass` + `sessionService.getByClass`, vẽ grouped bar "Tổng giao / Hoàn thành" theo tháng. Card Điểm Danh và Học Phí hỗ trợ drill-down: click cột tháng → Modal bảng chi tiết buổi/học viên (Điểm Danh) hoặc danh sách thanh toán (Học Phí). Mọi card có `ExportButtons` (Excel + PDF).
 - Month/year picker ở top bar chỉ hiện cho trang `dashboard` và `fees`.
@@ -87,7 +88,7 @@ src/
 ├── pages/
 │   ├── DashboardPage / FeesPage / ReportsPage / ReviewsPage / SchedulePage / SettingsPage
 │   ├── LoginPage / SetPasswordPage / PlaceholderPages
-│   ├── AdminPanelPage.jsx  ← Admin Panel (tạo/giao lớp, xem read-only data)
+│   ├── AdminPanelPage.jsx  ← Admin Panel (stat cards + tạo/giao lớp; admin toàn quyền ghi)
 │   ├── StudentsDirectoryPage.jsx  ← Danh bạ học viên tổng (lọc, tìm, import Excel)
 │   └── ClassDetailPage/ (index.jsx + tabs/)
 ├── services/   ← Supabase service layer (toàn bộ data)
@@ -134,7 +135,9 @@ Project quản lý thay đổi qua OpenSpec (`openspec/`). Có skill tích hợp
 
 ## Quyết định kiến trúc đã chốt (từ ROADMAP)
 - RLS enforce ở PostgreSQL, **không** filter quyền ở frontend.
-- Admin read-only = không cấp policy ghi cho admin ở DB.
+- **Admin toàn quyền ghi** (migration `20260604000001_admin_full_write_access.sql`): admin có INSERT/UPDATE/DELETE trên TẤT CẢ bảng nghiệp vụ (không giới hạn `teacher_id`) — admin cũng đứng lớp như giáo viên. Cách làm: thêm policy admin **độc lập** điều kiện `is_admin()` song song policy teacher (Postgres OR-combine permissive policy → policy teacher giữ nguyên). `classes` đã có policy admin write từ trước nên KHÔNG thêm lại. Rollback = drop riêng các policy `"<table>: admin insert/update/delete"`.
+- **Học phí ẩn với giáo viên ở tầng UI** (không ở DB): Navbar ẩn mục "Học Phí" và `App.jsx` chặn route `fees` khi `!is_admin`. Policy SELECT `fees`/`payments` của teacher vẫn còn → nếu cần chặn thật phải drop ở change sau.
+- `studentService.create()` và `classService.create()` chấp nhận `data.teacherId` tường minh (fallback `getUid()`) → admin gán học sinh/lớp cho giáo viên khác.
 - Invite giáo viên qua Supabase Dashboard; DB trigger tự tạo row `teachers` — không dùng Edge Function.
 - Optimistic UI + retry (không offline-first thật).
 

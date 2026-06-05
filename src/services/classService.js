@@ -46,7 +46,7 @@ export const teacherService = {
   async getAll() {
     const { data, error } = await supabase
       .from('teachers')
-      .select('id, name, email')
+      .select('id, name, email, is_admin')
       .order('name')
     if (error) throw new Error(error.message)
     return data
@@ -56,6 +56,14 @@ export const teacherService = {
     const { error } = await supabase
       .from('teachers')
       .update({ name })
+      .eq('id', id)
+    if (error) throw new Error(error.message)
+  },
+
+  async setAdmin(id, isAdmin) {
+    const { error } = await supabase
+      .from('teachers')
+      .update({ is_admin: isAdmin })
       .eq('id', id)
     if (error) throw new Error(error.message)
   },

@@ -53,9 +53,9 @@ export default function App() {
     else setMonth(m => m + 1)
   }
 
-  // Guard admin route
+  // Guard admin-only routes (admin panel + học phí)
   const handleNavigate = (newPage) => {
-    if (newPage === 'admin' && !teacher?.is_admin) {
+    if ((newPage === 'admin' || newPage === 'fees') && !teacher?.is_admin) {
       setPage('dashboard')
       return
     }
@@ -65,8 +65,8 @@ export default function App() {
   const pagesWithMonthPicker = ['dashboard', 'fees']
   const showPicker = pagesWithMonthPicker.includes(page)
 
-  // If trying to view admin page but not admin, show dashboard
-  const currentPage = page === 'admin' && !teacher?.is_admin ? 'dashboard' : page
+  // If trying to view an admin-only page but not admin, show dashboard
+  const currentPage = (page === 'admin' || page === 'fees') && !teacher?.is_admin ? 'dashboard' : page
 
   const renderPage = () => {
     switch (currentPage) {
