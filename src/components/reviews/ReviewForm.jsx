@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { X } from 'lucide-react'
 import { Modal, Button, Input } from '@/components/ui'
 import { QuickTagEditor } from './QuickTagEditor'
 import { DEFAULT_SKILL_CONFIG } from '@/services/classService'
@@ -26,11 +27,12 @@ const clampScore = (val, maxScore) => {
  * @param {Array}    skillConfig   - [{ name, maxScore, order }]
  * @param {Function} onSave - callback(reviewData)
  */
-export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, teacherName, skillConfig, onSave }) => {
+export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, teacherName, skillConfig, latestMockEntry, onSave }) => {
   const skills = skillConfig ?? DEFAULT_SKILL_CONFIG
   const isEdit = !!editingReview
-  const [form, setForm]     = useState(EMPTY_FORM)
-  const [errors, setErrors] = useState({})
+  const [form, setForm]               = useState(EMPTY_FORM)
+  const [errors, setErrors]           = useState({})
+  const [prefillSource, setPrefillSource] = useState(null)
 
   useEffect(() => {
     if (open) {
@@ -42,8 +44,19 @@ export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, t
           advice: editingReview.advice ?? '',
           remark: editingReview.remark ?? '',
         })
+        setPrefillSource(null)
+      } else if (latestMockEntry) {
+        const { result, mockTest } = latestMockEntry
+        const prefillScores = {}
+        skills.forEach(skill => {
+          const val = result.scores?.[skill.name]
+          if (val != null) prefillScores[skill.name] = val
+        })
+        setForm({ ...EMPTY_FORM, scores: prefillScores, remark: result.teacherNote ?? '' })
+        setPrefillSource({ title: mockTest.title, date: mockTest.date })
       } else {
         setForm(EMPTY_FORM)
+        setPrefillSource(null)
       }
       setErrors({})
     }
@@ -131,6 +144,22 @@ export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, t
       }
     >
       <div className="flex flex-col gap-3.5">
+        {prefillSource && (
+          <div className="flex items-center gap-2 bg-navy-50 border border-navy-200 rounded-xl px-3 py-2">
+            <span className="text-xs text-navy-600 font-medium flex-1">
+              Điền từ {prefillSource.title}
+            </span>
+            <button
+              type="button"
+              onClick={() => { setForm(EMPTY_FORM); setPrefillSource(null) }}
+              className="p-0.5 text-navy-400 hover:text-navy-700 rounded transition-colors"
+              aria-label="Xóa dữ liệu đã điền sẵn"
+            >
+              <X size={14} />
+            </button>
+          </div>
+        )}
+
         {/* Date */}
         <Input
           label="Ngày đánh giá"
@@ -159,7 +188,7 @@ export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, t
           <label className="text-sm font-medium text-navy-700">Nhận Xét Thêm</label>
           <textarea
             className="input resize-none"
-            rows={1}
+            rows={3}
             placeholder="Ghi chú thêm về buổi học..."
             value={form.remark}
             onChange={e => setForm(f => ({ ...f, remark: e.target.value }))}
@@ -171,7 +200,7 @@ export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, t
           <label className="text-sm font-medium text-navy-700">Lời Khuyên Cá Nhân</label>
           <textarea
             className="input resize-none"
-            rows={1}
+            rows={3}
             placeholder="Lời khuyên cho học viên và phụ huynh..."
             value={form.advice}
             onChange={e => setForm(f => ({ ...f, advice: e.target.value }))}

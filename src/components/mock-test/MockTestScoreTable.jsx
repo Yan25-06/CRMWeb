@@ -131,10 +131,10 @@ export const MockTestScoreTable = ({ mockTest, results = [], students = [], onRe
 
   return (
     <div className="overflow-x-auto">
-      <table className="w-full text-sm text-left whitespace-nowrap">
+      <table className="w-full text-sm text-left whitespace-nowrap table-fixed">
         <thead>
           <tr className="bg-navy-50/60 border-b border-navy-100">
-            <th className="px-4 py-3 font-semibold text-navy-800 min-w-[160px]">Học viên</th>
+            <th className="px-4 py-3 font-semibold text-navy-800 w-[250px]">Học viên</th>
             {sections.map(s => (
               <th key={s.name} className="px-1.5 py-3 font-semibold text-navy-700 text-center w-16">
                 <div className="text-xs">{s.name}</div>
@@ -144,9 +144,9 @@ export const MockTestScoreTable = ({ mockTest, results = [], students = [], onRe
             {orphanArr.map(sid => (
               <th key={sid} className="px-1.5 py-3 font-medium text-navy-300 text-center w-16 text-xs">(Đã xóa)</th>
             ))}
-            <th className="px-3 py-3 font-semibold text-navy-800 text-center">Tổng</th>
-            <th className="px-3 py-3 font-semibold text-navy-800 text-center w-14">%</th>
-            <th className="px-4 py-3 font-semibold text-navy-800 min-w-[180px]">Nhận xét GV</th>
+            <th className="px-3 py-3 font-semibold text-navy-800 text-center w-20">Tổng</th>
+            <th className="px-3 py-3 font-semibold text-navy-800 text-center w-12">%</th>
+            <th className="px-4 py-3 font-semibold text-navy-800">Nhận xét GV</th>
           </tr>
         </thead>
         <tbody className="divide-y divide-navy-50">
@@ -163,7 +163,7 @@ export const MockTestScoreTable = ({ mockTest, results = [], students = [], onRe
                     <div className="w-9 h-9 rounded-full bg-navy-800 text-white text-xs font-bold flex items-center justify-center shrink-0">
                       {getInitials(student.name)}
                     </div>
-                    <span className="font-medium text-navy-900">{student.name}</span>
+                    <span className="font-medium text-navy-900 truncate">{student.name}</span>
                   </div>
                 </td>
                 {sections.map(sec => (
@@ -187,7 +187,7 @@ export const MockTestScoreTable = ({ mockTest, results = [], students = [], onRe
                 </td>
                 <td className="px-4 py-2">
                   <textarea
-                    rows={2}
+                    rows={3}
                     placeholder="Nhận xét..."
                     value={notes[student.id] ?? ''}
                     onChange={e => handleNoteChange(student.id, e.target.value)}

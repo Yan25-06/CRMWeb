@@ -150,10 +150,10 @@ export const ClassDetailPage = ({ classId, onBack, initialTab = 'students', isAd
           <StudentsTab classId={classId} isAdmin={isAdmin} onEnrollmentChange={loadHeader} />
         )}
         {activeTab === 'attendance' && (
-          <AttendanceTab classId={classId} />
+          <AttendanceTab classId={classId} scheduleTime={currentClass?.scheduleTime} />
         )}
         {activeTab === 'assignments' && (
-          <HomeworkTab classId={classId} />
+          <HomeworkTab classId={classId} scheduleTime={currentClass?.scheduleTime} />
         )}
         {activeTab === 'mocktest' && (
           <MockTestTab classId={classId} isAdmin={isAdmin} className={currentClass?.name ?? ''} skillConfig={currentClass?.skillConfig} />

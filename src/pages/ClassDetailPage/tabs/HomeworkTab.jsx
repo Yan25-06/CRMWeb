@@ -20,7 +20,7 @@ import { getInitials, fmtDate } from '@/utils/helpers'
 
 const MODE = { SESSION: 'session', ASSIGN: 'assign' }
 
-export const HomeworkTab = ({ classId }) => {
+export const HomeworkTab = ({ classId, scheduleTime }) => {
   const [mode, setMode] = useState(MODE.SESSION)
   const [sessions, setSessions] = useState([])
   const [activeSessionId, setActiveSessionId] = useState('')
@@ -327,6 +327,7 @@ export const HomeworkTab = ({ classId }) => {
             open={sessionModalOpen}
             onClose={() => setSessionModalOpen(false)}
             classId={classId}
+            scheduleTime={scheduleTime}
             onSaved={handleSessionSaved}
           />
 

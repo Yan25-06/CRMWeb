@@ -3,8 +3,15 @@ import { X } from 'lucide-react'
 import { Button, Input, toast } from '@/components/ui'
 import { sessionService } from '@/services/sessionService'
 
+const parseScheduleTime = (scheduleTime) => {
+  if (!scheduleTime) return { start: '08:00', end: '09:30' }
+  const m = scheduleTime.match(/^(\d{1,2}:\d{2})\s*-\s*(\d{1,2}:\d{2})$/)
+  if (!m) return { start: '08:00', end: '09:30' }
+  return { start: m[1].padStart(5, '0'), end: m[2].padStart(5, '0') }
+}
+
 // session prop = null → create mode | session object → edit mode
-export const SessionModal = ({ open, onClose, classId, session = null, onSaved }) => {
+export const SessionModal = ({ open, onClose, classId, session = null, scheduleTime, onSaved }) => {
   const isEdit = !!session
 
   const [date, setDate] = useState('')
@@ -24,9 +31,10 @@ export const SessionModal = ({ open, onClose, classId, session = null, onSaved }
       setTopic(session.topic || '')
       setNote(session.note || '')
     } else {
+      const { start, end } = parseScheduleTime(scheduleTime)
       setDate(new Date().toISOString().split('T')[0])
-      setStartTime('08:00')
-      setEndTime('09:30')
+      setStartTime(start)
+      setEndTime(end)
       setTopic('')
       setNote('')
     }

@@ -453,6 +453,7 @@ export const ReviewsPage = ({ settings = {} }) => {
         classId={selectedClassId}
         teacherName={settings?.teacherName}
         skillConfig={selectedClass?.skillConfig}
+        latestMockEntry={mocksByStudent.get(selectedStudentId)?.[0] ?? null}
         onSave={handleSaveReview}
       />
 

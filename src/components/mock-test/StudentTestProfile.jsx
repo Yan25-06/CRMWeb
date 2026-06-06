@@ -112,7 +112,7 @@ const TestCard = ({ mockTest, result, onNoteChange, extraAction }) => {
           <div className="flex flex-col gap-1">
             <label className="text-xs font-medium text-navy-500 uppercase tracking-wide">Nhận xét GV</label>
             <textarea
-              rows={2}
+              rows={3}
               placeholder="Nhận xét cho học viên này..."
               value={note}
               onChange={e => handleNote(e.target.value)}

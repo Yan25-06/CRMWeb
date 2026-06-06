@@ -25,7 +25,7 @@ const patchCell = (records, sessionId, studentId, patch) => {
   return [...records, { sessionId, studentId, present: true, note: '', ...patch }]
 }
 
-export const AttendanceTab = ({ classId }) => {
+export const AttendanceTab = ({ classId, scheduleTime }) => {
   const [sessions, setSessions] = useState([])
   const [activeSessionId, setActiveSessionId] = useState('')
   const [students, setStudents] = useState([])
@@ -327,6 +327,7 @@ export const AttendanceTab = ({ classId }) => {
         open={sessionModalOpen}
         onClose={() => setSessionModalOpen(false)}
         classId={classId}
+        scheduleTime={scheduleTime}
         onSaved={handleSessionSaved}
       />
 

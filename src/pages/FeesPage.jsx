@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { clsx } from 'clsx'
-import { StatCard, Button, Empty, Skeleton } from '@/components/ui'
+import { StatCard, Button, Empty, Skeleton, Select } from '@/components/ui'
 import { toast } from '@/components/ui'
 import { Banknote, Users, AlertCircle, Plus } from 'lucide-react'
 import { PaymentModal } from '@/components/fees/PaymentModal'
@@ -47,6 +47,7 @@ export const FeesPage = ({ year, month }) => {
   const [modalOpen, setModalOpen] = useState(false)
   const [defaultStudentId, setDefaultStudentId] = useState(null)
   const [payStatusFilter, setPayStatusFilter] = useState('all')
+  const [classFilter, setClassFilter] = useState('all')
   const refresh = useCallback(async () => {
     setLoading(true)
     try {
@@ -76,22 +77,28 @@ export const FeesPage = ({ year, month }) => {
     setModalOpen(true)
   }
 
-  const totalExpected = rows.reduce((s, r) => s + r.expected, 0)
-  const totalPaid = rows.reduce((s, r) => s + r.paid, 0)
-  const paidCount = rows.filter(r => r.paid >= r.expected && r.expected > 0).length
-  const debtCount = rows.filter(r => r.paid < r.expected).length
-  const totalDebt = rows.reduce((s, r) => s + Math.max(0, r.expected - r.paid), 0)
+  const uniqueClassNames = [...new Set(rows.map(r => r.className).filter(Boolean))].sort()
+
+  const classFilteredRows = classFilter === 'all'
+    ? rows
+    : rows.filter(r => r.className === classFilter)
+
+  const totalExpected = classFilteredRows.reduce((s, r) => s + r.expected, 0)
+  const totalPaid = classFilteredRows.reduce((s, r) => s + r.paid, 0)
+  const paidCount = classFilteredRows.filter(r => r.paid >= r.expected && r.expected > 0).length
+  const debtCount = classFilteredRows.filter(r => r.paid < r.expected).length
+  const totalDebt = classFilteredRows.reduce((s, r) => s + Math.max(0, r.expected - r.paid), 0)
 
   const tabCounts = {
-    all:     rows.length,
-    debt:    rows.filter(r => getPaymentStatus(r.paid, r.expected) === 'debt').length,
-    paid:    rows.filter(r => getPaymentStatus(r.paid, r.expected) === 'paid').length,
-    partial: rows.filter(r => getPaymentStatus(r.paid, r.expected) === 'partial').length,
+    all:     classFilteredRows.length,
+    debt:    classFilteredRows.filter(r => getPaymentStatus(r.paid, r.expected) === 'debt').length,
+    paid:    classFilteredRows.filter(r => getPaymentStatus(r.paid, r.expected) === 'paid').length,
+    partial: classFilteredRows.filter(r => getPaymentStatus(r.paid, r.expected) === 'partial').length,
   }
 
   const filteredRows = payStatusFilter === 'all'
-    ? rows
-    : rows.filter(r => getPaymentStatus(r.paid, r.expected) === payStatusFilter)
+    ? classFilteredRows
+    : classFilteredRows.filter(r => getPaymentStatus(r.paid, r.expected) === payStatusFilter)
 
   const exportRows = filteredRows.map(r => ({
     ...r,
@@ -161,9 +168,22 @@ export const FeesPage = ({ year, month }) => {
         )}
       </div>
 
-      {/* Payment status filter tabs */}
+      {/* Filters: class + payment status */}
       {!loading && rows.length > 0 && (
-        <div className="flex gap-1 flex-wrap">
+        <div className="flex flex-wrap items-center gap-3">
+          {uniqueClassNames.length > 0 && (
+            <Select
+              value={classFilter}
+              onChange={e => setClassFilter(e.target.value)}
+              className="text-sm w-auto"
+            >
+              <option value="all">Tất cả lớp</option>
+              {uniqueClassNames.map(name => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </Select>
+          )}
+          <div className="flex gap-1 flex-wrap">
           {PAYMENT_TABS.map(tab => (
             <button
               key={tab.id}
@@ -184,6 +204,7 @@ export const FeesPage = ({ year, month }) => {
               </span>
             </button>
           ))}
+          </div>
         </div>
       )}
 
