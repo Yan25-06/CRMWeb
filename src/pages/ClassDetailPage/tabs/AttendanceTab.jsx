@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { Trash2, FileText, Pencil } from 'lucide-react'
-import { Button, Card, toast, Skeleton } from '@/components/ui'
+import { Button, Card, toast, Skeleton, ConfirmModal } from '@/components/ui'
 import { SessionSelector } from '@/components/classes/SessionSelector'
 import { SessionModal } from '@/components/classes/SessionModal'
 import { AttendanceToggle } from '@/components/attendance/AttendanceToggle'
@@ -37,6 +37,7 @@ export const AttendanceTab = ({ classId }) => {
   const [editingSession, setEditingSession] = useState(null)  // null = closed
   const [selectedStudent, setSelectedStudent] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [confirmDeleteSession, setConfirmDeleteSession] = useState(false)
 
   // Load sessions, roster, and class-wide attendance (for the chuyên cần column)
   const loadData = useCallback(async () => {
@@ -82,9 +83,12 @@ export const AttendanceTab = ({ classId }) => {
     loadData()
   }
 
-  const handleDeleteSession = async () => {
+  const handleDeleteSession = () => {
     if (!activeSessionId) return
-    if (!window.confirm('Bạn có chắc chắn muốn xóa buổi học này không? Mọi dữ liệu điểm danh của buổi này sẽ bị xóa.')) return
+    setConfirmDeleteSession(true)
+  }
+
+  const doDeleteSession = async () => {
     try {
       await sessionService.remove(activeSessionId)
       toast.success('Đã xóa buổi học')
@@ -342,6 +346,15 @@ export const AttendanceTab = ({ classId }) => {
           onClose={() => setSelectedStudent(null)}
         />
       )}
+
+      <ConfirmModal
+        open={confirmDeleteSession}
+        onClose={() => setConfirmDeleteSession(false)}
+        onConfirm={doDeleteSession}
+        title="Xóa buổi học"
+        message="Bạn có chắc chắn muốn xóa buổi học này không? Mọi dữ liệu điểm danh của buổi này sẽ bị xóa."
+        confirmLabel="Xóa"
+      />
     </div>
   )
 }

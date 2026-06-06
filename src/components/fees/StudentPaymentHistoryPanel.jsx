@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Modal, Button } from '@/components/ui'
+import { Modal, Button, ConfirmModal } from '@/components/ui'
 import { toast } from '@/components/ui'
 import { fmtVND, fmtDate } from '@/utils/helpers'
 import { Banknote, ArrowLeftRight, Trash2, Pencil, Check, X, Plus } from 'lucide-react'
@@ -13,6 +13,7 @@ export const StudentPaymentHistoryPanel = ({ open, onClose, student, payments, l
   const [editingId, setEditingId] = useState(null)
   const [editForm, setEditForm] = useState(BLANK_EDIT)
   const [saving, setSaving] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState({ open: false, id: null })
 
   const startEdit = (p) => {
     setEditingId(p.id)
@@ -37,10 +38,13 @@ export const StudentPaymentHistoryPanel = ({ open, onClose, student, payments, l
     }
   }
 
-  const handleDelete = async (id) => {
-    if (!confirm('Xoá khoản thanh toán này?')) return
+  const handleDelete = (id) => {
+    setConfirmDelete({ open: true, id })
+  }
+
+  const doDelete = async () => {
     try {
-      await paymentService.remove(id)
+      await paymentService.remove(confirmDelete.id)
       toast.success('Đã xoá')
       onDeleted?.()
     } catch {
@@ -49,6 +53,7 @@ export const StudentPaymentHistoryPanel = ({ open, onClose, student, payments, l
   }
 
   return (
+    <>
     <Modal
       open={open}
       onClose={onClose}
@@ -175,5 +180,15 @@ export const StudentPaymentHistoryPanel = ({ open, onClose, student, payments, l
         </div>
       )}
     </Modal>
+
+    <ConfirmModal
+      open={confirmDelete.open}
+      onClose={() => setConfirmDelete({ open: false, id: null })}
+      onConfirm={doDelete}
+      title="Xoá thanh toán"
+      message="Xoá khoản thanh toán này?"
+      confirmLabel="Xoá"
+    />
+    </>
   )
 }

@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { Plus, Pencil, Trash2, FileSpreadsheet, FileText, ChevronDown, ChevronUp, ClipboardList, Search } from 'lucide-react'
 import { clsx } from 'clsx'
-import { Button, Card, Skeleton, toast } from '@/components/ui'
+import { Button, Card, Skeleton, toast, ConfirmModal } from '@/components/ui'
 import { MockTestModal } from '@/components/mock-test/MockTestModal'
 import { MockTestScoreTable } from '@/components/mock-test/MockTestScoreTable'
 import { StudentTestProfile } from '@/components/mock-test/StudentTestProfile'
@@ -124,6 +124,7 @@ export const MockTestTab = ({ classId, className, skillConfig, isAdmin = false }
   const [centerName, setCenterName]     = useState('')
   const [loading, setLoading]           = useState(true)
   const [sidebarSearch, setSidebarSearch] = useState('')
+  const [confirmDelete, setConfirmDelete] = useState({ open: false, test: null })
   const debouncedSearch = useDebounce(sidebarSearch, 200)
 
   useEffect(() => {
@@ -154,10 +155,13 @@ export const MockTestTab = ({ classId, className, skillConfig, isAdmin = false }
 
   const handleEdit = (test) => { setEditingTest(test); setModalOpen(true) }
 
-  const handleDelete = async (test) => {
-    if (!window.confirm(`Xóa bài kiểm tra "${test.title}" và toàn bộ điểm của học viên?`)) return
+  const handleDelete = (test) => {
+    setConfirmDelete({ open: true, test })
+  }
+
+  const doDeleteTest = async () => {
     try {
-      await mockTestService.remove(test.id)
+      await mockTestService.remove(confirmDelete.test.id)
       toast.success('Đã xóa bài kiểm tra')
       loadData()
     } catch (err) {
@@ -189,10 +193,16 @@ export const MockTestTab = ({ classId, className, skillConfig, isAdmin = false }
     ? allResults.filter(r => r.studentId === selectedStudentId)
     : []
 
-  // sidebar: latest result per student
+  // sidebar: latest result per student (sorted by test date descending)
   const latestResultByStudent = {}
   students.forEach(stu => {
-    const results = allResults.filter(r => r.studentId === stu.id && r.totalScore > 0)
+    const results = allResults
+      .filter(r => r.studentId === stu.id && r.totalScore > 0)
+      .sort((a, b) => {
+        const dateA = mockTests.find(t => t.id === a.mockTestId)?.date ?? ''
+        const dateB = mockTests.find(t => t.id === b.mockTestId)?.date ?? ''
+        return dateB.localeCompare(dateA)
+      })
     latestResultByStudent[stu.id] = results[0] ?? null
   })
 
@@ -358,6 +368,15 @@ export const MockTestTab = ({ classId, className, skillConfig, isAdmin = false }
         mockTest={editingTest}
         skillConfig={skillConfig}
         onSaved={handleModalSaved}
+      />
+
+      <ConfirmModal
+        open={confirmDelete.open}
+        onClose={() => setConfirmDelete({ open: false, test: null })}
+        onConfirm={doDeleteTest}
+        title="Xóa bài kiểm tra"
+        message={`Xóa bài kiểm tra "${confirmDelete.test?.title}" và toàn bộ điểm của học viên?`}
+        confirmLabel="Xóa"
       />
     </div>
   )

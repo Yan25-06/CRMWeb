@@ -11,6 +11,11 @@ export const DEFAULT_SECTIONS = () => [
 ]
 
 export const MockTestSectionBuilder = ({ sections = [], onChange }) => {
+  const lowerNames = sections.map(s => s.name.trim().toLowerCase())
+  const isDuplicate = (idx) => {
+    const name = lowerNames[idx]
+    return name && lowerNames.filter((n, i) => i !== idx && n === name).length > 0
+  }
   const update = (idx, field, value) => {
     const next = sections.map((s, i) => i === idx ? { ...s, [field]: value } : s)
     onChange(next)
@@ -62,8 +67,9 @@ export const MockTestSectionBuilder = ({ sections = [], onChange }) => {
             onChange={e => update(idx, 'name', e.target.value)}
             className={clsx(
               'flex-1 input text-sm h-9',
-              !s.name.trim() && 'border-red-300 focus:border-red-400'
+              (!s.name.trim() || isDuplicate(idx)) && 'border-red-300 focus:border-red-400'
             )}
+            title={isDuplicate(idx) ? 'Tên phần thi bị trùng' : undefined}
           />
           <input
             type="number"

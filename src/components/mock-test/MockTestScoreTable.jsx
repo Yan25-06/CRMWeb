@@ -58,17 +58,17 @@ export const MockTestScoreTable = ({ mockTest, results = [], students = [], onRe
   const sections = mockTest.sections ?? []
   const maxTotal = sections.reduce((s, sec) => s + sec.maxScore, 0)
 
-  const activeSectionIds = new Set(sections.map(s => s.id))
-  const orphanIds = new Set()
-  localResults.forEach(r => Object.keys(r.scores ?? {}).forEach(sid => {
-    if (!activeSectionIds.has(sid)) orphanIds.add(sid)
+  const activeSectionNames = new Set(sections.map(s => s.name))
+  const orphanNames = new Set()
+  localResults.forEach(r => Object.keys(r.scores ?? {}).forEach(name => {
+    if (!activeSectionNames.has(name)) orphanNames.add(name)
   }))
-  const orphanArr = [...orphanIds]
+  const orphanArr = [...orphanNames]
 
-  const handleScoreChange = async (student, sectionId, val) => {
+  const handleScoreChange = async (student, sectionName, val) => {
     const existing = localResults.find(r => r.studentId === student.id)
-    const newScores = { ...(existing?.scores ?? {}), [sectionId]: val }
-    const newTotal = sections.reduce((s, sec) => s + (Number(newScores[sec.id]) || 0), 0)
+    const newScores = { ...(existing?.scores ?? {}), [sectionName]: val }
+    const newTotal = sections.reduce((s, sec) => s + (Number(newScores[sec.name]) || 0), 0)
 
     // Optimistic local update — does not touch other students' cells
     setLocalResults(prev => {
@@ -122,7 +122,7 @@ export const MockTestScoreTable = ({ mockTest, results = [], students = [], onRe
   }
 
   const avgPerSection = sections.map(sec => {
-    const vals = localResults.map(r => r.scores?.[sec.id]).filter(v => v !== undefined && v !== '')
+    const vals = localResults.map(r => r.scores?.[sec.name]).filter(v => v !== undefined && v !== '')
     if (!vals.length) return null
     return Math.round(vals.reduce((a, b) => a + Number(b), 0) / vals.length)
   })
@@ -136,7 +136,7 @@ export const MockTestScoreTable = ({ mockTest, results = [], students = [], onRe
           <tr className="bg-navy-50/60 border-b border-navy-100">
             <th className="px-4 py-3 font-semibold text-navy-800 min-w-[160px]">Học viên</th>
             {sections.map(s => (
-              <th key={s.id} className="px-1.5 py-3 font-semibold text-navy-700 text-center w-16">
+              <th key={s.name} className="px-1.5 py-3 font-semibold text-navy-700 text-center w-16">
                 <div className="text-xs">{s.name}</div>
                 <div className="text-xs text-navy-400 font-normal">/{s.maxScore}</div>
               </th>
@@ -168,10 +168,10 @@ export const MockTestScoreTable = ({ mockTest, results = [], students = [], onRe
                 </td>
                 {sections.map(sec => (
                   <ScoreCell
-                    key={sec.id}
+                    key={sec.name}
                     section={sec}
-                    value={scores[sec.id]}
-                    onChange={val => handleScoreChange(student, sec.id, val)}
+                    value={scores[sec.name]}
+                    onChange={val => handleScoreChange(student, sec.name, val)}
                   />
                 ))}
                 {orphanArr.map(sid => (
@@ -204,7 +204,7 @@ export const MockTestScoreTable = ({ mockTest, results = [], students = [], onRe
             <tr className="bg-navy-50/40 border-t-2 border-navy-100">
               <td className="px-4 py-2.5 text-xs font-semibold text-navy-500 uppercase tracking-wide">Trung bình lớp</td>
               {sections.map((s, i) => (
-                <td key={s.id} className="px-1.5 py-2.5 text-center font-semibold text-navy-600 tabular-nums">
+                <td key={s.name} className="px-1.5 py-2.5 text-center font-semibold text-navy-600 tabular-nums">
                   {avgPerSection[i] !== null ? avgPerSection[i] : '—'}
                 </td>
               ))}

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Card, Button, Empty, toast, Skeleton } from '@/components/ui'
+import { Card, Button, Empty, toast, Skeleton, ConfirmModal } from '@/components/ui'
 import { Plus, BookOpen } from 'lucide-react'
 import { classService, teacherService } from '@/services/classService'
 import { enrollmentService } from '@/services/enrollmentService'
@@ -17,6 +17,7 @@ export const ClassesOverviewPage = ({ onSelectClass }) => {
   const [error, setError] = useState(null)
   const [classModalOpen, setClassModalOpen] = useState(false)
   const [editingClass, setEditingClass] = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState({ open: false, id: null })
 
   const loadData = async () => {
     setLoading(true)
@@ -54,7 +55,7 @@ export const ClassesOverviewPage = ({ onSelectClass }) => {
     }
   }
 
-  const handleDeleteClass = async (id) => {
+  const handleDeleteClass = (id) => {
     const hasActiveStudents = enrollments
       .filter(e => e.classId === id)
       .some(e => e.status !== 'dropped')
@@ -62,15 +63,16 @@ export const ClassesOverviewPage = ({ onSelectClass }) => {
       toast.error('Không thể xóa lớp đang có học viên theo học. Vui lòng chuyển học viên sang lớp khác hoặc đổi trạng thái thành "Đã nghỉ" trước.')
       return
     }
+    setConfirmDelete({ open: true, id })
+  }
 
-    if (window.confirm('Bạn có chắc chắn muốn xóa lớp học này không?')) {
-      try {
-        await classService.remove(id)
-        toast.success('Đã xóa lớp học')
-        await loadData()
-      } catch (err) {
-        toast.error('Lỗi: ' + err.message)
-      }
+  const doDeleteClass = async () => {
+    try {
+      await classService.remove(confirmDelete.id)
+      toast.success('Đã xóa lớp học')
+      await loadData()
+    } catch (err) {
+      toast.error('Lỗi: ' + err.message)
     }
   }
 
@@ -183,6 +185,15 @@ export const ClassesOverviewPage = ({ onSelectClass }) => {
         onSave={handleSaveClass}
         isAdmin={isAdmin}
         teachers={teachers}
+      />
+
+      <ConfirmModal
+        open={confirmDelete.open}
+        onClose={() => setConfirmDelete({ open: false, id: null })}
+        onConfirm={doDeleteClass}
+        title="Xóa lớp học"
+        message="Bạn có chắc chắn muốn xóa lớp học này không?"
+        confirmLabel="Xóa"
       />
     </div>
   )

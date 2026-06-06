@@ -91,7 +91,7 @@ const TestCard = ({ mockTest, result, onNoteChange, extraAction }) => {
             </thead>
             <tbody className="divide-y divide-navy-50">
               {sections.map(sec => {
-                const score = result?.scores?.[sec.id]
+                const score = result?.scores?.[sec.name]
                 const secPct = (score !== undefined && score !== '') ? Math.round((Number(score) / sec.maxScore) * 100) : null
                 return (
                   <tr key={sec.id} className="text-sm">

@@ -5,7 +5,7 @@ import { teacherService, classService } from '@/services/classService'
 import { studentService } from '@/services/studentService'
 import { feeService } from '@/services/feeService'
 import { ClassModal } from '@/components/classes/ClassModal'
-import { Button, Card, Modal, StatCard, toast } from '@/components/ui'
+import { Button, Card, Modal, StatCard, toast, ConfirmModal } from '@/components/ui'
 import { Plus, Users, GraduationCap, UserCog, AlertCircle, ChevronRight, ShieldCheck, ShieldOff } from 'lucide-react'
 import clsx from 'clsx'
 
@@ -23,6 +23,7 @@ export function AdminPanelPage() {
   const [stats, setStats] = useState(null)
   const [selectedTeacherId, setSelectedTeacherId] = useState(null)
   const [togglingAdminId, setTogglingAdminId] = useState(null)
+  const [confirmAdmin, setConfirmAdmin] = useState({ open: false, teacher: null })
 
   useEffect(() => {
     loadTeachers()
@@ -101,12 +102,13 @@ export function AdminPanelPage() {
     }
   }
 
-  const handleToggleAdmin = async (t) => {
+  const handleToggleAdmin = (t) => {
+    setConfirmAdmin({ open: true, teacher: t })
+  }
+
+  const doToggleAdmin = async () => {
+    const t = confirmAdmin.teacher
     const action = t.is_admin ? 'thu hồi quyền admin' : 'cấp quyền admin'
-    const confirmed = window.confirm(
-      `Bạn có chắc muốn ${action} cho ${t.name || t.email}?`
-    )
-    if (!confirmed) return
     setTogglingAdminId(t.id)
     try {
       await teacherService.setAdmin(t.id, !t.is_admin)
@@ -366,6 +368,16 @@ export function AdminPanelPage() {
         onSave={handleCreateClass}
         isAdmin={true}
         teachers={teachers}
+      />
+
+      <ConfirmModal
+        open={confirmAdmin.open}
+        onClose={() => setConfirmAdmin({ open: false, teacher: null })}
+        onConfirm={doToggleAdmin}
+        title={confirmAdmin.teacher?.is_admin ? 'Thu hồi quyền Admin' : 'Cấp quyền Admin'}
+        message={`Bạn có chắc muốn ${confirmAdmin.teacher?.is_admin ? 'thu hồi quyền admin' : 'cấp quyền admin'} cho ${confirmAdmin.teacher?.name || confirmAdmin.teacher?.email}?`}
+        confirmLabel={confirmAdmin.teacher?.is_admin ? 'Thu hồi' : 'Cấp quyền'}
+        variant={confirmAdmin.teacher?.is_admin ? 'danger' : 'primary'}
       />
 
       {/* Edit Teacher Modal */}

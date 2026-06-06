@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react'
 import { UserRound, Plus, Upload, Trash2, ChevronRight, Phone, Mail, Search, X } from 'lucide-react'
 import { clsx } from 'clsx'
-import { Button, Badge, Card, Empty, Skeleton, Modal, toast } from '@/components/ui'
+import { Button, Badge, Card, Empty, Skeleton, Modal, toast, ConfirmModal } from '@/components/ui'
 import { studentService } from '@/services/studentService'
 import { classService } from '@/services/classService'
 import { enrollmentService } from '@/services/enrollmentService'
@@ -220,6 +220,7 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
   const [editModalOpen, setEditModalOpen] = useState(false)
   const [showEnrollModal, setShowEnrollModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
+  const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
 
   const [quickAddName, setQuickAddName] = useState('')
   const [quickAddLoading, setQuickAddLoading] = useState(false)
@@ -322,9 +323,12 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
     })
   }
 
-  const handleBulkDelete = async () => {
+  const handleBulkDelete = () => {
     if (selectedIds.size === 0) return
-    if (!window.confirm(`Xóa ${selectedIds.size} học sinh? Hành động này không thể hoàn tác.`)) return
+    setConfirmBulkDelete(true)
+  }
+
+  const doBulkDelete = async () => {
     try {
       await Promise.all([...selectedIds].map(id => studentService.remove(id)))
       toast.success(`Đã xóa ${selectedIds.size} học sinh`)
@@ -638,6 +642,15 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
         onClose={() => setShowImportModal(false)}
         onImportDone={loadData}
         classes={classes}
+      />
+
+      <ConfirmModal
+        open={confirmBulkDelete}
+        onClose={() => setConfirmBulkDelete(false)}
+        onConfirm={doBulkDelete}
+        title="Xóa học sinh"
+        message={`Xóa ${selectedIds.size} học sinh? Hành động này không thể hoàn tác.`}
+        confirmLabel="Xóa"
       />
     </div>
   )

@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { clsx } from 'clsx'
 import { FileText, Plus, ArrowLeft, ClipboardList, Calendar, Pencil } from 'lucide-react'
-import { Button, Card, Badge, toast, Skeleton } from '@/components/ui'
+import { Button, Card, Badge, toast, Skeleton, ConfirmModal } from '@/components/ui'
 import { SessionSelector } from '@/components/classes/SessionSelector'
 import { SessionModal } from '@/components/classes/SessionModal'
 import { ProgressBadge } from '@/components/homework/ProgressBadge'
@@ -358,6 +358,7 @@ const AssignView = ({ classId }) => {
   const [loading, setLoading] = useState(true)
   const [modalOpen, setModalOpen] = useState(false)
   const [editingAssignment, setEditingAssignment] = useState(null)
+  const [confirmDelete, setConfirmDelete] = useState({ open: false, id: null })
 
   const refresh = useCallback(async () => {
     try {
@@ -411,11 +412,14 @@ const AssignView = ({ classId }) => {
     }
   }
 
-  const handleDelete = async (id) => {
-    if (!confirm('Xóa bài tập này? Tất cả dữ liệu nộp bài sẽ bị xóa.')) return
+  const handleDelete = (id) => {
+    setConfirmDelete({ open: true, id })
+  }
+
+  const doDelete = async () => {
     try {
-      await hwAssignmentService.remove(id)
-      if (selected?.id === id) setSelected(null)
+      await hwAssignmentService.remove(confirmDelete.id)
+      if (selected?.id === confirmDelete.id) setSelected(null)
       await refresh()
       toast.success('Đã xóa bài tập')
     } catch {
@@ -603,6 +607,15 @@ const AssignView = ({ classId }) => {
         onClose={() => setEditingAssignment(null)}
         initial={editingAssignment}
         onSave={handleEditSave}
+      />
+
+      <ConfirmModal
+        open={confirmDelete.open}
+        onClose={() => setConfirmDelete({ open: false, id: null })}
+        onConfirm={doDelete}
+        title="Xóa bài tập"
+        message="Xóa bài tập này? Tất cả dữ liệu nộp bài sẽ bị xóa."
+        confirmLabel="Xóa"
       />
     </div>
   )

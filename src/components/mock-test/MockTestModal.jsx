@@ -16,6 +16,7 @@ export const MockTestModal = ({ open, onClose, classId, mockTest, skillConfig, o
   const [sections, setSections]   = useState([])
   const [teacherNote, setTeacherNote] = useState('')
   const [hasResults, setHasResults] = useState(false)
+  const [originalSectionNames, setOriginalSectionNames] = useState([])
   const [warnConfirmed, setWarnConfirmed] = useState(false)
   const [saving, setSaving]       = useState(false)
 
@@ -25,6 +26,7 @@ export const MockTestModal = ({ open, onClose, classId, mockTest, skillConfig, o
       setTitle(mockTest.title)
       setDate(mockTest.date)
       setSections(mockTest.sections ?? [])
+      setOriginalSectionNames((mockTest.sections ?? []).map(s => s.name))
       setTeacherNote(mockTest.teacherNote ?? '')
       setWarnConfirmed(false)
       mockTestResultService.getByTest(mockTest.id)
@@ -38,6 +40,7 @@ export const MockTestModal = ({ open, onClose, classId, mockTest, skillConfig, o
           ? skillConfigToSections(skillConfig)
           : DEFAULT_SECTIONS()
       )
+      setOriginalSectionNames([])
       setTeacherNote('')
       setHasResults(false)
       setWarnConfirmed(false)
@@ -45,11 +48,17 @@ export const MockTestModal = ({ open, onClose, classId, mockTest, skillConfig, o
   }, [open, mockTest])
 
   const sectionsValid = sections.length > 0 && sections.every(s => s.name.trim() && s.maxScore > 0)
+  const sectionNames = sections.map(s => s.name.trim().toLowerCase())
+  const hasDuplicateNames = sectionNames.length !== new Set(sectionNames).size
+  const renamedSections = mode === 'edit' && hasResults
+    ? originalSectionNames.filter(orig => !sections.some(s => s.name === orig))
+    : []
 
   const handleSubmit = async () => {
     if (!title.trim()) { toast.error('Vui lòng nhập tên bài kiểm tra'); return }
     if (!date) { toast.error('Vui lòng chọn ngày thi'); return }
     if (!sectionsValid) { toast.error('Tên phần thi không được rỗng và điểm tối đa phải > 0'); return }
+    if (hasDuplicateNames) { toast.error('Tên phần thi không được trùng nhau'); return }
 
     if (mode === 'edit' && hasResults && !warnConfirmed) {
       setWarnConfirmed(true)
@@ -131,6 +140,12 @@ export const MockTestModal = ({ open, onClose, classId, mockTest, skillConfig, o
             />
           </div>
 
+          {renamedSections.length > 0 && (
+            <div className="bg-orange-50 border border-orange-200 text-orange-800 text-sm p-3 rounded-xl">
+              <strong>Cảnh báo:</strong> Đổi tên phần thi sẽ làm mất điểm đã nhập cho phần đó.
+              Phần bị đổi tên: <strong>{renamedSections.join(', ')}</strong>
+            </div>
+          )}
           {warnConfirmed && (
             <div className="bg-amber-50 border border-amber-200 text-amber-800 text-sm p-3 rounded-xl">
               <strong>Xác nhận:</strong> Thay đổi sẽ ảnh hưởng đến điểm đã nhập. Bấm "Lưu" để tiếp tục.

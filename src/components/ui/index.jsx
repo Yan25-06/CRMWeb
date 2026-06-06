@@ -129,6 +129,23 @@ export const Modal = ({ open, onClose, title, children, footer }) => {
   )
 }
 
+// ─── ConfirmModal ─────────────────────────────────────────
+export const ConfirmModal = ({ open, onClose, onConfirm, title = 'Xác nhận', message, confirmLabel = 'Xác nhận', variant = 'danger' }) => (
+  <Modal
+    open={open}
+    onClose={onClose}
+    title={title}
+    footer={
+      <div className="flex justify-end gap-2">
+        <Button variant="secondary" onClick={onClose}>Hủy</Button>
+        <Button variant={variant} onClick={() => { onConfirm(); onClose(); }}>{confirmLabel}</Button>
+      </div>
+    }
+  >
+    <p className="text-sm text-navy-700">{message}</p>
+  </Modal>
+)
+
 // ─── Stat Card ───────────────────────────────────────────
 export const StatCard = ({ label, value, sub, icon, accent, className }) => (
   <div className={clsx('stat-card', className)}>
