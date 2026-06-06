@@ -187,7 +187,7 @@ export const MockTestScoreTable = ({ mockTest, results = [], students = [], onRe
                 </td>
                 <td className="px-4 py-2">
                   <textarea
-                    rows={1}
+                    rows={2}
                     placeholder="Nhận xét..."
                     value={notes[student.id] ?? ''}
                     onChange={e => handleNoteChange(student.id, e.target.value)}

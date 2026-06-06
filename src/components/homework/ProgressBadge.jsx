@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { clsx } from 'clsx'
 
-const CYCLE = ['not_done', 'in_progress', 'done']
+const CYCLE = ['done', 'in_progress', 'not_done']
 
 const CONFIG = {
   not_done:    { label: 'Không nộp',    className: 'bg-red-100 text-red-700 hover:bg-red-200' },
