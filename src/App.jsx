@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { Navbar } from '@/components/layout/Navbar'
 import { OfflineBanner } from '@/components/layout/OfflineBanner'
 import { ToastContainer } from '@/components/ui'
@@ -32,6 +32,13 @@ export default function App() {
     return stored || null
   })
   const [classInitialTab, setClassInitialTab] = useState('students')
+  const isPopstate = useRef(false)
+
+  // Push navigation state to browser history as a single atomic entry
+  const pushNavState = useCallback(({ page: p, selectedClassId: cid }) => {
+    if (isPopstate.current) return
+    window.history.pushState({ page: p, selectedClassId: cid ?? null }, '')
+  }, [])
 
   useEffect(() => {
     settingsService.get().then(setSettings).catch(() => {})
@@ -46,6 +53,28 @@ export default function App() {
     }
   }, [selectedClassId])
 
+  // Seed the initial history entry so popstate has state on first Back
+  useEffect(() => {
+    window.history.replaceState(
+      { page, selectedClassId: selectedClassId ?? null },
+      ''
+    )
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  // Handle browser Back / Forward
+  useEffect(() => {
+    const handlePopstate = (e) => {
+      const state = e.state ?? { page: 'dashboard', selectedClassId: null }
+      isPopstate.current = true
+      setPage(state.page ?? 'dashboard')
+      setSelectedClassId(state.selectedClassId ?? null)
+      setClassInitialTab('students')
+      isPopstate.current = false
+    }
+    window.addEventListener('popstate', handlePopstate)
+    return () => window.removeEventListener('popstate', handlePopstate)
+  }, [])
+
   const prevMonth = () => {
     if (month === 1) { setMonth(12); setYear(y => y - 1) }
     else setMonth(m => m - 1)
@@ -59,9 +88,13 @@ export default function App() {
   const handleNavigate = (newPage) => {
     if ((newPage === 'admin' && !canAccessAdmin) || (newPage === 'fees' && !canViewFees)) {
       setPage('dashboard')
+      pushNavState({ page: 'dashboard', selectedClassId: null })
       return
     }
     setPage(newPage)
+    // When navigating away from classes, clear selectedClassId from nav state
+    const cid = newPage === 'classes' ? selectedClassId : null
+    pushNavState({ page: newPage, selectedClassId: cid })
   }
 
   const pagesWithMonthPicker = ['dashboard', 'fees']
@@ -72,7 +105,7 @@ export default function App() {
 
   const renderPage = () => {
     switch (currentPage) {
-      case 'dashboard':  return <DashboardPage year={year} month={month} onNavigate={handleNavigate} onAttendance={(classId) => { setSelectedClassId(classId); setClassInitialTab('attendance'); handleNavigate('classes') }} />
+      case 'dashboard':  return <DashboardPage year={year} month={month} onNavigate={handleNavigate} onAttendance={(classId) => { setSelectedClassId(classId); setClassInitialTab('attendance'); setPage('classes'); pushNavState({ page: 'classes', selectedClassId: classId }) }} />
       case 'fees':       return <FeesPage year={year} month={month} />
       case 'reports':    return <ReportsPage />
       case 'reviews':    return <ReviewsPage settings={settings} />
@@ -83,7 +116,8 @@ export default function App() {
           isAdmin={teacher?.is_admin}
           onNavigateToClass={(classId) => {
             setSelectedClassId(classId)
-            handleNavigate('classes')
+            setPage('classes')
+            pushNavState({ page: 'classes', selectedClassId: classId })
           }}
         />
       )
@@ -92,11 +126,18 @@ export default function App() {
           return <ClassDetailPage
             classId={selectedClassId}
             isAdmin={teacher?.is_admin}
-            onBack={() => { setSelectedClassId(null); setClassInitialTab('students') }}
+            onBack={() => {
+              setSelectedClassId(null)
+              setClassInitialTab('students')
+              pushNavState({ page: 'classes', selectedClassId: null })
+            }}
             initialTab={classInitialTab}
           />
         }
-        return <ClassesOverviewPage onSelectClass={setSelectedClassId} />
+        return <ClassesOverviewPage onSelectClass={(classId) => {
+          setSelectedClassId(classId)
+          pushNavState({ page: 'classes', selectedClassId: classId })
+        }} />
       case 'settings':   return <SettingsPage />
       default:           return <DashboardPage year={year} month={month} onNavigate={handleNavigate} />
     }

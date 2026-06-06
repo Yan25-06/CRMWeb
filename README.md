@@ -84,6 +84,8 @@ src/
 Không dùng react-router. Routing là state `page` trong `App.jsx`:
 `dashboard` | `classes` | `fees` (chỉ admin) | `reports` | `reviews` | `schedule` | `settings` | `admin` (chỉ admin) | `students`
 
+State điều hướng đồng bộ với browser history (History API) — nút Back/Forward của trình duyệt hoạt động trong phạm vi app mà không đổi URL.
+
 ## Trạng thái dữ liệu
 
 Migration localStorage → Supabase **đã hoàn tất**. Toàn bộ data đi qua service layer (`src/services/*`), RLS phủ toàn bộ bảng. Xem `openspec/ROADMAP.md` cho lịch sử và `CLAUDE.md` cho chi tiết kiến trúc hiện hành.

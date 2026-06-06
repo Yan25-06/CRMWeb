@@ -72,7 +72,7 @@ Services đã có: `studentService`, `classService` (+`teacherService`), `enroll
 - **Lazy-load export:** `xlsx`/`jspdf`/`html2canvas` dùng `await import()` trong handler (giảm bundle khởi động), bọc try/catch + `toast.error`. Áp dụng ở `ExportExcelButton`, `ExportPdfButton`, `mockTestExport.js`, `ClassOverviewTable`, `ImportStudentsModal`.
 
 ## Routing & Layout
-- **Không dùng react-router.** Routing là state `page` trong `App.jsx` (`useState` + `switch` trong `renderPage()`).
+- **Không dùng react-router.** Routing là state `page` trong `App.jsx` (`useState` + `switch` trong `renderPage()`). State điều hướng (`page` + `selectedClassId`) được đồng bộ vào browser history qua History API (`pushState`/`replaceState`/`popstate`) — nút **Back/Forward** của browser hoạt động trong phạm vi app mà không đổi URL và không thêm thư viện.
 - Trang: `dashboard`, `fees`, `reports`, `reviews`, `schedule`, `classes`, `settings`, **`admin`** (chỉ khi `is_admin = true`), **`students`** (danh bạ học viên).
 - `classes` có 2 chế độ: list (`ClassesOverviewPage`) ↔ detail (`ClassDetailPage`) qua `selectedClassId` (persist trong localStorage).
 - `ClassDetailPage` có các tab: Students, Attendance, Homework, MockTest. Prop `initialTab` (default `'students'`) cho phép mở thẳng tab Attendance từ Dashboard.
