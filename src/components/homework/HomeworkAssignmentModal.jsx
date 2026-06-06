@@ -59,7 +59,7 @@ export const HomeworkAssignmentModal = ({ open, onClose, onSave, initial }) => {
           error={errors.title}
         />
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Mô tả</label>
+          <label className="text-sm font-medium text-navy-700">Mô tả</label>
           <textarea
             className="input resize-none h-16 text-sm"
             placeholder="Nội dung bài tập..."
@@ -75,7 +75,7 @@ export const HomeworkAssignmentModal = ({ open, onClose, onSave, initial }) => {
             onChange={e => set('assignedAt', e.target.value)}
           />
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Hạn nộp</label>
+            <label className="text-sm font-medium text-navy-700">Hạn nộp</label>
             <div className="flex gap-1">
               <input
                 type="date"

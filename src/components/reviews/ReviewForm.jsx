@@ -94,7 +94,7 @@ export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, t
     const val = form.scores?.[skill.name] ?? ''
     return (
       <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">{skill.name}</label>
+        <label className="text-sm font-medium text-navy-700">{skill.name}</label>
         <input
           type="number"
           min="0"
@@ -142,7 +142,7 @@ export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, t
 
         {/* Dynamic skill scores */}
         <div>
-          <p className="text-xs font-medium text-navy-600 uppercase tracking-wide mb-1.5">Điểm Kỹ Năng</p>
+          <p className="text-sm font-medium text-navy-700 mb-1.5">Điểm Kỹ Năng</p>
           <div className={`grid gap-2`} style={{ gridTemplateColumns: `repeat(${cols}, minmax(0, 1fr))` }}>
             {skills.map(skill => <ScoreInput key={skill.name} skill={skill} />)}
           </div>
@@ -150,13 +150,13 @@ export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, t
 
         {/* Quick tags */}
         <div>
-          <p className="text-xs font-medium text-navy-600 uppercase tracking-wide mb-1.5">Nhận Xét Nhanh</p>
+          <p className="text-sm font-medium text-navy-700 mb-1.5">Nhận Xét Nhanh</p>
           <QuickTagEditor value={form.tags} onChange={tags => setForm(f => ({ ...f, tags }))} />
         </div>
 
         {/* Remark */}
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Nhận Xét Thêm</label>
+          <label className="text-sm font-medium text-navy-700">Nhận Xét Thêm</label>
           <textarea
             className="input resize-none"
             rows={1}
@@ -168,7 +168,7 @@ export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, t
 
         {/* Advice */}
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Lời Khuyên Cá Nhân</label>
+          <label className="text-sm font-medium text-navy-700">Lời Khuyên Cá Nhân</label>
           <textarea
             className="input resize-none"
             rows={1}

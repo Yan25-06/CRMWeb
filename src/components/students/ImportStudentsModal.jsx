@@ -217,7 +217,7 @@ export const ImportStudentsModal = ({ open, onClose, onImportDone, classes = [] 
 
               {selectedClassId && (
                 <div className="flex flex-col gap-2">
-                  <p className="text-xs font-medium text-navy-600 uppercase tracking-wide">Học phí mặc định</p>
+                  <p className="text-sm font-medium text-navy-700">Học phí mặc định</p>
                   <div className="flex gap-1 p-1 bg-white rounded-xl">
                     <button
                       type="button"

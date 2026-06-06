@@ -108,7 +108,7 @@ export const MockTestModal = ({ open, onClose, classId, mockTest, skillConfig, o
           />
 
           <div className="flex flex-col gap-2">
-            <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
+            <label className="text-sm font-medium text-navy-700">
               Các phần thi
             </label>
             <div className="flex justify-between text-xs text-navy-400 px-8 pr-10">
@@ -119,7 +119,7 @@ export const MockTestModal = ({ open, onClose, classId, mockTest, skillConfig, o
           </div>
 
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
+            <label className="text-sm font-medium text-navy-700">
               Nhận xét chung của GV (không bắt buộc)
             </label>
             <textarea

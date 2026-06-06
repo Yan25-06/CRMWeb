@@ -18,7 +18,7 @@ const EMPTY_NEW = { name: '', phone: '', grade: '', email: '', feeType: 'monthly
 const FeeInputs = ({ feeType, setFeeType, monthlyFee, setMonthlyFee, courseFee, setCourseFee }) => (
   <div className="flex flex-col gap-2">
     {/* Fee type toggle */}
-    <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Loại học phí</label>
+    <label className="text-sm font-medium text-navy-700">Loại học phí</label>
     <div className="flex gap-1 p-1 bg-navy-50 rounded-xl">
       <button
         type="button"
@@ -44,7 +44,7 @@ const FeeInputs = ({ feeType, setFeeType, monthlyFee, setMonthlyFee, courseFee, 
 
     {feeType === 'monthly' ? (
       <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Học phí tháng (VNĐ)</label>
+        <label className="text-sm font-medium text-navy-700">Học phí tháng (VNĐ)</label>
         <input
           type="number"
           value={monthlyFee}
@@ -57,7 +57,7 @@ const FeeInputs = ({ feeType, setFeeType, monthlyFee, setMonthlyFee, courseFee, 
       </div>
     ) : (
       <div className="flex flex-col gap-1">
-        <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Học phí cả khóa (VNĐ)</label>
+        <label className="text-sm font-medium text-navy-700">Học phí cả khóa (VNĐ)</label>
         <input
           type="number"
           value={courseFee}
@@ -313,7 +313,7 @@ export const EnrollmentModal = ({
 
           {mode === 'add' && addSubMode === 'existing' && (
             <div className="flex flex-col gap-2">
-              <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
+              <label className="text-sm font-medium text-navy-700">
                 Chọn học viên
               </label>
               {availableStudents.length === 0 ? (
@@ -381,7 +381,7 @@ export const EnrollmentModal = ({
               )}
 
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
+                <label className="text-sm font-medium text-navy-700">
                   Họ và tên <span className="text-red-400 normal-case">*</span>
                 </label>
                 <input
@@ -398,7 +398,7 @@ export const EnrollmentModal = ({
 
               <div className="grid grid-cols-2 gap-3">
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
+                  <label className="text-sm font-medium text-navy-700">
                     Số điện thoại
                   </label>
                   <input
@@ -411,7 +411,7 @@ export const EnrollmentModal = ({
                   />
                 </div>
                 <div className="flex flex-col gap-1">
-                  <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
+                  <label className="text-sm font-medium text-navy-700">
                     Khối
                   </label>
                   <input
@@ -426,7 +426,7 @@ export const EnrollmentModal = ({
               </div>
 
               <div className="flex flex-col gap-1">
-                <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
+                <label className="text-sm font-medium text-navy-700">
                   Email (tùy chọn)
                 </label>
                 <input
@@ -442,7 +442,7 @@ export const EnrollmentModal = ({
               {/* Fee inputs only when enrolling into a class */}
               {classId && (
                 <div className="flex flex-col gap-2">
-                  <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Loại học phí</label>
+                  <label className="text-sm font-medium text-navy-700">Loại học phí</label>
                   <div className="flex gap-1 p-1 bg-navy-50 rounded-xl">
                     <button
                       type="button"
@@ -467,7 +467,7 @@ export const EnrollmentModal = ({
                   </div>
                   {newForm.feeType !== 'course' ? (
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Học phí tháng (VNĐ)</label>
+                      <label className="text-sm font-medium text-navy-700">Học phí tháng (VNĐ)</label>
                       <input
                         type="number"
                         name="monthlyFee"
@@ -481,7 +481,7 @@ export const EnrollmentModal = ({
                     </div>
                   ) : (
                     <div className="flex flex-col gap-1">
-                      <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Học phí cả khóa (VNĐ)</label>
+                      <label className="text-sm font-medium text-navy-700">Học phí cả khóa (VNĐ)</label>
                       <input
                         type="number"
                         name="courseFee"
@@ -515,7 +515,7 @@ export const EnrollmentModal = ({
 
           {mode === 'edit' && (
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
+              <label className="text-sm font-medium text-navy-700">
                 Trạng thái
               </label>
               <select
@@ -540,7 +540,7 @@ export const EnrollmentModal = ({
 
           {(mode === 'edit' || (mode === 'add' && classId)) && (
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
+            <label className="text-sm font-medium text-navy-700">
               Mục tiêu
             </label>
             <textarea
@@ -555,7 +555,7 @@ export const EnrollmentModal = ({
 
           {(mode === 'edit' || (mode === 'add' && classId && addSubMode === 'existing')) && (
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
+              <label className="text-sm font-medium text-navy-700">
                 Ghi chú nội bộ
               </label>
               <textarea

@@ -109,7 +109,7 @@ src/
 
 ## Quy ước code (BẮT BUỘC)
 ### Style
-- Functional components + hooks. Không class components.
+- Functional components + hooks. Không class components (**ngoại lệ:** `ErrorBoundary` bắt buộc class theo React).
 - Import qua alias `@/`, không relative path dài.
 - `clsx()` cho conditional classes, **không** template literals cho class.
 
@@ -117,6 +117,9 @@ src/
 - **KHÔNG hard-code màu hex** trong component. Dùng Tailwind navy tokens: `bg-navy-800`, `text-navy-900`, `bg-navy-50`...
 - Dùng component từ `@/components/ui`: `Button`, `Badge`, `Card`, `Input`, `Select`, `Modal`, `Toast`/`ToastContainer` (+ `StatCard`, `Empty` nếu có). Không tự tạo button/input mới trừ khi thật cần.
 - Navy tokens chính: navy-950 `#06142B`, navy-900 `#0F2044` (sidebar/header), navy-800 `#1B3A6B` (primary), navy-600 `#2E5FA3` (accent), navy-50 `#E8EEF7` (hover).
+- **Tương phản (WCAG AA):** `navy-400` (`#3F77BF`) và `navy-300` (`#5B90C8`) đã đậm hóa để chữ trên nền trắng đạt ≥4.5:1. **Chữ nội dung/nhãn trên nền sáng dùng `navy-500` trở lên**; `navy-300/400` chỉ cho icon trang trí, viền, placeholder. Trên nền tối (sidebar navy-900) chữ inactive dùng `navy-300` (không dùng `navy-400` — tương phản thấp).
+- **Nhãn form:** kiểu chuẩn là `text-sm font-medium text-navy-700` (KHÔNG uppercase — khó đọc tiếng Việt có dấu). `Input`/`Select` đã theo kiểu này; form viết tay cũng vậy. `uppercase tracking-wide` chỉ dùng cho tiêu đề mục / header bảng, không cho nhãn field.
+- **A11y:** `Modal` đóng bằng Esc, khóa scroll nền, focus-trap, có `role="dialog"`/`aria-modal`. `Toast` hỗ trợ nhiều thông báo xếp chồng, có `role="alert"` + `aria-live`; gọi qua API `toast.success/error/info`.
 
 ### Phân quyền UI (BẮT BUỘC)
 - **Check quyền của người dùng hiện tại qua `usePermissions()`** (`src/hooks/usePermissions.js`) — **KHÔNG đọc `teacher.is_admin` trực tiếp trong component**. Hook là nguồn chân lý gating UI ở client, trả về cờ ngữ nghĩa theo năng lực: `isAdmin`, `canViewFees`, `canAccessAdmin`, `canManageCenterSettings`, `canManageStudents`, `canCreateMockTest`, `canManageClasses`, `canFilterByTeacher` (hiện tất cả = `isAdmin`, đổi rule chỉ sửa một dòng trong hook).

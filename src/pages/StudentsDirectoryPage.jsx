@@ -150,14 +150,14 @@ const QuickEnrollModal = ({ open, onClose, student, classes, onSaved }) => {
     >
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Lớp học</label>
+          <label className="text-sm font-medium text-navy-700">Lớp học</label>
           <select className="select" value={classId} onChange={e => setClassId(e.target.value)}>
             <option value="">-- Chọn lớp --</option>
             {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
         </div>
         <div className="flex flex-col gap-2">
-          <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Loại học phí</label>
+          <label className="text-sm font-medium text-navy-700">Loại học phí</label>
           <div className="flex gap-1 p-1 bg-navy-50 rounded-xl">
             <button
               type="button"
@@ -172,12 +172,12 @@ const QuickEnrollModal = ({ open, onClose, student, classes, onSaved }) => {
           </div>
           {feeType === 'monthly' ? (
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Học phí tháng (VNĐ)</label>
+              <label className="text-sm font-medium text-navy-700">Học phí tháng (VNĐ)</label>
               <input type="number" value={monthlyFee} onChange={e => setMonthlyFee(e.target.value)} placeholder="VD: 800000" className="input" />
             </div>
           ) : (
             <div className="flex flex-col gap-1">
-              <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Học phí cả khóa (VNĐ)</label>
+              <label className="text-sm font-medium text-navy-700">Học phí cả khóa (VNĐ)</label>
               <input type="number" value={courseFee} onChange={e => setCourseFee(e.target.value)} placeholder="VD: 3000000" className="input" />
             </div>
           )}
@@ -236,7 +236,7 @@ const StudentDetailSidebar = ({ student, enrollments, classMap, onClose, onEdit,
 
         {/* Enrolled classes */}
         <div>
-          <p className="text-xs font-medium text-navy-600 uppercase tracking-wide mb-2">Lớp đang ghi danh</p>
+          <p className="text-sm font-medium text-navy-700 mb-2">Lớp đang ghi danh</p>
           {enrollments.length === 0 ? (
             <p className="text-sm text-navy-400 italic">Chưa xếp lớp</p>
           ) : (

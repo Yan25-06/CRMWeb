@@ -27,7 +27,7 @@ const Section = ({ icon: Icon, title, editing, onEdit, children }) => (
 
 const ReadField = ({ label, value }) => (
   <div className="flex flex-col gap-1">
-    <span className="text-xs font-medium text-navy-600 uppercase tracking-wide">{label}</span>
+    <span className="text-sm font-medium text-navy-700">{label}</span>
     <span className="text-navy-900 font-medium">{value}</span>
   </div>
 )

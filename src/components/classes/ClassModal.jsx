@@ -101,7 +101,7 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
         {/* Teacher selector — admin only, new class only */}
         {isAdmin && isNew && (
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">
+            <label className="text-sm font-medium text-navy-700">
               Giáo viên phụ trách <span className="text-red-400 normal-case">*</span>
             </label>
             <select
@@ -134,7 +134,7 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
           />
 
           <div className="flex flex-col gap-1">
-            <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Phân loại (Tag)</label>
+            <label className="text-sm font-medium text-navy-700">Phân loại (Tag)</label>
             <select
               name="courseType"
               value={formData.courseType}
@@ -196,7 +196,7 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
         {/* Skill config builder */}
         <div className="flex flex-col gap-2">
           <div className="flex justify-between items-center">
-            <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Cấu Hình Kỹ Năng</label>
+            <label className="text-sm font-medium text-navy-700">Cấu Hình Kỹ Năng</label>
             <span className="text-xs text-navy-400">Dùng cho đánh giá & mock test</span>
           </div>
           <div className="flex justify-between text-xs text-navy-400 px-8 pr-10">

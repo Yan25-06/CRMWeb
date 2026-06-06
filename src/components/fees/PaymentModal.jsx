@@ -77,7 +77,7 @@ export const PaymentModal = ({ open, onClose, onSave, defaultStudentId, defaultP
     >
       <div className="flex flex-col gap-4">
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Học viên *</label>
+          <label className="text-sm font-medium text-navy-700">Học viên *</label>
           <select
             className={`select ${errors.studentId ? 'border-red-400' : ''}`}
             value={form.studentId}
@@ -122,7 +122,7 @@ export const PaymentModal = ({ open, onClose, onSave, defaultStudentId, defaultP
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Hình thức *</label>
+          <label className="text-sm font-medium text-navy-700">Hình thức *</label>
           <div className="flex gap-4">
             {METHODS.map(m => (
               <label key={m.value} className="flex items-center gap-2 cursor-pointer text-sm">
@@ -141,7 +141,7 @@ export const PaymentModal = ({ open, onClose, onSave, defaultStudentId, defaultP
         </div>
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Ghi chú</label>
+          <label className="text-sm font-medium text-navy-700">Ghi chú</label>
           <textarea
             className="input resize-none h-16 text-sm"
             placeholder="Tuần 1..."

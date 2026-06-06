@@ -83,7 +83,7 @@ export const Navbar = ({ activePage, onNavigate, centerName }) => {
           {user && (
             <div className="px-3 py-2 mb-1">
               <p className="text-xs font-medium text-white truncate">{teacher?.name || user.email}</p>
-              {teacher?.name && <p className="text-xs text-navy-400 truncate">{user.email}</p>}
+              {teacher?.name && <p className="text-xs text-navy-300 truncate">{user.email}</p>}
             </div>
           )}
           <button
@@ -92,7 +92,7 @@ export const Navbar = ({ activePage, onNavigate, centerName }) => {
               'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 w-full',
               activePage === 'settings'
                 ? 'bg-white/15 text-white'
-                : 'text-navy-400 hover:text-white hover:bg-white/8'
+                : 'text-navy-300 hover:text-white hover:bg-white/8'
             )}
           >
             <Settings size={16} />
@@ -100,7 +100,7 @@ export const Navbar = ({ activePage, onNavigate, centerName }) => {
           </button>
           <button
             onClick={handleLogout}
-            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-navy-400 hover:text-red-400 hover:bg-white/8 transition-all duration-200 w-full"
+            className="flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium text-navy-300 hover:text-red-400 hover:bg-white/8 transition-all duration-200 w-full"
           >
             <LogOut size={16} />
             Đăng Xuất

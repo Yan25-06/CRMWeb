@@ -219,7 +219,7 @@ export const ScheduleModal = ({ open, onClose, editingItem, defaultDay, classes 
         />
 
         <div className="flex flex-col gap-1">
-          <label className="text-xs font-medium text-navy-600 uppercase tracking-wide">Ghi chú (tùy chọn)</label>
+          <label className="text-sm font-medium text-navy-700">Ghi chú (tùy chọn)</label>
           <textarea
             className="input resize-none"
             rows={2}
