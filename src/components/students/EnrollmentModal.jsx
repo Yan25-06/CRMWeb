@@ -78,7 +78,8 @@ export const EnrollmentModal = ({
   mode = 'add',
   classId,
   enrollment,
-  student,
+  student = null,
+  classes = [],
   onSaved,
   isAdmin = false,
 }) => {
@@ -90,6 +91,9 @@ export const EnrollmentModal = ({
 
   const [newForm, setNewForm] = useState(EMPTY_NEW)
   const [newErrors, setNewErrors] = useState({})
+
+  // for mode="add" + student (pre-selected) + no classId: pick a class to enroll into
+  const [enrollClassId, setEnrollClassId] = useState('')
 
   const [status, setStatus] = useState('active')
   const [feeType, setFeeType] = useState('monthly')
@@ -122,6 +126,7 @@ export const EnrollmentModal = ({
       } else {
         setAddSubMode('new')
       }
+      setEnrollClassId('')
       setSelectedStudentId('')
       setStudentSearch('')
       setNewForm(EMPTY_NEW)
@@ -170,7 +175,21 @@ export const EnrollmentModal = ({
     setSaving(true)
     try {
       if (mode === 'add') {
-        if (addSubMode === 'existing') {
+        if (student && !classId) {
+          if (!enrollClassId) return
+          await enrollmentService.upsert({
+            studentId: student.id,
+            classId: enrollClassId,
+            status: 'active',
+            feeType,
+            monthlyFee: feeType === 'monthly' ? (Number(monthlyFee) || 0) : null,
+            courseFee: feeType === 'course' ? (Number(courseFee) || 0) : null,
+            goal,
+            note,
+            enrolledAt: new Date().toISOString(),
+          })
+          uiToast.success('Đã ghi danh vào lớp!')
+        } else if (addSubMode === 'existing') {
           if (!selectedStudentId) return
           await enrollmentService.upsert({
             studentId: selectedStudentId,
@@ -252,12 +271,16 @@ export const EnrollmentModal = ({
 
   const submitDisabled =
     saving ||
-    (mode === 'add' &&
-      (addSubMode === 'existing' ? !selectedStudentId : !newForm.name.trim()))
+    (mode === 'add' && (
+      (student && !classId)
+        ? !enrollClassId
+        : (addSubMode === 'existing' ? !selectedStudentId : !newForm.name.trim())
+    ))
 
   const submitLabel =
     mode !== 'add' ? 'Lưu thay đổi' :
-      addSubMode === 'new' ? (classId ? 'Tạo & Thêm vào lớp' : 'Thêm học sinh') : 'Thêm vào lớp'
+      (student && !classId) ? 'Ghi danh' :
+        addSubMode === 'new' ? (classId ? 'Tạo & Thêm vào lớp' : 'Thêm học sinh') : 'Thêm vào lớp'
 
   return (
     <div
@@ -270,7 +293,9 @@ export const EnrollmentModal = ({
         <div className="px-6 pt-6 pb-4 border-b border-navy-50 flex items-center justify-between">
           <h2 className="text-base font-semibold text-navy-900">
             {mode === 'add'
-              ? (classId ? '+ Thêm học viên vào lớp' : 'Thêm học sinh mới')
+              ? (student && !classId
+                  ? `Ghi danh: ${student.name}`
+                  : classId ? '+ Thêm học viên vào lớp' : 'Thêm học sinh mới')
               : 'Sửa thông tin học viên'}
           </h2>
           <button
@@ -283,6 +308,112 @@ export const EnrollmentModal = ({
 
         {/* ── Body ── */}
         <div className="px-6 py-5 flex flex-col gap-4 max-h-[72vh] overflow-y-auto">
+
+          {/* ── Enroll pre-selected student into a picked class ── */}
+          {mode === 'add' && student && !classId && (
+            <>
+              <div className="flex items-center gap-3 p-3 bg-navy-50 rounded-xl">
+                <div className="w-9 h-9 rounded-full bg-navy-800 text-white text-sm font-bold flex items-center justify-center shrink-0">
+                  {getInitials(student.name)}
+                </div>
+                <div>
+                  <p className="text-sm font-semibold text-navy-900">{student.name}</p>
+                  <p className="text-xs text-navy-400">{student.phone || 'Chưa có SĐT'}</p>
+                </div>
+              </div>
+
+              <div className="flex flex-col gap-1">
+                <label className="text-sm font-medium text-navy-700">Lớp học</label>
+                <select
+                  value={enrollClassId}
+                  onChange={e => setEnrollClassId(e.target.value)}
+                  className="select text-sm"
+                >
+                  <option value="">-- Chọn lớp --</option>
+                  {classes.map(c => (
+                    <option key={c.id} value={c.id}>{c.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="border-t border-navy-100" />
+
+              <div className="flex flex-col gap-3">
+                <h3 className="text-xs font-semibold text-navy-500 uppercase tracking-wide">Thông tin ghi danh</h3>
+
+                <div className="flex flex-col gap-2">
+                  <label className="text-sm font-medium text-navy-700">Loại học phí</label>
+                  <div className="flex gap-1 p-1 bg-navy-50 rounded-xl">
+                    <button
+                      type="button"
+                      onClick={() => setFeeType('monthly')}
+                      className={clsx(
+                        'flex-1 py-1.5 text-xs font-medium rounded-lg transition-all',
+                        feeType === 'monthly' ? 'bg-white shadow-sm text-navy-800' : 'text-navy-500 hover:text-navy-700'
+                      )}
+                    >Theo tháng</button>
+                    <button
+                      type="button"
+                      onClick={() => setFeeType('course')}
+                      className={clsx(
+                        'flex-1 py-1.5 text-xs font-medium rounded-lg transition-all',
+                        feeType === 'course' ? 'bg-white shadow-sm text-navy-800' : 'text-navy-500 hover:text-navy-700'
+                      )}
+                    >Theo khóa</button>
+                  </div>
+                  {feeType === 'monthly' ? (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-sm font-medium text-navy-700">Học phí tháng (VNĐ)</label>
+                      <input
+                        type="number"
+                        value={monthlyFee}
+                        onChange={e => setMonthlyFee(e.target.value)}
+                        placeholder="VD: 800000"
+                        min="0"
+                        step="10000"
+                        className="input text-sm"
+                      />
+                    </div>
+                  ) : (
+                    <div className="flex flex-col gap-1">
+                      <label className="text-sm font-medium text-navy-700">Học phí cả khóa (VNĐ)</label>
+                      <input
+                        type="number"
+                        value={courseFee}
+                        onChange={e => setCourseFee(e.target.value)}
+                        placeholder="VD: 3000000"
+                        min="0"
+                        step="100000"
+                        className="input text-sm"
+                      />
+                    </div>
+                  )}
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-navy-700">Mục tiêu</label>
+                  <textarea
+                    value={goal}
+                    onChange={e => setGoal(e.target.value)}
+                    placeholder="VD: Đạt 7.0 IELTS để du học..."
+                    rows={2}
+                    className="input resize-none text-sm"
+                  />
+                </div>
+
+                <div className="flex flex-col gap-1">
+                  <label className="text-sm font-medium text-navy-700">Ghi chú nội bộ</label>
+                  <textarea
+                    value={note}
+                    onChange={e => setNote(e.target.value)}
+                    placeholder="Ghi chú dành riêng cho GV..."
+                    rows={2}
+                    className="input resize-none text-sm"
+                  />
+                </div>
+              </div>
+            </>
+          )}
 
           {mode === 'add' && classId && isAdmin && (
             <div className="flex gap-1 p-1 bg-navy-50 rounded-xl">
@@ -372,7 +503,7 @@ export const EnrollmentModal = ({
             </div>
           )}
 
-          {mode === 'add' && addSubMode === 'new' && (
+          {mode === 'add' && !student && addSubMode === 'new' && (
             <div className="flex flex-col gap-3">
               {classId && (
                 <p className="text-xs text-navy-400">

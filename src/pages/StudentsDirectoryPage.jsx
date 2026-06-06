@@ -104,89 +104,6 @@ const StudentRow = ({ student, enrollments, classes, selected, onSelect, onClick
 }
 
 // ─── Quick enroll modal ───────────────────────────────────────────────────────
-const QuickEnrollModal = ({ open, onClose, student, classes, onSaved }) => {
-  const [classId, setClassId] = useState('')
-  const [feeType, setFeeType] = useState('monthly')
-  const [monthlyFee, setMonthlyFee] = useState('')
-  const [courseFee, setCourseFee] = useState('')
-  const [saving, setSaving] = useState(false)
-
-  const handleSave = async () => {
-    if (!classId) return
-    setSaving(true)
-    try {
-      await enrollmentService.upsert({
-        studentId: student.id,
-        classId,
-        status: 'active',
-        feeType,
-        monthlyFee: feeType === 'monthly' ? (Number(monthlyFee) || 0) : null,
-        courseFee: feeType === 'course' ? (Number(courseFee) || 0) : null,
-        enrolledAt: new Date().toISOString(),
-      })
-      toast.success('Đã ghi danh vào lớp!')
-      onSaved?.()
-      onClose()
-    } catch (err) {
-      toast.error('Lỗi: ' + err.message)
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title={`Ghi danh: ${student?.name}`}
-      footer={
-        <div className="flex gap-2 justify-end w-full">
-          <Button variant="ghost" onClick={onClose}>Hủy</Button>
-          <Button variant="primary" onClick={handleSave} disabled={!classId || saving}>
-            {saving ? 'Đang lưu...' : 'Ghi danh'}
-          </Button>
-        </div>
-      }
-    >
-      <div className="flex flex-col gap-4">
-        <div className="flex flex-col gap-1">
-          <label className="text-sm font-medium text-navy-700">Lớp học</label>
-          <select className="select" value={classId} onChange={e => setClassId(e.target.value)}>
-            <option value="">-- Chọn lớp --</option>
-            {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
-          </select>
-        </div>
-        <div className="flex flex-col gap-2">
-          <label className="text-sm font-medium text-navy-700">Loại học phí</label>
-          <div className="flex gap-1 p-1 bg-navy-50 rounded-xl">
-            <button
-              type="button"
-              onClick={() => setFeeType('monthly')}
-              className={clsx('flex-1 py-1.5 text-xs font-medium rounded-lg transition-all', feeType === 'monthly' ? 'bg-white shadow-sm text-navy-800' : 'text-navy-500')}
-            >Theo tháng</button>
-            <button
-              type="button"
-              onClick={() => setFeeType('course')}
-              className={clsx('flex-1 py-1.5 text-xs font-medium rounded-lg transition-all', feeType === 'course' ? 'bg-white shadow-sm text-navy-800' : 'text-navy-500')}
-            >Theo khóa</button>
-          </div>
-          {feeType === 'monthly' ? (
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-navy-700">Học phí tháng (VNĐ)</label>
-              <input type="number" value={monthlyFee} onChange={e => setMonthlyFee(e.target.value)} placeholder="VD: 800000" className="input" />
-            </div>
-          ) : (
-            <div className="flex flex-col gap-1">
-              <label className="text-sm font-medium text-navy-700">Học phí cả khóa (VNĐ)</label>
-              <input type="number" value={courseFee} onChange={e => setCourseFee(e.target.value)} placeholder="VD: 3000000" className="input" />
-            </div>
-          )}
-        </div>
-      </div>
-    </Modal>
-  )
-}
-
 // ─── Student detail sidebar ───────────────────────────────────────────────────
 const StudentDetailSidebar = ({ student, enrollments, classMap, onClose, onEdit, onEnroll, onNavigateToClass, isAdmin }) => {
   const status = calcStatus(enrollments)
@@ -704,12 +621,14 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
 
       {/* Enroll modal */}
       {selectedStudent && showEnrollModal && (
-        <QuickEnrollModal
+        <EnrollmentModal
           open={showEnrollModal}
           onClose={() => setShowEnrollModal(false)}
+          mode="add"
           student={selectedStudent}
           classes={classes}
           onSaved={handleEnrollSave}
+          isAdmin={isAdmin}
         />
       )}
 
