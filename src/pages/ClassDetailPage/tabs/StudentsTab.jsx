@@ -5,6 +5,7 @@ import { Skeleton, Card, Button } from '@/components/ui'
 import { StudentSidebar } from '@/components/students/StudentSidebar'
 import { StudentDetailPanel } from '@/components/students/StudentDetailPanel'
 import { EnrollmentModal } from '@/components/students/EnrollmentModal'
+import { StudentEditModal } from '@/components/students/StudentEditModal'
 import { studentService } from '@/services/studentService'
 import { enrollmentService } from '@/services/enrollmentService'
 
@@ -16,8 +17,8 @@ export const StudentsTab = ({ classId, onEnrollmentChange, isAdmin = false }) =>
 
   const [mobileShowDetail, setMobileShowDetail] = useState(false)
 
-  const [modalOpen, setModalOpen] = useState(false)
-  const [modalMode, setModalMode] = useState('add')
+  const [addModalOpen, setAddModalOpen] = useState(false)
+  const [editModalOpen, setEditModalOpen] = useState(false)
 
   const loadData = useCallback(async () => {
     setLoading(true)
@@ -51,19 +52,9 @@ export const StudentsTab = ({ classId, onEnrollmentChange, isAdmin = false }) =>
     setMobileShowDetail(true)
   }
 
-  const handleAddStudent = () => {
-    setModalMode('add')
-    setModalOpen(true)
-  }
-
-  const handleEditEnrollment = () => {
-    setModalMode('edit')
-    setModalOpen(true)
-  }
-
-  const handleModalSaved = () => {
-    loadData()
-  }
+  const handleAddStudent = () => setAddModalOpen(true)
+  const handleEditEnrollment = () => setEditModalOpen(true)
+  const handleModalSaved = () => loadData()
 
   const selectedStudent = students.find(s => s.id === selectedStudentId) || null
   const selectedEnrollment = selectedStudentId
@@ -80,8 +71,8 @@ export const StudentsTab = ({ classId, onEnrollmentChange, isAdmin = false }) =>
           {isAdmin && <Button onClick={handleAddStudent} className="mt-2">+ Thêm học viên</Button>}
         </Card>
         <EnrollmentModal
-          open={modalOpen}
-          onClose={() => setModalOpen(false)}
+          open={addModalOpen}
+          onClose={() => setAddModalOpen(false)}
           mode="add"
           classId={classId}
           onSaved={handleModalSaved}
@@ -187,17 +178,26 @@ export const StudentsTab = ({ classId, onEnrollmentChange, isAdmin = false }) =>
         </div>
       </div>
 
-      {/* ─── EnrollmentModal ─── */}
+      {/* ─── Add enrollment ─── */}
       <EnrollmentModal
-        open={modalOpen}
-        onClose={() => setModalOpen(false)}
-        mode={modalMode}
+        open={addModalOpen}
+        onClose={() => setAddModalOpen(false)}
+        mode="add"
         classId={classId}
-        enrollment={modalMode === 'edit' ? selectedEnrollment : undefined}
-        student={modalMode === 'edit' ? selectedStudent : undefined}
         onSaved={handleModalSaved}
         isAdmin={isAdmin}
       />
+
+      {/* ─── Edit student + enrollment ─── */}
+      {selectedStudent && selectedEnrollment && (
+        <StudentEditModal
+          open={editModalOpen}
+          onClose={() => setEditModalOpen(false)}
+          student={selectedStudent}
+          enrollment={selectedEnrollment}
+          onSaved={handleModalSaved}
+        />
+      )}
     </>
   )
 }

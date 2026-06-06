@@ -6,7 +6,7 @@ import { studentService } from '@/services/studentService'
 import { classService } from '@/services/classService'
 import { enrollmentService } from '@/services/enrollmentService'
 import { EnrollmentModal } from '@/components/students/EnrollmentModal'
-import { StudentModal } from '@/components/students/StudentModal'
+import { StudentEditModal } from '@/components/students/StudentEditModal'
 import { ImportStudentsModal } from '@/components/students/ImportStudentsModal'
 import { ExportExcelButton } from '@/components/reports/ExportExcelButton'
 import { getInitials, fmtVND } from '@/utils/helpers'
@@ -191,17 +191,22 @@ const QuickEnrollModal = ({ open, onClose, student, classes, onSaved }) => {
 const StudentDetailSidebar = ({ student, enrollments, classMap, onClose, onEdit, onEnroll, onNavigateToClass, isAdmin }) => {
   const status = calcStatus(enrollments)
   const badge = STATUS_BADGE[status]
-  const now = new Date()
-  const year = now.getFullYear()
-  const month = now.getMonth() + 1
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center justify-between p-4 border-b border-navy-100">
-        <h3 className="font-semibold text-navy-900">Chi tiết học sinh</h3>
-        <button onClick={onClose} className="p-1 rounded-lg hover:bg-navy-50 text-navy-400 hover:text-navy-700 transition-colors">
-          <X size={16} />
-        </button>
+      <div className="flex items-center justify-between p-4 border-b border-navy-100 gap-2">
+        <h3 className="font-semibold text-navy-900 truncate">Chi tiết học sinh</h3>
+        <div className="flex items-center gap-1.5 shrink-0">
+          {isAdmin && (
+            <Button variant="secondary" size="sm" onClick={onEdit}>Sửa</Button>
+          )}
+          {enrollments.length === 0 && (
+            <Button variant="ghost" size="sm" onClick={onEnroll}>+ Ghi danh</Button>
+          )}
+          <button onClick={onClose} className="p-1 rounded-lg hover:bg-navy-50 text-navy-400 hover:text-navy-700 transition-colors">
+            <X size={16} />
+          </button>
+        </div>
       </div>
 
       <div className="flex-1 overflow-y-auto p-4 flex flex-col gap-4">
@@ -252,13 +257,14 @@ const StudentDetailSidebar = ({ student, enrollments, classMap, onClose, onEdit,
                       <span className="font-medium text-navy-900 text-sm">{cls.name}</span>
                       <Badge variant={enrBadge.variant} className="text-xs">{enrBadge.label}</Badge>
                     </div>
-                    {fee != null && (
-                      <div className="flex justify-between text-xs text-navy-500">
-                        <span>{enr.feeType === 'monthly' ? 'Học phí tháng' : 'Học phí khóa'}</span>
-                        <span className="font-medium text-navy-700">{fmtVND(fee)}</span>
-                      </div>
-                    )}
+                    <div className="flex justify-between text-xs text-navy-500">
+                      <span>{enr.feeType === 'monthly' ? 'Học phí tháng' : 'Học phí khóa'}</span>
+                      <span className="font-medium text-navy-700">
+                        {fee != null ? fmtVND(fee) : <span className="text-navy-300 italic">Chưa đặt</span>}
+                      </span>
+                    </div>
                     {enr.goal && <p className="text-xs text-navy-500">Mục tiêu: {enr.goal}</p>}
+                    {enr.note && <p className="text-xs text-navy-400 italic">{enr.note}</p>}
                     <button
                       onClick={() => onNavigateToClass(cls.id)}
                       className="flex items-center gap-1 text-xs text-navy-600 hover:text-navy-900 font-medium transition-colors mt-1"
@@ -273,17 +279,6 @@ const StudentDetailSidebar = ({ student, enrollments, classMap, onClose, onEdit,
         </div>
       </div>
 
-      {/* Actions */}
-      {(isAdmin || enrollments.length === 0) && (
-        <div className="p-4 border-t border-navy-100 flex gap-2">
-          {isAdmin && (
-            <Button variant="secondary" size="sm" onClick={onEdit} className="flex-1">Sửa</Button>
-          )}
-          {enrollments.length === 0 && (
-            <Button variant="ghost" size="sm" onClick={onEnroll} className="flex-1">+ Ghi danh</Button>
-          )}
-        </div>
-      )}
     </div>
   )
 }
@@ -323,6 +318,7 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
       setStudents(s)
       setClasses(c)
       setEnrollments(e)
+      setSelectedStudent(prev => prev ? (s.find(st => st.id === prev.id) ?? prev) : null)
     } catch (err) {
       toast.error('Không tải được dữ liệu: ' + err.message)
     } finally {
@@ -673,7 +669,7 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
 
       {/* Sidebar */}
       {selectedStudent && (
-        <div className="w-full lg:w-80 shrink-0 bg-white rounded-2xl border border-navy-100 shadow-navy-sm overflow-hidden flex flex-col">
+        <div className="w-full lg:w-80 shrink-0 bg-white rounded-2xl border border-navy-100 shadow-navy-sm overflow-hidden flex flex-col lg:self-start lg:sticky lg:top-[25px] lg:h-[calc(100vh-25px)]">
           <StudentDetailSidebar
             student={selectedStudent}
             enrollments={selectedStudentEnrollments}
@@ -696,23 +692,13 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
         isAdmin={isAdmin}
       />
 
-      {/* Edit student modal — StudentModal for editing profile (name, phone, grade, email) */}
+      {/* Edit student modal — chỉ profile (Plan A: enrollment edit từ trong lớp) */}
       {selectedStudent && (
-        <StudentModal
+        <StudentEditModal
           open={editModalOpen}
           onClose={() => setEditModalOpen(false)}
           student={selectedStudent}
-          classes={classes}
-          requireClass={false}
-          onSave={async (formData) => {
-            try {
-              await studentService.update(selectedStudent.id, formData)
-              setSelectedStudent(prev => ({ ...prev, ...formData }))
-              await loadData()
-            } catch (err) {
-              toast.error('Lỗi: ' + err.message)
-            }
-          }}
+          onSaved={() => { setEditModalOpen(false); loadData() }}
         />
       )}
 
