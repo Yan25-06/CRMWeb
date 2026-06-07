@@ -49,7 +49,8 @@ export const RadarChartPanel = ({ reviews = [], skillConfig, onAddReview }) => {
       const data = skills.map(sk => {
         const raw = rev.scores?.[sk.name]
         if (raw == null) return 0
-        return Math.round((raw / sk.maxScore) * 1000) / 10 // % with 1 decimal
+        const max = rev.scoreMax?.[sk.name] ?? 9
+        return Math.round((raw / max) * 1000) / 10 // % with 1 decimal
       })
       return {
         label: fmtDate(rev.date),
@@ -94,7 +95,7 @@ export const RadarChartPanel = ({ reviews = [], skillConfig, onAddReview }) => {
                 const raw = rev?.scores?.[skill?.name]
                 const pct = ctx.raw
                 return raw != null
-                  ? ` ${ctx.dataset.label}: ${raw}/${skill.maxScore} (${pct}%)`
+                  ? ` ${ctx.dataset.label}: ${raw}/${rev?.scoreMax?.[skill?.name] ?? 9} (${pct}%)`
                   : ` ${ctx.dataset.label}: —`
               },
             },
@@ -115,10 +116,16 @@ export const RadarChartPanel = ({ reviews = [], skillConfig, onAddReview }) => {
           <p className="font-semibold text-navy-700">Chưa có đánh giá nào</p>
           <p className="text-sm text-navy-400 mt-1">Tạo đánh giá đầu tiên để theo dõi năng lực học viên</p>
         </div>
-        <Button variant="primary" size="sm" onClick={onAddReview} className="flex items-center gap-1.5">
-          <PlusCircle size={14} />
-          Tạo Đánh Giá Đầu Tiên
-        </Button>
+        {onAddReview ? (
+          <Button variant="primary" size="sm" onClick={onAddReview} className="flex items-center gap-1.5">
+            <PlusCircle size={14} />
+            Tạo Đánh Giá Đầu Tiên
+          </Button>
+        ) : (
+          <p className="text-xs text-amber-600 bg-amber-50 border border-amber-200 rounded-xl px-3 py-2">
+            Cần tạo mock test trước khi thêm đánh giá
+          </p>
+        )}
       </div>
     )
   }
@@ -130,10 +137,14 @@ export const RadarChartPanel = ({ reviews = [], skillConfig, onAddReview }) => {
           <p className="text-sm font-semibold text-navy-800">Biểu Đồ Năng Lực</p>
           <p className="text-xs text-navy-400">{reviews.length} đợt đánh giá · chuẩn hóa 0–100%</p>
         </div>
-        <Button variant="secondary" size="sm" onClick={onAddReview} className="flex items-center gap-1.5">
-          <PlusCircle size={13} />
-          Thêm Đánh Giá
-        </Button>
+        {onAddReview ? (
+          <Button variant="secondary" size="sm" onClick={onAddReview} className="flex items-center gap-1.5">
+            <PlusCircle size={13} />
+            Thêm Đánh Giá
+          </Button>
+        ) : (
+          <span className="text-xs text-navy-400 italic">Tạo mock test trước</span>
+        )}
       </div>
       <canvas ref={canvasRef} />
     </div>

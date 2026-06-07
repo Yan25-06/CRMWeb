@@ -2,10 +2,10 @@ import { supabase } from '@/lib/supabase'
 import { getUid } from './studentService'
 
 export const DEFAULT_SKILL_CONFIG = [
-  { name: 'Listening', maxScore: 9, order: 0 },
-  { name: 'Reading',   maxScore: 9, order: 1 },
-  { name: 'Writing',   maxScore: 9, order: 2 },
-  { name: 'Speaking',  maxScore: 9, order: 3 },
+  { name: 'Listening', order: 0 },
+  { name: 'Reading',   order: 1 },
+  { name: 'Writing',   order: 2 },
+  { name: 'Speaking',  order: 3 },
 ]
 
 const fromDB = (row) => row ? {
@@ -21,7 +21,7 @@ const fromDB = (row) => row ? {
   teacherId: row.teacher_id,
   teacherName: row.teachers?.name || row.teachers?.email || null,
   skillConfig: Array.isArray(row.skill_config) && row.skill_config.length > 0
-    ? row.skill_config
+    ? row.skill_config.map(sk => ({ name: sk.name, order: sk.order ?? 0 }))
     : DEFAULT_SKILL_CONFIG,
 } : null
 
@@ -35,7 +35,7 @@ const toDB = (data) => {
     schedule_time: data.scheduleTime ?? null,
     start_date: data.startDate ?? null,
     skill_config: Array.isArray(data.skillConfig) && data.skillConfig.length > 0
-      ? data.skillConfig
+      ? data.skillConfig.map((sk, i) => ({ name: sk.name, order: sk.order ?? i }))
       : DEFAULT_SKILL_CONFIG,
   }
   if (data.teacherId) obj.teacher_id = data.teacherId

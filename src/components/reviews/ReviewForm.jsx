@@ -16,23 +16,13 @@ const clampScore = (val, maxScore) => {
   return Math.min(maxScore, Math.max(0, n))
 }
 
-/**
- * ReviewForm — modal form to create/edit a skill assessment review
- * @param {boolean}  open
- * @param {Function} onClose
- * @param {Object}   editingReview - null = add, object = edit
- * @param {string}   studentId
- * @param {string}   classId
- * @param {string}   teacherName
- * @param {Array}    skillConfig   - [{ name, maxScore, order }]
- * @param {Function} onSave - callback(reviewData)
- */
 export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, teacherName, skillConfig, latestMockEntry, onSave }) => {
   const skills = skillConfig ?? DEFAULT_SKILL_CONFIG
   const isEdit = !!editingReview
   const [form, setForm]               = useState(EMPTY_FORM)
   const [errors, setErrors]           = useState({})
   const [prefillSource, setPrefillSource] = useState(null)
+  const [scoreMaxSnapshot, setScoreMaxSnapshot] = useState({})
 
   useEffect(() => {
     if (open) {
@@ -44,18 +34,37 @@ export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, t
           advice: editingReview.advice ?? '',
           remark: editingReview.remark ?? '',
         })
+        // Build scoreMax: stored snapshot takes priority; fallback to latestMockEntry sections for skills missing from stored snapshot
+        const storedMax = editingReview.scoreMax ?? {}
+        const resolvedMax = {}
+        ;(skillConfig ?? DEFAULT_SKILL_CONFIG).forEach(skill => {
+          if (storedMax[skill.name] != null) {
+            resolvedMax[skill.name] = storedMax[skill.name]
+          } else if (latestMockEntry) {
+            const section = (latestMockEntry.mockTest.sections ?? []).find(s => s.name === skill.name)
+            resolvedMax[skill.name] = section?.maxScore ?? 9
+          } else {
+            resolvedMax[skill.name] = 9
+          }
+        })
+        setScoreMaxSnapshot(resolvedMax)
         setPrefillSource(null)
       } else if (latestMockEntry) {
         const { result, mockTest } = latestMockEntry
         const prefillScores = {}
+        const scoreMax = {}
         skills.forEach(skill => {
           const val = result.scores?.[skill.name]
           if (val != null) prefillScores[skill.name] = val
+          const section = (mockTest.sections ?? []).find(s => s.name === skill.name)
+          scoreMax[skill.name] = section?.maxScore ?? 9
         })
         setForm({ ...EMPTY_FORM, scores: prefillScores, remark: result.teacherNote ?? '' })
+        setScoreMaxSnapshot(scoreMax)
         setPrefillSource({ title: mockTest.title, date: mockTest.date })
       } else {
         setForm(EMPTY_FORM)
+        setScoreMaxSnapshot({})
         setPrefillSource(null)
       }
       setErrors({})
@@ -65,15 +74,18 @@ export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, t
   const setScore = (name, val) =>
     setForm(f => ({ ...f, scores: { ...f.scores, [name]: val } }))
 
+  const getMaxScore = (skillName) => scoreMaxSnapshot[skillName] ?? 9
+
   const validate = () => {
     const e = {}
     if (!form.date) e.date = 'Vui lòng chọn ngày'
     for (const skill of skills) {
+      const maxScore = getMaxScore(skill.name)
       const val = form.scores?.[skill.name]
       if (val !== '' && val != null) {
         const n = parseFloat(val)
-        if (isNaN(n) || n < 0 || n > skill.maxScore)
-          e[skill.name] = `Điểm 0–${skill.maxScore}`
+        if (isNaN(n) || n < 0 || n > maxScore)
+          e[skill.name] = `Điểm 0–${maxScore}`
       }
     }
     setErrors(e)
@@ -94,6 +106,7 @@ export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, t
       studentId, classId,
       date:        form.date,
       scores:      cleanScores,
+      scoreMax:    scoreMaxSnapshot,
       tags:        form.tags,
       advice:      form.advice.trim() || undefined,
       remark:      form.remark.trim() || undefined,
@@ -104,24 +117,30 @@ export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, t
   }
 
   const ScoreInput = ({ skill }) => {
+    const maxScore = getMaxScore(skill.name)
     const val = form.scores?.[skill.name] ?? ''
     return (
       <div className="flex flex-col gap-1">
         <label className="text-sm font-medium text-navy-700">{skill.name}</label>
-        <input
-          type="number"
-          min="0"
-          max={skill.maxScore}
-          step={skill.maxScore <= 9 ? 0.5 : 1}
-          placeholder="—"
-          value={val}
-          onChange={e => setScore(skill.name, e.target.value)}
-          onBlur={e => {
-            const clamped = clampScore(e.target.value, skill.maxScore)
-            setScore(skill.name, clamped === '' ? '' : clamped)
-          }}
-          className={`input text-center ${errors[skill.name] ? 'border-red-400' : ''}`}
-        />
+        <div className="relative">
+          <input
+            type="number"
+            min="0"
+            max={maxScore}
+            step={maxScore <= 9 ? 0.5 : 1}
+            placeholder="—"
+            value={val}
+            onChange={e => setScore(skill.name, e.target.value)}
+            onBlur={e => {
+              const clamped = clampScore(e.target.value, maxScore)
+              setScore(skill.name, clamped === '' ? '' : clamped)
+            }}
+            className={`input text-center pr-8 ${errors[skill.name] ? 'border-red-400' : ''}`}
+          />
+          <span className="absolute right-2.5 top-1/2 -translate-y-1/2 text-xs text-navy-400 pointer-events-none select-none">
+            /{maxScore}
+          </span>
+        </div>
         {errors[skill.name] && <span className="text-xs text-red-500">{errors[skill.name]}</span>}
       </div>
     )
@@ -151,7 +170,7 @@ export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, t
             </span>
             <button
               type="button"
-              onClick={() => { setForm(EMPTY_FORM); setPrefillSource(null) }}
+              onClick={() => { setForm(EMPTY_FORM); setPrefillSource(null); setScoreMaxSnapshot({}) }}
               className="p-0.5 text-navy-400 hover:text-navy-700 rounded transition-colors"
               aria-label="Xóa dữ liệu đã điền sẵn"
             >

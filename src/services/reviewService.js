@@ -6,6 +6,7 @@ const fromDB = (row) => row ? {
   classId:     row.class_id,
   date:        row.date,
   scores:      row.scores ?? {},
+  scoreMax:    row.score_max ?? {},
   tags:        row.tags ?? [],
   remark:      row.remark,
   advice:      row.advice,
@@ -20,6 +21,7 @@ const toDB = (data) => ({
   class_id:     data.classId,
   date:         data.date,
   scores:       data.scores && typeof data.scores === 'object' ? data.scores : {},
+  score_max:    data.scoreMax && typeof data.scoreMax === 'object' ? data.scoreMax : {},
   tags:         Array.isArray(data.tags) ? data.tags : [],
   remark:       data.remark       ?? null,
   advice:       data.advice       ?? null,
@@ -58,5 +60,10 @@ export const reviewService = {
       .single()
     if (error) throw new Error(error.message)
     return fromDB(row)
+  },
+
+  async remove(id) {
+    const { error } = await supabase.from('reviews').delete().eq('id', id)
+    if (error) throw new Error(error.message)
   },
 }

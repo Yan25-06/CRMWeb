@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useId } from 'react'
+export { CurrencyInput } from './CurrencyInput'
 import { clsx } from 'clsx'
 import { X, CheckCircle, AlertCircle, Info } from 'lucide-react'
 

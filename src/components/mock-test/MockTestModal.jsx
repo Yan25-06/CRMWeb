@@ -6,7 +6,7 @@ import { mockTestResultService } from '@/services/mockTestResultService'
 import { MockTestSectionBuilder, DEFAULT_SECTIONS } from './MockTestSectionBuilder'
 
 const skillConfigToSections = (skillConfig) =>
-  skillConfig.map((sk, i) => ({ id: crypto.randomUUID(), name: sk.name, maxScore: sk.maxScore, order: sk.order ?? i }))
+  skillConfig.map((sk, i) => ({ id: crypto.randomUUID(), name: sk.name, maxScore: sk.maxScore ?? 9, order: sk.order ?? i }))
 
 export const MockTestModal = ({ open, onClose, classId, mockTest, skillConfig, onSaved }) => {
   const mode = mockTest ? 'edit' : 'create'

@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { clsx } from 'clsx'
-import { Button } from '@/components/ui'
+import { Button, CurrencyInput } from '@/components/ui'
 import { toast as uiToast } from '@/components/ui'
 import { getInitials } from '@/utils/helpers'
 import { studentService } from '@/services/studentService'
@@ -43,31 +43,19 @@ const FeeInputs = ({ feeType, setFeeType, monthlyFee, setMonthlyFee, courseFee, 
     </div>
 
     {feeType === 'monthly' ? (
-      <div className="flex flex-col gap-1">
-        <label className="text-sm font-medium text-navy-700">Học phí tháng (VNĐ)</label>
-        <input
-          type="number"
-          value={monthlyFee}
-          onChange={e => setMonthlyFee(e.target.value)}
-          placeholder="VD: 800000"
-          min="0"
-          step="10000"
-          className="input text-sm"
-        />
-      </div>
+      <CurrencyInput
+        label="Học phí tháng (VNĐ)"
+        value={monthlyFee}
+        onChange={setMonthlyFee}
+        className="text-sm"
+      />
     ) : (
-      <div className="flex flex-col gap-1">
-        <label className="text-sm font-medium text-navy-700">Học phí cả khóa (VNĐ)</label>
-        <input
-          type="number"
-          value={courseFee}
-          onChange={e => setCourseFee(e.target.value)}
-          placeholder="VD: 3000000"
-          min="0"
-          step="100000"
-          className="input text-sm"
-        />
-      </div>
+      <CurrencyInput
+        label="Học phí cả khóa (VNĐ)"
+        value={courseFee}
+        onChange={setCourseFee}
+        className="text-sm"
+      />
     )}
   </div>
 )
@@ -140,8 +128,8 @@ export const EnrollmentModal = ({
     } else if (mode === 'edit' && enrollment) {
       setStatus(enrollment.status || 'active')
       setFeeType(enrollment.feeType || 'monthly')
-      setMonthlyFee(enrollment.monthlyFee != null ? String(enrollment.monthlyFee) : '')
-      setCourseFee(enrollment.courseFee != null ? String(enrollment.courseFee) : '')
+      setMonthlyFee(enrollment.monthlyFee != null ? enrollment.monthlyFee : '')
+      setCourseFee(enrollment.courseFee != null ? enrollment.courseFee : '')
       setGoal(enrollment.goal || '')
       setNote(enrollment.note || '')
       setConfirmDrop(false)
@@ -362,31 +350,19 @@ export const EnrollmentModal = ({
                     >Theo khóa</button>
                   </div>
                   {feeType === 'monthly' ? (
-                    <div className="flex flex-col gap-1">
-                      <label className="text-sm font-medium text-navy-700">Học phí tháng (VNĐ)</label>
-                      <input
-                        type="number"
-                        value={monthlyFee}
-                        onChange={e => setMonthlyFee(e.target.value)}
-                        placeholder="VD: 800000"
-                        min="0"
-                        step="10000"
-                        className="input text-sm"
-                      />
-                    </div>
+                    <CurrencyInput
+                      label="Học phí tháng (VNĐ)"
+                      value={monthlyFee}
+                      onChange={setMonthlyFee}
+                      className="text-sm"
+                    />
                   ) : (
-                    <div className="flex flex-col gap-1">
-                      <label className="text-sm font-medium text-navy-700">Học phí cả khóa (VNĐ)</label>
-                      <input
-                        type="number"
-                        value={courseFee}
-                        onChange={e => setCourseFee(e.target.value)}
-                        placeholder="VD: 3000000"
-                        min="0"
-                        step="100000"
-                        className="input text-sm"
-                      />
-                    </div>
+                    <CurrencyInput
+                      label="Học phí cả khóa (VNĐ)"
+                      value={courseFee}
+                      onChange={setCourseFee}
+                      className="text-sm"
+                    />
                   )}
                 </div>
 
@@ -597,33 +573,19 @@ export const EnrollmentModal = ({
                     </button>
                   </div>
                   {newForm.feeType !== 'course' ? (
-                    <div className="flex flex-col gap-1">
-                      <label className="text-sm font-medium text-navy-700">Học phí tháng (VNĐ)</label>
-                      <input
-                        type="number"
-                        name="monthlyFee"
-                        value={newForm.monthlyFee}
-                        onChange={handleNewFormChange}
-                        placeholder="VD: 800000"
-                        min="0"
-                        step="10000"
-                        className="input text-sm"
-                      />
-                    </div>
+                    <CurrencyInput
+                      label="Học phí tháng (VNĐ)"
+                      value={newForm.monthlyFee}
+                      onChange={val => setNewForm(f => ({ ...f, monthlyFee: val }))}
+                      className="text-sm"
+                    />
                   ) : (
-                    <div className="flex flex-col gap-1">
-                      <label className="text-sm font-medium text-navy-700">Học phí cả khóa (VNĐ)</label>
-                      <input
-                        type="number"
-                        name="courseFee"
-                        value={newForm.courseFee}
-                        onChange={handleNewFormChange}
-                        placeholder="VD: 3000000"
-                        min="0"
-                        step="100000"
-                        className="input text-sm"
-                      />
-                    </div>
+                    <CurrencyInput
+                      label="Học phí cả khóa (VNĐ)"
+                      value={newForm.courseFee}
+                      onChange={val => setNewForm(f => ({ ...f, courseFee: val }))}
+                      className="text-sm"
+                    />
                   )}
                 </div>
               )}

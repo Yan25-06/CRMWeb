@@ -10,7 +10,7 @@ export const DEFAULT_SECTIONS = () => [
   { id: uid(), name: 'Speaking',  maxScore: 40, order: 3 },
 ]
 
-export const MockTestSectionBuilder = ({ sections = [], onChange }) => {
+export const MockTestSectionBuilder = ({ sections = [], onChange, showMaxScore = true }) => {
   const lowerNames = sections.map(s => s.name.trim().toLowerCase())
   const isDuplicate = (idx) => {
     const name = lowerNames[idx]
@@ -71,15 +71,17 @@ export const MockTestSectionBuilder = ({ sections = [], onChange }) => {
             )}
             title={isDuplicate(idx) ? 'Tên phần thi bị trùng' : undefined}
           />
-          <input
-            type="number"
-            min="1"
-            step="1"
-            placeholder="Điểm tối đa"
-            value={s.maxScore}
-            onChange={e => update(idx, 'maxScore', Math.max(1, Math.floor(Number(e.target.value) || 1)))}
-            className="input text-sm h-9 w-24 text-center"
-          />
+          {showMaxScore && (
+            <input
+              type="number"
+              min="1"
+              step="1"
+              placeholder="Điểm tối đa"
+              value={s.maxScore}
+              onChange={e => update(idx, 'maxScore', Math.max(1, Math.floor(Number(e.target.value) || 1)))}
+              className="input text-sm h-9 w-24 text-center"
+            />
+          )}
           <button
             type="button"
             onClick={() => remove(idx)}

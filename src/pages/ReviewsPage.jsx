@@ -1,7 +1,7 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
 import { GraduationCap, FileText, Users, User, Search, UserCircle } from 'lucide-react'
 import { clsx } from 'clsx'
-import { Button, Skeleton, toast } from '@/components/ui'
+import { Button, Skeleton, toast, ConfirmModal } from '@/components/ui'
 import { RadarChartPanel }       from '@/components/reviews/RadarChartPanel'
 import { ReviewHistory }         from '@/components/reviews/ReviewHistory'
 import { ReviewForm }            from '@/components/reviews/ReviewForm'
@@ -111,6 +111,7 @@ export const ReviewsPage = ({ settings = {} }) => {
   const [formOpen,      setFormOpen]    = useState(false)
   const [editingReview, setEditingReview] = useState(null)
   const [reportOpen,    setReportOpen]   = useState(false)
+  const [deletingReview, setDeletingReview] = useState(null)
 
   // Wrap setters to also persist to localStorage
   const persist = (patch) => {
@@ -263,6 +264,17 @@ export const ReviewsPage = ({ settings = {} }) => {
   const openAdd  = () => { setEditingReview(null); setFormOpen(true) }
   const openEdit = (rev) => { setEditingReview(rev); setFormOpen(true) }
 
+  const handleDeleteReview = async () => {
+    if (!deletingReview) return
+    try {
+      await reviewService.remove(deletingReview.id)
+      toast.success('Đã xóa đánh giá')
+      await loadReviews()
+    } catch (err) {
+      toast.error('Xóa thất bại: ' + err.message)
+    }
+  }
+
   const hasStudentSelected = !!(selectedClassId && selectedStudentId)
 
   return (
@@ -412,10 +424,14 @@ export const ReviewsPage = ({ settings = {} }) => {
                     {/* Radar + history */}
                     <div className="flex flex-col md:flex-row gap-4 items-start">
                       <div className="w-full md:w-1/2">
-                        <RadarChartPanel reviews={filteredReviews} skillConfig={selectedClass?.skillConfig} onAddReview={openAdd} />
+                        <RadarChartPanel
+                          reviews={filteredReviews}
+                          skillConfig={selectedClass?.skillConfig}
+                          onAddReview={mocksByStudent.get(selectedStudentId)?.[0] ? openAdd : undefined}
+                        />
                       </div>
                       <div className="w-full md:w-1/2">
-                        <ReviewHistory reviews={filteredReviews} skillConfig={selectedClass?.skillConfig} onEdit={openEdit} />
+                        <ReviewHistory reviews={filteredReviews} skillConfig={selectedClass?.skillConfig} onEdit={openEdit} onDelete={setDeletingReview} />
                       </div>
                     </div>
 
@@ -455,6 +471,15 @@ export const ReviewsPage = ({ settings = {} }) => {
         skillConfig={selectedClass?.skillConfig}
         latestMockEntry={mocksByStudent.get(selectedStudentId)?.[0] ?? null}
         onSave={handleSaveReview}
+      />
+
+      <ConfirmModal
+        open={!!deletingReview}
+        onClose={() => setDeletingReview(null)}
+        onConfirm={handleDeleteReview}
+        title="Xóa đánh giá"
+        message={`Xóa phiếu đánh giá ngày ${deletingReview ? new Date(deletingReview.date).toLocaleDateString('vi-VN') : ''}? Hành động này không thể hoàn tác.`}
+        confirmLabel="Xóa"
       />
 
       <ReportCardModal

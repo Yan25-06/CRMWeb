@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { Modal, Button, Input } from '@/components/ui'
+import { Modal, Button, Input, CurrencyInput } from '@/components/ui'
 import { studentService } from '@/services/studentService'
 import { enrollmentService } from '@/services/enrollmentService'
 import { todayISO, monthISO } from '@/utils/helpers'
@@ -91,13 +91,10 @@ export const PaymentModal = ({ open, onClose, onSave, defaultStudentId, defaultP
           {errors.studentId && <span className="text-xs text-red-600">{errors.studentId}</span>}
         </div>
 
-        <Input
-          label="Số tiền (đ) *"
-          type="number"
-          min="0"
-          placeholder="150000"
+        <CurrencyInput
+          label="Số tiền *"
           value={form.amount}
-          onChange={e => set('amount', e.target.value)}
+          onChange={val => set('amount', val)}
           error={errors.amount}
         />
 

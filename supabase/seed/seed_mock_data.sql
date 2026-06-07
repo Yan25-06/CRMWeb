@@ -153,9 +153,10 @@ VALUES
 -- ====================================================
 -- BƯỚC 4  : Classes (4 lớp, 2 skill_config khác nhau)
 -- ====================================================
--- c01, c02: IELTS (teacher 1) — skill_config mặc định 4 kỹ năng 0–9
--- c03: TOEIC (teacher 2) — skill_config custom Listening/Reading 0–495
--- c04: Giao tiếp (admin) — skill_config custom 3 kỹ năng 0–10
+-- c01, c02: IELTS (teacher 1) — skill_config mặc định 4 kỹ năng
+-- c03: TOEIC (teacher 2) — skill_config custom Listening/Reading
+-- c04: Giao tiếp (admin) — skill_config custom 3 kỹ năng
+-- (maxScore không còn lưu trong skill_config; lưu trong mock_tests.sections)
 INSERT INTO public.classes
   (id, teacher_id, name, level, course_type, max_students,
    schedule_days, schedule_time, start_date, skill_config)
@@ -165,37 +166,37 @@ VALUES
    'IELTS Cơ Bản A1', 'IELTS', 'IELTS', 10,
    'Thứ 2, Thứ 5', '08:00 – 10:00',
    current_date - 90,
-   '[{"name":"Listening","maxScore":9,"order":0},
-     {"name":"Reading","maxScore":9,"order":1},
-     {"name":"Writing","maxScore":9,"order":2},
-     {"name":"Speaking","maxScore":9,"order":3}]'::jsonb),
+   '[{"name":"Listening","order":0},
+     {"name":"Reading","order":1},
+     {"name":"Writing","order":2},
+     {"name":"Speaking","order":3}]'::jsonb),
 
   ('02000000-0000-0000-0000-000000000002',
    (SELECT t1 FROM _seed_teachers),
    'IELTS Nâng Cao A2', 'IELTS Advanced', 'IELTS', 8,
    'Thứ 3', '14:00 – 16:00',
    current_date - 60,
-   '[{"name":"Listening","maxScore":9,"order":0},
-     {"name":"Reading","maxScore":9,"order":1},
-     {"name":"Writing","maxScore":9,"order":2},
-     {"name":"Speaking","maxScore":9,"order":3}]'::jsonb),
+   '[{"name":"Listening","order":0},
+     {"name":"Reading","order":1},
+     {"name":"Writing","order":2},
+     {"name":"Speaking","order":3}]'::jsonb),
 
   ('02000000-0000-0000-0000-000000000003',
    (SELECT t2 FROM _seed_teachers),
    'TOEIC Intensive B1', 'TOEIC', 'TOEIC', 12,
    'Thứ 4', '18:00 – 20:00',
    current_date - 45,
-   '[{"name":"Listening","maxScore":495,"order":0},
-     {"name":"Reading","maxScore":495,"order":1}]'::jsonb),
+   '[{"name":"Listening","order":0},
+     {"name":"Reading","order":1}]'::jsonb),
 
   ('02000000-0000-0000-0000-000000000004',
    (SELECT ta  FROM _seed_teachers),
    'Giao Tiếp Cơ Bản', 'Giao tiếp', 'Giao tiếp', 6,
    'Thứ 7', '09:00 – 11:00',
    current_date - 30,
-   '[{"name":"Phát âm","maxScore":10,"order":0},
-     {"name":"Từ vựng","maxScore":10,"order":1},
-     {"name":"Ngữ pháp","maxScore":10,"order":2}]'::jsonb);
+   '[{"name":"Phát âm","order":0},
+     {"name":"Từ vựng","order":1},
+     {"name":"Ngữ pháp","order":2}]'::jsonb);
 
 -- ====================================================
 -- BƯỚC 5  : Enrollments (đủ status + fee_type)
@@ -751,7 +752,7 @@ VALUES
 -- c04 keys: Phát âm, Từ vựng, Ngữ pháp (max 10)
 INSERT INTO public.reviews
   (id, student_id, class_id, date,
-   scores, remark, tags, advice,
+   scores, score_max, remark, tags, advice,
    teacher_name, absent, absent_reason)
 VALUES
   -- s01 An / c01 — 2 reviews tiến bộ
@@ -760,6 +761,7 @@ VALUES
    '02000000-0000-0000-0000-000000000001',
    current_date - 14,
    '{"Listening":7,"Reading":6.5,"Writing":7.5,"Speaking":8}'::jsonb,
+   '{"Listening":9,"Reading":9,"Writing":9,"Speaking":9}'::jsonb,
    'An học nghiêm túc, cần luyện thêm Reading.',
    ARRAY['chăm chỉ','tiến bộ'],
    'Tăng cường đọc sách tiếng Anh mỗi ngày.',
@@ -770,6 +772,7 @@ VALUES
    '02000000-0000-0000-0000-000000000001',
    current_date - 7,
    '{"Listening":7.5,"Reading":7,"Writing":8,"Speaking":8.5}'::jsonb,
+   '{"Listening":9,"Reading":9,"Writing":9,"Speaking":9}'::jsonb,
    'Tiến bộ rõ rệt so với tuần trước.',
    ARRAY['xuất sắc','tiến bộ'],
    'Tiếp tục duy trì phong độ tốt.',
@@ -780,6 +783,7 @@ VALUES
    '01000000-0000-0000-0000-000000000002',
    '02000000-0000-0000-0000-000000000001',
    current_date - 7,
+   '{}'::jsonb,
    '{}'::jsonb,
    NULL,
    ARRAY[]::text[],
@@ -792,6 +796,7 @@ VALUES
    '02000000-0000-0000-0000-000000000001',
    current_date - 14,
    '{"Listening":6,"Reading":5.5,"Writing":6,"Speaking":7}'::jsonb,
+   '{"Listening":9,"Reading":9,"Writing":9,"Speaking":9}'::jsonb,
    'Cần chú ý hơn vào phần Writing.',
    ARRAY['cần cố gắng'],
    'Làm thêm bài tập Grammar mỗi tối.',
@@ -803,6 +808,7 @@ VALUES
    '02000000-0000-0000-0000-000000000003',
    current_date - 21,
    '{"Listening":380,"Reading":350}'::jsonb,
+   '{"Listening":495,"Reading":495}'::jsonb,
    'Listening tốt hơn Reading.',
    ARRAY['chăm chỉ'],
    'Luyện Part 7 Reading thêm.',
@@ -813,6 +819,7 @@ VALUES
    '02000000-0000-0000-0000-000000000003',
    current_date - 7,
    '{"Listening":400,"Reading":370}'::jsonb,
+   '{"Listening":495,"Reading":495}'::jsonb,
    'Cải thiện đều cả hai kỹ năng.',
    ARRAY['tiến bộ'],
    'Mục tiêu 750+ trong tháng tới.',
@@ -824,6 +831,7 @@ VALUES
    '02000000-0000-0000-0000-000000000003',
    current_date - 21,
    '{"Listening":350,"Reading":320}'::jsonb,
+   '{"Listening":495,"Reading":495}'::jsonb,
    'Cần tập trung vào từ vựng thêm.',
    ARRAY['cần cố gắng'],
    'Học 20 từ TOEIC mỗi ngày.',
@@ -835,6 +843,7 @@ VALUES
    '02000000-0000-0000-0000-000000000004',
    current_date - 14,
    '{"Phát âm":8,"Từ vựng":7,"Ngữ pháp":6}'::jsonb,
+   '{"Phát âm":10,"Từ vựng":10,"Ngữ pháp":10}'::jsonb,
    'Phát âm tốt, ngữ pháp cần củng cố.',
    ARRAY['chăm chỉ'],
    'Xem lại phần tense và article.',

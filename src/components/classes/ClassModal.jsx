@@ -4,10 +4,10 @@ import { MockTestSectionBuilder } from '@/components/mock-test/MockTestSectionBu
 import { DEFAULT_SKILL_CONFIG } from '@/services/classService'
 
 const toSections = (skillConfig) =>
-  skillConfig.map((sk, i) => ({ id: crypto.randomUUID(), name: sk.name, maxScore: sk.maxScore, order: sk.order ?? i }))
+  skillConfig.map((sk, i) => ({ id: crypto.randomUUID(), name: sk.name, maxScore: 9, order: sk.order ?? i }))
 
 const toSkillConfig = (sections) =>
-  sections.map((s, i) => ({ name: s.name, maxScore: s.maxScore, order: i }))
+  sections.map((s, i) => ({ name: s.name, order: i }))
 
 export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = false, teachers = [] }) => {
   const [formData, setFormData] = useState({
@@ -56,13 +56,13 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
 
   const handleChange = (e) => {
     const { name, value } = e.target
-    setFormData(prev => ({
-      ...prev,
-      [name]: name === 'maxStudents' ? Number(value) : value
-    }))
-    if (errors[name]) {
-      setErrors(prev => ({ ...prev, [name]: null }))
+    let parsed = value
+    if (name === 'maxStudents') {
+      const digits = value.replace(/\D/g, '')
+      parsed = Number(digits) || 0
     }
+    setFormData(prev => ({ ...prev, [name]: parsed }))
+    if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }))
   }
 
   const handleSubmit = (e) => {
@@ -161,10 +161,10 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
           <Input
             label="Sĩ số tối đa"
             name="maxStudents"
-            type="number"
-            value={formData.maxStudents}
+            type="text"
+            inputMode="numeric"
+            value={formData.maxStudents || ''}
             onChange={handleChange}
-            min="0"
           />
         </div>
 
@@ -199,11 +199,7 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
             <label className="text-sm font-medium text-navy-700">Cấu Hình Kỹ Năng</label>
             <span className="text-xs text-navy-400">Dùng cho đánh giá & mock test</span>
           </div>
-          <div className="flex justify-between text-xs text-navy-400 px-8 pr-10">
-            <span className="flex-1">Tên kỹ năng</span>
-            <span className="w-24 text-center">Điểm tối đa</span>
-          </div>
-          <MockTestSectionBuilder sections={skillSections} onChange={setSkillSections} />
+          <MockTestSectionBuilder sections={skillSections} onChange={setSkillSections} showMaxScore={false} />
         </div>
       </div>
     </Modal>

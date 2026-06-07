@@ -1,5 +1,5 @@
 import { clsx } from 'clsx'
-import { Calendar, ChevronRight, Star } from 'lucide-react'
+import { Calendar, ChevronRight, Star, Trash2 } from 'lucide-react'
 import { POSITIVE_TAGS } from './QuickTagEditor'
 
 const fmtDate = (dateStr) => {
@@ -17,13 +17,7 @@ const ScoreBadge = ({ label, score }) => {
   )
 }
 
-/**
- * ReviewHistory — timeline of past reviews for a student
- * @param {Array}    reviews     - sorted DESC review records
- * @param {Array}    skillConfig - class skill config array [{ name, maxScore, order }]
- * @param {Function} onEdit      - callback(review) to edit
- */
-export const ReviewHistory = ({ reviews = [], skillConfig = [], onEdit }) => {
+export const ReviewHistory = ({ reviews = [], skillConfig = [], onEdit, onDelete }) => {
   if (reviews.length === 0) {
     return (
       <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-8 flex flex-col items-center justify-center gap-3 text-center">
@@ -93,7 +87,19 @@ export const ReviewHistory = ({ reviews = [], skillConfig = [], onEdit }) => {
                   )}
                 </div>
 
-                <ChevronRight size={16} className="text-navy-300 group-hover:text-navy-600 shrink-0 mt-1 transition-colors" />
+                <div className="flex items-center gap-1 shrink-0 mt-1">
+                  {onDelete && (
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); onDelete(rev) }}
+                      className="p-1 text-navy-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors opacity-0 group-hover:opacity-100"
+                      aria-label="Xóa đánh giá"
+                    >
+                      <Trash2 size={14} />
+                    </button>
+                  )}
+                  <ChevronRight size={16} className="text-navy-300 group-hover:text-navy-600 transition-colors" />
+                </div>
               </div>
             </div>
           )

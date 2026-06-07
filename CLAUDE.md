@@ -145,7 +145,7 @@ Project quản lý thay đổi qua OpenSpec (`openspec/`). Có skill tích hợp
 - `openspec/specs/` — spec hiện hành (đã build). `openspec/changes/` — change đang làm; `openspec/changes/archive/` — đã xong.
 - `openspec/ROADMAP.md` — lộ trình migration Supabase multi-teacher (nguồn chân lý cho thứ tự các change service layer).
 - Change đang mở (chưa archive): `add-supabase-multi-teacher` (reference gốc — có thể xóa sau khi confirm `add-admin-panel` hoạt động).
-- Đã archive: `add-service-fees` (2026-06-02), `add-service-reviews` (2026-06-02), `add-service-tests-settings` (2026-06-03), `add-admin-panel` (2026-06-03), **`add-class-skill-config` (2026-06-03)**.
+- Đã archive: `add-service-fees` (2026-06-02), `add-service-reviews` (2026-06-02), `add-service-tests-settings` (2026-06-03), `add-admin-panel` (2026-06-03), **`add-class-skill-config` (2026-06-03)**, **`improve-review-fee-ux` (2026-06-07)**.
 - Một change gồm `proposal.md`, `design.md`, `specs/`, `tasks.md`. Implement theo tasks, check `[x]` khi xong, không làm ngoài scope.
 - **Lộ trình multi-teacher hoàn tất**: tất cả service layer sẵn sàng, admin panel đã triển khai, mời giáo viên qua Supabase Dashboard.
 
@@ -165,14 +165,16 @@ Project quản lý thay đổi qua OpenSpec (`openspec/`). Có skill tích hợp
 - `enrollmentService.getAllForTeacher()`: đọc tất cả enrollment của teacher (dùng trong StudentsDirectoryPage để gộp map `studentId → [enrollments]`).
 - `src/components/students/ImportStudentsModal.jsx`: modal import hàng loạt từ Excel (.xlsx), map header linh hoạt, preview + validation, tạo qua `studentService`.
 
-## Model đánh giá kỹ năng (đã chốt — migration 20260603000001)
-- **`classes.skill_config`** (jsonb): mảng `[{ name, maxScore, order }]` định nghĩa kỹ năng của lớp. Default IELTS 4 kỹ năng thang 0–9.
+## Model đánh giá kỹ năng (migration 20260603000001 + 20260607000001)
+- **`classes.skill_config`** (jsonb): mảng `[{ name, order }]` định nghĩa kỹ năng của lớp — **KHÔNG còn `maxScore`** (bỏ ở app layer từ change `improve-review-fee-ux`). Default IELTS 4 kỹ năng. Giá trị `maxScore` orphan trong DB cũ bị bỏ qua khi đọc.
 - **`reviews.scores`** (jsonb): keyed theo tên kỹ năng `{ "Listening": 7.5, "Reading": 6.0 }`. Không còn 4 cột cố định.
-- **`DEFAULT_SKILL_CONFIG`** export từ `classService.js` — dùng làm fallback ở service + UI.
-- `ClassModal`: tái dùng `MockTestSectionBuilder` để chỉnh tên/điểm tối đa kỹ năng.
-- `ReviewForm`: render ô nhập điểm động theo `skillConfig` của lớp, validate `0..maxScore`. Nhận prop `latestMockEntry`; khi tạo mới (không phải edit) và có `latestMockEntry`, tự pre-fill điểm kỹ năng + `remark` và hiện badge "Điền từ [tên test]" với nút xóa để reset về form trống.
-- `RadarChartPanel`: chuẩn hóa điểm về % (`value/maxScore*100`), trục `r` cố định 0–100.
-- `MockTestModal`: khi tạo mới, init sections từ `skillConfig` của lớp.
+- **`reviews.score_max`** (jsonb, migration 20260607000001): snapshot thang điểm tối đa từ mock test gần nhất tại thời điểm tạo đánh giá `{ "Listening": 9, "Reading": 9 }`. Phiếu cũ mặc định `{}` → fallback `9`.
+- **`DEFAULT_SKILL_CONFIG`** export từ `classService.js` — dùng làm fallback ở service + UI, chỉ gồm `{ name, order }`.
+- `ClassModal`: tái dùng `MockTestSectionBuilder` với `showMaxScore={false}` (ẩn ô điểm tối đa); `toSkillConfig` chỉ lưu `{ name, order }`.
+- `MockTestSectionBuilder`: nhận prop `showMaxScore = true`; ẩn ô điểm tối đa khi `false`. Dùng chung bởi `ClassModal` và `MockTestModal`.
+- `MockTestModal`: khi init sections từ `skillConfig` (không còn maxScore) → gán `maxScore` mặc định `9`.
+- `ReviewForm`: render ô nhập điểm động theo `skillConfig` của lớp. `maxScore` mỗi kỹ năng theo ưu tiên: edit→`editingReview.scoreMax[name]`, create→`latestMockEntry.mockTest.sections`, fallback `9`. Khi tạo mới, lưu `scoreMax` snapshot vào data `onSave`. **Chặn tạo đánh giá khi học sinh chưa có mock test** (ẩn nút "Thêm đánh giá" + helper text).
+- `RadarChartPanel`: chuẩn hóa điểm về % dùng `review.scoreMax[skill.name] ?? 9`, trục `r` cố định 0–100.
 - Các component nhận `skillConfig` qua prop (truyền từ `selectedClass.skillConfig` ở page level).
 
 ## Model học phí (đã chốt)
