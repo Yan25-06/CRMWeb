@@ -225,7 +225,7 @@ export const ReviewsPage = ({ settings = {} }) => {
     }
   }, [selectedStudentId, selectedClassId])
 
-  useEffect(() => { loadReviews() }, [loadReviews])
+  useEffect(() => { loadReviews() }, [selectedStudentId, selectedClassId])
 
   // Enrich reviews whose scoreMax is empty (created before scoreMax was introduced)
   // using the latest mock entry as a fallback — same logic as ReviewForm edit mode.
