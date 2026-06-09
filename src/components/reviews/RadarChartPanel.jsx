@@ -1,10 +1,10 @@
 import { useEffect, useRef } from 'react'
-import { Chart, RadarController, RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend } from 'chart.js'
+import { Chart, RadarController, RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend, BarController, CategoryScale, LinearScale, BarElement } from 'chart.js'
 import { Button } from '@/components/ui'
 import { PlusCircle, TrendingUp } from 'lucide-react'
 import { DEFAULT_SKILL_CONFIG } from '@/services/classService'
 
-Chart.register(RadarController, RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend)
+Chart.register(RadarController, RadialLinearScale, PointElement, LineElement, Filler, Tooltip, Legend, BarController, CategoryScale, LinearScale, BarElement)
 
 // Color palette for overlaid datasets (max 6 visible)
 const DATASET_COLORS = [
@@ -44,6 +44,16 @@ export const RadarChartPanel = ({ reviews = [], skillConfig, onAddReview }) => {
 
     const labels = skills.map(sk => sk.name)
 
+    const tooltipLabel = (ctx) => {
+      const rev = visible[ctx.datasetIndex]
+      const skill = skills[ctx.dataIndex]
+      const raw = rev?.scores?.[skill?.name]
+      const pct = ctx.raw
+      return raw != null
+        ? ` ${ctx.dataset.label}: ${raw}/${rev?.scoreMax?.[skill?.name] ?? 9} (${pct}%)`
+        : ` ${ctx.dataset.label}: —`
+    }
+
     const datasets = visible.map((rev, i) => {
       const color = DATASET_COLORS[i % DATASET_COLORS.length]
       const data = skills.map(sk => {
@@ -64,45 +74,55 @@ export const RadarChartPanel = ({ reviews = [], skillConfig, onAddReview }) => {
       }
     })
 
-    chartRef.current = new Chart(canvasRef.current, {
-      type: 'radar',
-      data: { labels, datasets },
-      options: {
-        responsive: true,
-        maintainAspectRatio: true,
-        scales: {
-          r: {
-            min: 0, max: 100,
-            ticks: { stepSize: 25, font: { size: 10 }, color: '#7FAADA', callback: v => `${v}%` },
-            grid:  { color: 'rgba(127,170,218,0.2)' },
-            angleLines: { color: 'rgba(127,170,218,0.3)' },
-            pointLabels: {
-              font: { size: 12, weight: '600', family: "'Plus Jakarta Sans', sans-serif" },
-              color: '#1B3A6B',
+    const sharedPlugins = {
+      legend: { position: 'bottom', labels: { font: { size: 11 }, color: '#3B72BD', padding: 12 } },
+      tooltip: { callbacks: { label: tooltipLabel } },
+    }
+
+    if (skills.length < 3) {
+      chartRef.current = new Chart(canvasRef.current, {
+        type: 'bar',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          scales: {
+            x: {
+              ticks: { font: { size: 12, weight: '600', family: "'Plus Jakarta Sans', sans-serif" }, color: '#1B3A6B' },
+              grid: { display: false },
+            },
+            y: {
+              min: 0, max: 100,
+              ticks: { stepSize: 25, font: { size: 10 }, color: '#7FAADA', callback: v => `${v}%` },
+              grid: { color: 'rgba(127,170,218,0.2)' },
             },
           },
+          plugins: sharedPlugins,
         },
-        plugins: {
-          legend: {
-            position: 'bottom',
-            labels: { font: { size: 11 }, color: '#3B72BD', padding: 12 },
-          },
-          tooltip: {
-            callbacks: {
-              label: (ctx) => {
-                const rev = visible[ctx.datasetIndex]
-                const skill = skills[ctx.dataIndex]
-                const raw = rev?.scores?.[skill?.name]
-                const pct = ctx.raw
-                return raw != null
-                  ? ` ${ctx.dataset.label}: ${raw}/${rev?.scoreMax?.[skill?.name] ?? 9} (${pct}%)`
-                  : ` ${ctx.dataset.label}: —`
+      })
+    } else {
+      chartRef.current = new Chart(canvasRef.current, {
+        type: 'radar',
+        data: { labels, datasets },
+        options: {
+          responsive: true,
+          maintainAspectRatio: true,
+          scales: {
+            r: {
+              min: 0, max: 100,
+              ticks: { stepSize: 25, font: { size: 10 }, color: '#7FAADA', callback: v => `${v}%` },
+              grid:  { color: 'rgba(127,170,218,0.2)' },
+              angleLines: { color: 'rgba(127,170,218,0.3)' },
+              pointLabels: {
+                font: { size: 12, weight: '600', family: "'Plus Jakarta Sans', sans-serif" },
+                color: '#1B3A6B',
               },
             },
           },
+          plugins: sharedPlugins,
         },
-      },
-    })
+      })
+    }
     return () => chartRef.current?.destroy()
   }, [reviews.length, JSON.stringify(visible.map(r => r.id)), JSON.stringify(skills)])
 

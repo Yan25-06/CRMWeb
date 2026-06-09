@@ -11,18 +11,141 @@ const fmtDate = (dateStr) => {
 }
 
 /**
- * ReportCardModal — preview and export a professional report card
- * @param {boolean}  open
- * @param {Function} onClose
- * @param {Object}   student      - student object
- * @param {Object}   cls          - class object
- * @param {Object}   latestReview - the review to export (most recent)
- * @param {Object}   settings     - { centerName, teacherName }
- * @param {Object}   dateRange    - { fromDate, toDate } for the filter period
- * @param {number|null} attendancePct - % chuyên cần in range
- * @param {number|null} homeworkPct   - % bài tập in range
- * @param {Object|null} generalComment - { text } from phf_general_comments
+ * Reusable card body — rendered inside ReportCardModal (for preview/single export)
+ * and inside BulkExportModal (for bulk PNG export).
  */
+export const ReportCardContent = ({ student, cls, latestReview, settings = {}, dateRange, attendancePct, homeworkPct, generalComment }) => {
+  const hasReview = !!latestReview
+  const tagSummary = hasReview ? buildTagSummary(latestReview?.tags ?? []) : ''
+
+  return (
+    <div className="bg-white border-2 border-navy-200 overflow-hidden font-sans">
+      {/* Header */}
+      <div className="bg-gradient-to-br from-navy-900 to-navy-700 text-white px-6 py-5">
+        <p className="text-xl font-bold tracking-wide">{settings.centerName || 'Trung Tâm Anh Ngữ'}</p>
+        <p className="text-sm opacity-70 mt-0.5">PHIẾU NHẬN XÉT HỌC VIÊN</p>
+      </div>
+
+      {/* Student info */}
+      <div className="px-6 py-4 bg-navy-50 border-b border-navy-100">
+        <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
+          <div><span className="font-semibold text-navy-600">Họ và tên:</span> <span className="text-navy-900">{student?.name ?? '—'}</span></div>
+          <div><span className="font-semibold text-navy-600">Lớp:</span> <span className="text-navy-900">{cls?.name ?? '—'}</span></div>
+          {dateRange?.fromDate && dateRange?.toDate && (
+            <div className="col-span-2">
+              <span className="font-semibold text-navy-600">Khoảng thời gian:</span>{' '}
+              <span className="text-navy-900">{fmtDate(dateRange.fromDate)} – {fmtDate(dateRange.toDate)}</span>
+            </div>
+          )}
+          <div><span className="font-semibold text-navy-600">Ngày đánh giá:</span> <span className="text-navy-900">{fmtDate(latestReview?.date)}</span></div>
+          <div><span className="font-semibold text-navy-600">Giáo viên:</span> <span className="text-navy-900">{latestReview?.teacherName || settings.teacherName || '—'}</span></div>
+        </div>
+      </div>
+
+      {hasReview ? (
+        <div className="px-6 py-4 flex flex-col gap-4">
+          {/* Attendance + homework stats */}
+          {(attendancePct != null || homeworkPct != null) && (
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-navy-50 rounded-xl px-4 py-3 text-center">
+                <p className="text-xs text-navy-500 mb-1">Chuyên cần</p>
+                <p className="text-xl font-bold text-navy-800">{attendancePct != null ? `${attendancePct}%` : '—'}</p>
+              </div>
+              <div className="bg-navy-50 rounded-xl px-4 py-3 text-center">
+                <p className="text-xs text-navy-500 mb-1">Bài tập</p>
+                <p className="text-xl font-bold text-navy-800">{homeworkPct != null ? `${homeworkPct}%` : '—'}</p>
+              </div>
+            </div>
+          )}
+
+          {/* Skill scores table — maxScore from scoreMax snapshot, fallback 9 */}
+          {(() => {
+            const skillConfig = cls?.skillConfig ?? DEFAULT_SKILL_CONFIG
+            const scores = latestReview?.scores ?? {}
+            const hasScores = skillConfig.some(sk => scores[sk.name] != null)
+            if (!hasScores) return null
+            return (
+              <div>
+                <p className="text-xs font-bold text-navy-600 uppercase tracking-wide mb-2">Điểm Kỹ Năng</p>
+                <div className="grid grid-cols-2 gap-2">
+                  {skillConfig.map(skill => {
+                    const score = scores[skill.name]
+                    if (score == null) return null
+                    const maxScore = latestReview?.scoreMax?.[skill.name] ?? 9
+                    const pct = Math.round((score / maxScore) * 100)
+                    return (
+                      <div key={skill.name} className="flex flex-col gap-1">
+                        <div className="flex justify-between items-center">
+                          <span className="text-xs text-navy-600">{skill.name}</span>
+                          <span className="text-sm font-bold text-navy-800">{score}/{maxScore}</span>
+                        </div>
+                        <div className="h-1.5 bg-navy-100 rounded-full overflow-hidden">
+                          <div className="h-full bg-navy-600 rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%` }} />
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )
+          })()}
+
+          {/* Tags */}
+          {latestReview.tags?.length > 0 && (
+            <div>
+              <p className="text-xs font-bold text-navy-600 uppercase tracking-wide mb-2">Nhận Xét</p>
+              <div className="flex flex-wrap gap-1.5">
+                {latestReview.tags.map(t => (
+                  <span key={t} className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
+                    POSITIVE_TAGS.includes(t)
+                      ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
+                      : 'bg-amber-50 text-amber-700 border-amber-200'
+                  }`}>{t}</span>
+                ))}
+              </div>
+              {tagSummary && <p className="text-xs text-navy-600 mt-1.5 italic">{tagSummary}</p>}
+            </div>
+          )}
+
+          {/* Remark */}
+          {latestReview.remark && (
+            <div>
+              <p className="text-xs font-bold text-navy-600 uppercase tracking-wide mb-1">Ghi Chú</p>
+              <p className="text-sm text-navy-700">{latestReview.remark}</p>
+            </div>
+          )}
+
+          {/* Advice */}
+          {latestReview.advice && (
+            <div className="bg-navy-50 border border-navy-200 rounded-xl px-4 py-3">
+              <p className="text-xs font-bold text-navy-600 uppercase tracking-wide mb-1">💡 Lời Khuyên</p>
+              <p className="text-sm text-navy-700">{latestReview.advice}</p>
+            </div>
+          )}
+
+          {/* General comment */}
+          {generalComment?.text && (
+            <div className="border border-blue-200 rounded-xl px-4 py-3 bg-blue-50">
+              <p className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-1">Nhận Xét Tổng Kết</p>
+              <p className="text-sm text-navy-700">{generalComment.text}</p>
+            </div>
+          )}
+
+          {/* Footer */}
+          <div className="border-t border-navy-100 pt-3 flex justify-between text-xs text-navy-400">
+            <span>Ngày lập: {new Date().toLocaleDateString('vi-VN')}</span>
+            <span>Giáo viên: {latestReview.teacherName || settings.teacherName || '—'}</span>
+          </div>
+        </div>
+      ) : (
+        <div className="px-6 py-8 text-center text-navy-400">
+          <p>Chưa có dữ liệu đánh giá để xuất phiếu.</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 export const ReportCardModal = ({ open, onClose, student, cls, latestReview, settings = {}, dateRange, attendancePct, homeworkPct, generalComment }) => {
   const cardRef  = useRef(null)
   const [loading, setLoading] = useState(null) // 'png' | 'pdf' | null
@@ -30,7 +153,6 @@ export const ReportCardModal = ({ open, onClose, student, cls, latestReview, set
   if (!open) return null
 
   const hasReview = !!latestReview
-  const tagSummary = hasReview ? buildTagSummary(latestReview?.tags ?? []) : ''
 
   const exportAs = async (type) => {
     if (!cardRef.current || !hasReview) return
@@ -78,129 +200,17 @@ export const ReportCardModal = ({ open, onClose, student, cls, latestReview, set
 
         {/* Report card preview */}
         <div className="p-5 overflow-y-auto max-h-[70vh]">
-          <div ref={cardRef} className="bg-white border-2 border-navy-200 overflow-hidden font-sans">
-
-            {/* Header */}
-            <div className="bg-gradient-to-br from-navy-900 to-navy-700 text-white px-6 py-5">
-              <p className="text-xl font-bold tracking-wide">{settings.centerName || 'Trung Tâm Anh Ngữ'}</p>
-              <p className="text-sm opacity-70 mt-0.5">PHIẾU NHẬN XÉT HỌC VIÊN</p>
-            </div>
-
-            {/* Student info */}
-            <div className="px-6 py-4 bg-navy-50 border-b border-navy-100">
-              <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-sm">
-                <div><span className="font-semibold text-navy-600">Họ và tên:</span> <span className="text-navy-900">{student?.name ?? '—'}</span></div>
-                <div><span className="font-semibold text-navy-600">Lớp:</span> <span className="text-navy-900">{cls?.name ?? '—'}</span></div>
-                {dateRange?.fromDate && dateRange?.toDate && (
-                  <div className="col-span-2">
-                    <span className="font-semibold text-navy-600">Khoảng thời gian:</span>{' '}
-                    <span className="text-navy-900">{fmtDate(dateRange.fromDate)} – {fmtDate(dateRange.toDate)}</span>
-                  </div>
-                )}
-                <div><span className="font-semibold text-navy-600">Ngày đánh giá:</span> <span className="text-navy-900">{fmtDate(latestReview?.date)}</span></div>
-                <div><span className="font-semibold text-navy-600">Giáo viên:</span> <span className="text-navy-900">{latestReview?.teacherName || settings.teacherName || '—'}</span></div>
-              </div>
-            </div>
-
-            {hasReview ? (
-              <div className="px-6 py-4 flex flex-col gap-4">
-                {/* Attendance + homework stats */}
-                {(attendancePct != null || homeworkPct != null) && (
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="bg-navy-50 rounded-xl px-4 py-3 text-center">
-                      <p className="text-xs text-navy-500 mb-1">Chuyên cần</p>
-                      <p className="text-xl font-bold text-navy-800">{attendancePct != null ? `${attendancePct}%` : '—'}</p>
-                    </div>
-                    <div className="bg-navy-50 rounded-xl px-4 py-3 text-center">
-                      <p className="text-xs text-navy-500 mb-1">Bài tập</p>
-                      <p className="text-xl font-bold text-navy-800">{homeworkPct != null ? `${homeworkPct}%` : '—'}</p>
-                    </div>
-                  </div>
-                )}
-
-                {/* Skill scores table */}
-                {(() => {
-                  const skillConfig = cls?.skillConfig ?? DEFAULT_SKILL_CONFIG
-                  const scores = latestReview?.scores ?? {}
-                  const hasScores = skillConfig.some(sk => scores[sk.name] != null)
-                  if (!hasScores) return null
-                  return (
-                    <div>
-                      <p className="text-xs font-bold text-navy-600 uppercase tracking-wide mb-2">Điểm Kỹ Năng</p>
-                      <div className="grid grid-cols-2 gap-2">
-                        {skillConfig.map(skill => {
-                          const score = scores[skill.name]
-                          if (score == null) return null
-                          const pct = Math.round((score / skill.maxScore) * 100)
-                          return (
-                            <div key={skill.name} className="flex flex-col gap-1">
-                              <div className="flex justify-between items-center">
-                                <span className="text-xs text-navy-600">{skill.name}</span>
-                                <span className="text-sm font-bold text-navy-800">{score}/{skill.maxScore}</span>
-                              </div>
-                              <div className="h-1.5 bg-navy-100 rounded-full overflow-hidden">
-                                <div className="h-full bg-navy-600 rounded-full transition-all" style={{ width: `${pct}%` }} />
-                              </div>
-                            </div>
-                          )
-                        })}
-                      </div>
-                    </div>
-                  )
-                })()}
-
-                {/* Tags */}
-                {latestReview.tags?.length > 0 && (
-                  <div>
-                    <p className="text-xs font-bold text-navy-600 uppercase tracking-wide mb-2">Nhận Xét</p>
-                    <div className="flex flex-wrap gap-1.5">
-                      {latestReview.tags.map(t => (
-                        <span key={t} className={`text-xs px-2 py-0.5 rounded-full border font-medium ${
-                          POSITIVE_TAGS.includes(t)
-                            ? 'bg-emerald-50 text-emerald-700 border-emerald-200'
-                            : 'bg-amber-50 text-amber-700 border-amber-200'
-                        }`}>{t}</span>
-                      ))}
-                    </div>
-                    {tagSummary && <p className="text-xs text-navy-600 mt-1.5 italic">{tagSummary}</p>}
-                  </div>
-                )}
-
-                {/* Remark */}
-                {latestReview.remark && (
-                  <div>
-                    <p className="text-xs font-bold text-navy-600 uppercase tracking-wide mb-1">Ghi Chú</p>
-                    <p className="text-sm text-navy-700">{latestReview.remark}</p>
-                  </div>
-                )}
-
-                {/* Advice */}
-                {latestReview.advice && (
-                  <div className="bg-navy-50 border border-navy-200 rounded-xl px-4 py-3">
-                    <p className="text-xs font-bold text-navy-600 uppercase tracking-wide mb-1">💡 Lời Khuyên</p>
-                    <p className="text-sm text-navy-700">{latestReview.advice}</p>
-                  </div>
-                )}
-
-                {/* General comment */}
-                {generalComment?.text && (
-                  <div className="border border-blue-200 rounded-xl px-4 py-3 bg-blue-50">
-                    <p className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-1">Nhận Xét Tổng Kết</p>
-                    <p className="text-sm text-navy-700">{generalComment.text}</p>
-                  </div>
-                )}
-
-                {/* Footer */}
-                <div className="border-t border-navy-100 pt-3 flex justify-between text-xs text-navy-400">
-                  <span>Ngày lập: {new Date().toLocaleDateString('vi-VN')}</span>
-                  <span>Giáo viên: {latestReview.teacherName || settings.teacherName || '—'}</span>
-                </div>
-              </div>
-            ) : (
-              <div className="px-6 py-8 text-center text-navy-400">
-                <p>Chưa có dữ liệu đánh giá để xuất phiếu.</p>
-              </div>
-            )}
+          <div ref={cardRef}>
+            <ReportCardContent
+              student={student}
+              cls={cls}
+              latestReview={latestReview}
+              settings={settings}
+              dateRange={dateRange}
+              attendancePct={attendancePct}
+              homeworkPct={homeworkPct}
+              generalComment={generalComment}
+            />
           </div>
         </div>
 

@@ -13,7 +13,7 @@ Web app quản lý điểm danh + học phí cho giáo viên/trung tâm tiếng 
 - **Tailwind CSS 3** với custom Navy design tokens (`tailwind.config.js`, `src/index.css`)
 - **Supabase** (`@supabase/supabase-js`) — auth + Postgres backend (localStorage đã xóa hoàn toàn)
 - **lucide-react** (icons), **clsx** (conditional classes)
-- **chart.js** + **react-chartjs-2** (biểu đồ), **html2canvas** + **jspdf** (xuất PDF), **xlsx** (xuất Excel)
+- **chart.js** + **react-chartjs-2** (biểu đồ), **html2canvas** + **jspdf** (xuất PDF), **xlsx** (xuất Excel), **jszip** (xuất phiếu hàng loạt zip)
 
 ## Scripts
 - `npm run dev` — dev server (http://localhost:5173)
@@ -69,7 +69,7 @@ Services đã có: `studentService`, `classService` (+`teacherService`), `enroll
 
 ## Triển khai production
 - Runbook bắt buộc trước go-live ở **`DEPLOYMENT.md`** (root, KHÔNG đặt trong `docs/` vì `docs/` là output build): bootstrap admin (`is_admin` set qua SQL Editor), cấu hình Auth Site/Redirect URL, tắt tự đăng ký, bật backup, kiểm thử tài khoản giáo viên thường. KHÔNG chạy seed mock lên production.
-- **Lazy-load export:** `xlsx`/`jspdf`/`html2canvas` dùng `await import()` trong handler (giảm bundle khởi động), bọc try/catch + `toast.error`. Áp dụng ở `ExportExcelButton`, `ExportPdfButton`, `mockTestExport.js`, `ClassOverviewTable`, `ImportStudentsModal`.
+- **Lazy-load export:** `xlsx`/`jspdf`/`html2canvas`/`jszip` dùng `await import()` trong handler (giảm bundle khởi động), bọc try/catch + `toast.error`. Áp dụng ở `ExportExcelButton`, `ExportPdfButton`, `mockTestExport.js`, `ClassOverviewTable`, `ImportStudentsModal`, `BulkExportModal`.
 
 ## Routing & Layout
 - **Không dùng react-router.** Routing là state `page` trong `App.jsx` (`useState` + `switch` trong `renderPage()`). State điều hướng (`page` + `selectedClassId`) được đồng bộ vào browser history qua History API (`pushState`/`replaceState`/`popstate`) — nút **Back/Forward** của browser hoạt động trong phạm vi app mà không đổi URL và không thêm thư viện.

@@ -1,11 +1,13 @@
 import { useState, useMemo, useEffect, useCallback } from 'react'
-import { GraduationCap, FileText, Users, User, Search, UserCircle } from 'lucide-react'
+import { GraduationCap, FileText, Users, User, Search, UserCircle, Archive } from 'lucide-react'
+import { useAuth } from '@/hooks/useAuth'
 import { clsx } from 'clsx'
 import { Button, Skeleton, toast, ConfirmModal } from '@/components/ui'
 import { RadarChartPanel }       from '@/components/reviews/RadarChartPanel'
 import { ReviewHistory }         from '@/components/reviews/ReviewHistory'
 import { ReviewForm }            from '@/components/reviews/ReviewForm'
 import { ReportCardModal }       from '@/components/reviews/ReportCardModal'
+import { BulkExportModal }       from '@/components/reviews/BulkExportModal'
 import { DateRangeFilter }       from '@/components/reviews/DateRangeFilter'
 import { AttendancePanel }       from '@/components/reviews/AttendancePanel'
 import { HomeworkPanel }         from '@/components/reviews/HomeworkPanel'
@@ -101,6 +103,8 @@ const StudentList = ({ students, enrollmentMap, selectedClassId, selectedStudent
 }
 
 export const ReviewsPage = ({ settings = {} }) => {
+  const { teacher } = useAuth()
+
   // Restore persisted state on mount
   const saved = loadState()
 
@@ -108,9 +112,10 @@ export const ReviewsPage = ({ settings = {} }) => {
   const [selectedStudentId, setSelectedStudentIdRaw] = useState(saved.selectedStudentId ?? null)
   const [viewMode,          setViewModeRaw]          = useState(saved.viewMode          ?? 'individual')
   const [dateRange,         setDateRangeRaw]         = useState(saved.dateRange         ?? getDefaultDateRange())
-  const [formOpen,      setFormOpen]    = useState(false)
-  const [editingReview, setEditingReview] = useState(null)
-  const [reportOpen,    setReportOpen]   = useState(false)
+  const [formOpen,       setFormOpen]       = useState(false)
+  const [editingReview,  setEditingReview]  = useState(null)
+  const [reportOpen,     setReportOpen]     = useState(false)
+  const [bulkExportOpen, setBulkExportOpen] = useState(false)
   const [deletingReview, setDeletingReview] = useState(null)
 
   // Wrap setters to also persist to localStorage
@@ -197,6 +202,12 @@ export const ReviewsPage = ({ settings = {} }) => {
   const selectedStudent = students.find(s => s.id === selectedStudentId) ?? null
   const selectedClass   = classes.find(c => c.id === selectedClassId)   ?? null
 
+  const classStudents = useMemo(() => {
+    if (!selectedClassId) return []
+    const ids = enrollmentMap.get(selectedClassId) ?? []
+    return students.filter(s => ids.includes(s.id))
+  }, [students, enrollmentMap, selectedClassId])
+
   const loadReviews = useCallback(async () => {
     if (!selectedStudentId || !selectedClassId) { setReviews([]); setGeneralComment(null); return }
     setReviewsLoading(true)
@@ -216,12 +227,25 @@ export const ReviewsPage = ({ settings = {} }) => {
 
   useEffect(() => { loadReviews() }, [loadReviews])
 
+  // Enrich reviews whose scoreMax is empty (created before scoreMax was introduced)
+  // using the latest mock entry as a fallback — same logic as ReviewForm edit mode.
+  const enrichedReviews = useMemo(() => {
+    const mockEntry = mocksByStudent.get(selectedStudentId)?.[0]
+    if (!mockEntry) return reviews
+    const fallbackMax = {}
+    ;(mockEntry.mockTest.sections ?? []).forEach(s => { fallbackMax[s.name] = s.maxScore ?? 9 })
+    return reviews.map(review => {
+      if (review.scoreMax && Object.keys(review.scoreMax).length > 0) return review
+      return { ...review, scoreMax: fallbackMax }
+    })
+  }, [reviews, mocksByStudent, selectedStudentId])
+
   const filteredReviews = useMemo(
-    () => reviews.filter(r => r.date >= dateRange.fromDate && r.date <= dateRange.toDate),
-    [reviews, dateRange.fromDate, dateRange.toDate]
+    () => enrichedReviews.filter(r => r.date >= dateRange.fromDate && r.date <= dateRange.toDate),
+    [enrichedReviews, dateRange.fromDate, dateRange.toDate]
   )
 
-  const latestReview = reviews[0] ?? null
+  const latestReview = enrichedReviews[0] ?? null
 
   const [attendancePct, setAttendancePct] = useState(null)
   const [homeworkPct,   setHomeworkPct]   = useState(null)
@@ -286,16 +310,28 @@ export const ReviewsPage = ({ settings = {} }) => {
           <h1 className="text-2xl font-display font-bold text-navy-900">Nhận Xét Học Viên</h1>
           <p className="text-sm text-navy-400 mt-0.5">Đánh giá năng lực và xuất phiếu kết quả</p>
         </div>
-        {hasStudentSelected && viewMode === 'individual' && (
-          <Button
-            variant="secondary" size="md"
-            onClick={() => setReportOpen(true)}
-            className="flex items-center gap-2 shrink-0"
-          >
-            <FileText size={16} />
-            Xuất Phiếu Gửi Phụ Huynh
-          </Button>
-        )}
+        <div className="flex items-center gap-2 shrink-0">
+          {selectedClassId && (
+            <Button
+              variant="secondary" size="md"
+              onClick={() => setBulkExportOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <Archive size={16} />
+              Xuất Tất Cả
+            </Button>
+          )}
+          {hasStudentSelected && viewMode === 'individual' && (
+            <Button
+              variant="secondary" size="md"
+              onClick={() => setReportOpen(true)}
+              className="flex items-center gap-2"
+            >
+              <FileText size={16} />
+              Xuất Phiếu Gửi Phụ Huynh
+            </Button>
+          )}
+        </div>
       </div>
 
       {/* ── Toolbar: ViewModeToggle + Class selector + DateRangeFilter ── */}
@@ -467,7 +503,7 @@ export const ReviewsPage = ({ settings = {} }) => {
         editingReview={editingReview}
         studentId={selectedStudentId}
         classId={selectedClassId}
-        teacherName={settings?.teacherName}
+        teacherName={teacher?.name}
         skillConfig={selectedClass?.skillConfig}
         latestMockEntry={mocksByStudent.get(selectedStudentId)?.[0] ?? null}
         onSave={handleSaveReview}
@@ -488,11 +524,20 @@ export const ReviewsPage = ({ settings = {} }) => {
         student={selectedStudent}
         cls={selectedClass}
         latestReview={latestReview}
-        settings={settings}
+        settings={{ ...settings, teacherName: teacher?.name }}
         dateRange={dateRange}
         attendancePct={attendancePct}
         homeworkPct={homeworkPct}
         generalComment={generalComment}
+      />
+
+      <BulkExportModal
+        open={bulkExportOpen}
+        onClose={() => setBulkExportOpen(false)}
+        students={classStudents}
+        cls={selectedClass}
+        settings={{ ...settings, teacherName: teacher?.name }}
+        dateRange={dateRange}
       />
     </div>
   )

@@ -7,9 +7,10 @@ const fmtDate = (dateStr) => {
   return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`
 }
 
-const ScoreBadge = ({ label, score }) => {
+const ScoreBadge = ({ label, score, maxScore = 9 }) => {
   if (score == null) return null
-  const color = score >= 7 ? 'bg-emerald-100 text-emerald-700' : score >= 5 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
+  const pct = (score / maxScore) * 100
+  const color = pct >= 70 ? 'bg-emerald-100 text-emerald-700' : pct >= 50 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'
   return (
     <span className={clsx('inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-semibold', color)}>
       {label} {score}
@@ -60,7 +61,7 @@ export const ReviewHistory = ({ reviews = [], skillConfig = [], onEdit, onDelete
                   <div className="flex flex-wrap gap-1 mb-2">
                     {skillConfig.map(skill =>
                       rev.scores?.[skill.name] != null
-                        ? <ScoreBadge key={skill.name} label={skill.name} score={rev.scores[skill.name]} />
+                        ? <ScoreBadge key={skill.name} label={skill.name} score={rev.scores[skill.name]} maxScore={rev.scoreMax?.[skill.name] ?? 9} />
                         : null
                     )}
                   </div>
