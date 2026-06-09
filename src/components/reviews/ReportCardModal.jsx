@@ -78,7 +78,7 @@ export const ReportCardModal = ({ open, onClose, student, cls, latestReview, set
 
         {/* Report card preview */}
         <div className="p-5 overflow-y-auto max-h-[70vh]">
-          <div ref={cardRef} className="bg-white border-2 border-navy-200 rounded-2xl overflow-hidden font-sans">
+          <div ref={cardRef} className="bg-white border-2 border-navy-200 overflow-hidden font-sans">
 
             {/* Header */}
             <div className="bg-gradient-to-br from-navy-900 to-navy-700 text-white px-6 py-5">

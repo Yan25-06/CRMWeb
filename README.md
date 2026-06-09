@@ -1,4 +1,4 @@
-# Phiếu Học Phí — Navy Edition
+# Class Management — Navy Edition
 
 Hệ thống quản lý điểm danh, học phí và nhận xét học sinh cho giáo viên/trung tâm tiếng Anh nhỏ tại Việt Nam.
 
@@ -37,7 +37,7 @@ npm run dev
 ```bash
 npm run build
 # Output: docs/ (không phải dist/)
-# Deploy lên GitHub Pages tại /RollCallWeb/
+# Deploy lên GitHub Pages tại /CRMWeb/
 ```
 
 ## Cấu trúc dự án

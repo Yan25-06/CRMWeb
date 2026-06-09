@@ -1,4 +1,4 @@
-# Kiến trúc dự án — Anh Ngữ Ms.Phương (`rollcall-manager`)
+# Kiến trúc dự án — Anh Ngữ Ms.Phương (`class-manager`)
 
 Tài liệu giải thích **cách dự án được tổ chức và vận hành**, dành cho người mới đọc để hiểu tổng thể trước khi sửa code. Chi tiết quy ước code và trạng thái migration nằm ở `CLAUDE.md`; runbook deploy ở `DEPLOYMENT.md`.
 
