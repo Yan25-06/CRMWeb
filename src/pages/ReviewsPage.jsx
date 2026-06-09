@@ -25,11 +25,19 @@ import { mockTestResultService } from '@/services/mockTestResultService'
 
 const STORAGE_KEY = 'reviews_ui_state'
 
+const fmtLocalDate = (d) => {
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
+// Default range spans the last 6 months (current month + 5 previous) so reviews
+// from earlier months aren't hidden by the filter when the page first loads.
 const getDefaultDateRange = () => {
   const now = new Date()
-  const y   = now.getFullYear()
-  const m   = String(now.getMonth() + 1).padStart(2, '0')
-  return { fromDate: `${y}-${m}-01`, toDate: now.toISOString().split('T')[0] }
+  const from = new Date(now.getFullYear(), now.getMonth() - 5, 1)
+  return { fromDate: fmtLocalDate(from), toDate: fmtLocalDate(now) }
 }
 
 const loadState = () => {
