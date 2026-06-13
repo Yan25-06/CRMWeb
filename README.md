@@ -1,101 +1,76 @@
-# Class Management — Navy Edition
+# Anh Ngữ Ms.Phương — Classroom Management App
 
-Hệ thống quản lý điểm danh, học phí và nhận xét học sinh cho giáo viên/trung tâm tiếng Anh nhỏ tại Việt Nam.
+A production web app for managing attendance, tuition fees, homework, mock tests, and student progress reports at a small English language center in Vietnam. Built and deployed solo; currently used by real teachers.
 
-## Tech Stack
+**Live:** [GitHub Pages](https://yan25-06.github.io/RollCallWeb/)
 
-- **React 18 + Vite** — frontend framework (alias `@/` → `src/`)
-- **Tailwind CSS 3** — utility-first styling với custom Navy design tokens
-- **Supabase** — auth + Postgres backend (nguồn dữ liệu duy nhất; RLS phủ toàn bộ bảng)
-- **Chart.js / react-chartjs-2** — biểu đồ dashboard
-- **html2canvas + jsPDF** — xuất phiếu học phí PDF
-- **xlsx** — xuất Excel
-- **lucide-react** — icons
+---
 
-## Biến môi trường
+## What it does
 
-Copy `.env.example` → `.env` rồi điền:
-```
-VITE_SUPABASE_URL=...
-VITE_SUPABASE_ANON_KEY=...
-```
+- **Attendance** — track per-session attendance across multiple classes
+- **Tuition fees** — monthly or course-based billing, payment tracking, surcharge handling
+- **Homework** — assign and track submission status per session
+- **Mock tests** — record IELTS/TOEIC scores by skill, visualize progress over time
+- **Student reviews** — skill radar charts, PDF report cards, bulk export as ZIP
+- **Schedule** — weekly grid + daily agenda view
+- **Reports** — attendance, fees, homework, and mock test charts with Excel/PDF export
+- **Multi-teacher + admin** — teachers see only their own data; admin manages all classes and teachers
 
-## Triển khai production
+---
 
-Trước khi giao cho người dùng thật, làm theo **[DEPLOYMENT.md](DEPLOYMENT.md)** — runbook các bước cấu hình Supabase thủ công (bootstrap admin, Auth URL, tắt tự đăng ký, backup) và kiểm thử phân quyền.
+## Technical highlights
 
-## Cài đặt & Chạy
+**Service layer architecture** — no component talks to Supabase directly. All data flows through `src/services/*.js`, each with `fromDB`/`toDB` mappers (snake_case ↔ camelCase) and typed error handling. Adding a new domain means adding one service file; the UI layer never changes its import pattern.
 
-```bash
-npm install
-npm run dev
-# Mở http://localhost:5173
-```
+**Client-side routing without a library** — navigation is a `page` state variable in `App.jsx`, synced to browser history via the History API (`pushState`/`replaceState`/`popstate`). Back/Forward work naturally, no URL changes, no extra dependency.
 
-## Build & Deploy
+**Row-Level Security at the database** — Supabase RLS policies enforce per-teacher isolation at the Postgres level. The frontend permission layer (`usePermissions` hook) is UI-only; it gates what buttons are visible, not what data is accessible.
 
-```bash
-npm run build
-# Output: docs/ (không phải dist/)
-# Deploy lên GitHub Pages tại /CRMWeb/
-```
+**Offline retry queue** — write operations that fail due to a dropped connection are queued in memory and replayed automatically when the browser comes back online (`src/utils/retryQueue.js`).
 
-## Cấu trúc dự án
+**Lazy-loaded heavy dependencies** — `xlsx`, `jsPDF`, `html2canvas`, and `jszip` are loaded via dynamic `import()` only when the user triggers an export, keeping the initial bundle small.
+
+---
+
+## Stack
+
+| Layer | Technology |
+|---|---|
+| Frontend | React 18 + Vite |
+| Styling | Tailwind CSS 3 (custom Navy design tokens) |
+| Backend | Supabase (Postgres + Auth + RLS) |
+| Charts | Chart.js + react-chartjs-2 |
+| Export | html2canvas, jsPDF, xlsx, jszip |
+| Icons | lucide-react |
+| Deploy | GitHub Pages (static, output → `docs/`) |
+
+---
+
+## Project structure
 
 ```
 src/
+├── services/       # Supabase service layer — one file per domain
+├── hooks/          # useAuth, usePermissions, useOnlineStatus
 ├── components/
-│   ├── ui/index.jsx          # Button, Card, Input, Modal, Badge, Toast...
-│   ├── layout/Navbar.jsx     # Sidebar + mobile nav
-│   ├── attendance/           # AttendanceToggle, StudentAttendancePanel, RingChart
-│   ├── classes/              # ClassCard, ClassModal, SessionModal, SessionSelector
-│   ├── fees/                 # FeesTable, PaymentModal, StudentPaymentHistoryPanel
-│   ├── homework/             # HomeworkAssignmentModal, SubmissionTable, ...
-│   ├── mock-test/            # MockTestModal, ScoreTable, SectionBuilder, ...
-│   ├── reviews/              # ReviewForm, RadarChartPanel, ReportCardModal, ...
-│   ├── schedule/             # WeeklyGrid, DailyAgenda, ScheduleCard, ScheduleModal
-│   ├── reports/              # ExportExcelButton, ExportPdfButton, ReportCard
-│   └── students/             # StudentModal, StudentSidebar, EnrollmentModal, ...
-├── pages/
-│   ├── DashboardPage.jsx     # Stats tổng quan + doanh thu tháng/năm
-│   ├── ClassesOverviewPage.jsx # Danh sách lớp
-│   ├── ClassDetailPage/      # index.jsx + tabs: Students, Attendance, Homework, MockTest
-│   ├── FeesPage.jsx          # Quản lý học phí + thanh toán
-│   ├── ReviewsPage.jsx       # Nhận xét học sinh
-│   ├── SchedulePage.jsx      # Lịch dạy (weekly grid + daily agenda)
-│   ├── ReportsPage.jsx       # Xuất báo cáo
-│   ├── SettingsPage.jsx      # Cài đặt trung tâm
-│   ├── AdminPanelPage.jsx    # Admin Panel (stat cards + tạo/giao lớp)
-│   ├── StudentsDirectoryPage.jsx # Danh bạ học viên tổng
-│   ├── LoginPage.jsx         # Đăng nhập + quên mật khẩu
-│   └── SetPasswordPage.jsx   # Đặt mật khẩu (flow invite/recovery)
-├── services/                 # Supabase service layer (toàn bộ data, mỗi domain 1 service)
-├── hooks/                    # useAuth.jsx, usePermissions.js, useOnlineStatus.js
-├── lib/supabase.js           # Supabase client
-├── utils/                    # helpers, useDebounce, scheduleConflict, retryQueue, mockTestExport
-├── components/ErrorBoundary.jsx # Bắt lỗi render toàn cục → màn hình khôi phục
-├── App.jsx                   # Layout + routing (state-based, không dùng react-router)
-├── main.jsx                  # Entry point + ErrorBoundary + AuthGate
-└── index.css                 # Tailwind + design system classes
+│   ├── ui/         # Shared design system: Button, Modal, Toast, Badge...
+│   ├── attendance/ classes/ fees/ homework/ mock-test/ reviews/ schedule/ students/ reports/
+├── pages/          # One file per route
+├── utils/          # retryQueue, mockTestExport, scheduleConflict, useDebounce
+└── App.jsx         # State-based router + History API sync
 ```
 
-## Routing
+---
 
-Không dùng react-router. Routing là state `page` trong `App.jsx`:
-`dashboard` | `classes` | `fees` (chỉ admin) | `reports` | `reviews` | `schedule` | `settings` | `admin` (chỉ admin) | `students`
+## Running locally
 
-State điều hướng đồng bộ với browser history (History API) — nút Back/Forward của trình duyệt hoạt động trong phạm vi app mà không đổi URL.
+```bash
+# requires VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env
+npm install
+npm run dev
+```
 
-## Trạng thái dữ liệu
-
-Migration localStorage → Supabase **đã hoàn tất**. Toàn bộ data đi qua service layer (`src/services/*`), RLS phủ toàn bộ bảng. Xem `openspec/ROADMAP.md` cho lịch sử và `CLAUDE.md` cho chi tiết kiến trúc hiện hành.
-
-## Design Tokens (Navy/White)
-
-| Token    | Hex      | Dùng cho               |
-|----------|----------|------------------------|
-| navy-950 | #06142B  | Backgrounds tối        |
-| navy-900 | #0F2044  | Sidebar, header        |
-| navy-800 | #1B3A6B  | Primary buttons        |
-| navy-600 | #2E5FA3  | Accents, links         |
-| navy-50  | #E8EEF7  | Hover states           |
+```bash
+npm run build   # outputs to docs/ for GitHub Pages
+```
