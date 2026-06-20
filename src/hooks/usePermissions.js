@@ -15,5 +15,6 @@ export function usePermissions() {
     canCreateMockTest: isAdmin,
     canManageClasses: isAdmin,
     canFilterByTeacher: isAdmin,
+    canCheckTeacherAttendance: isAdmin,
   }
 }
