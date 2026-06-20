@@ -5,6 +5,18 @@ const DAY_NAMES = ['CN', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', 'Thứ 6', 
 // Display order: Mon(1) → Sun(0) for Vietnamese convention
 const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]
 
+// Trả về 'YYYY-MM-DD' cho một dayOfWeek trong tuần bắt đầu từ weekStart (Date, là Thứ Hai).
+const dateForDay = (weekStart, dayOfWeek) => {
+  if (!weekStart) return null
+  const d = new Date(weekStart)
+  const offset = dayOfWeek === 0 ? 6 : dayOfWeek - 1
+  d.setDate(d.getDate() + offset)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 /**
  * WeeklyGrid — 7-column CSS grid schedule view
  * @param {Array} scheduleItems - all ScheduleItems from phf_schedule
@@ -13,7 +25,7 @@ const DAY_ORDER = [1, 2, 3, 4, 5, 6, 0]
  * @param {Function} onEdit     - callback(item) when a card is clicked
  * @param {Function} onAddDay   - callback(dayOfWeek) when "+" in column header clicked
  */
-export const WeeklyGrid = ({ scheduleItems = [], classes = [], studentCounts = new Map(), showTeacher = false, onEdit, onAddDay }) => {
+export const WeeklyGrid = ({ scheduleItems = [], classes = [], studentCounts = new Map(), showTeacher = false, onEdit, onAddDay, weekStart = null, canCheckAttendance = false, attendanceMap = new Map(), onCheckIn }) => {
   const byDay = {}
   for (const day of DAY_ORDER) {
     byDay[day] = scheduleItems
@@ -56,16 +68,22 @@ export const WeeklyGrid = ({ scheduleItems = [], classes = [], studentCounts = n
                   <span className="text-navy-200 text-xs">Trống</span>
                 </div>
               ) : (
-                byDay[day].map(item => (
-                  <ScheduleCard
-                    key={item.id}
-                    item={item}
-                    cls={getClass(item.classId)}
-                    studentCount={studentCounts.get(item.classId)}
-                    showTeacher={showTeacher}
-                    onEdit={onEdit}
-                  />
-                ))
+                byDay[day].map(item => {
+                  const date = dateForDay(weekStart, day)
+                  return (
+                    <ScheduleCard
+                      key={item.id}
+                      item={item}
+                      cls={getClass(item.classId)}
+                      studentCount={studentCounts.get(item.classId)}
+                      showTeacher={showTeacher}
+                      onEdit={onEdit}
+                      canCheckAttendance={canCheckAttendance}
+                      attendanceRecord={attendanceMap.get(`${item.id}_${date}`) ?? null}
+                      onCheckIn={(it) => onCheckIn?.(it, date)}
+                    />
+                  )
+                })
               )}
             </div>
           </div>
@@ -90,16 +108,22 @@ export const WeeklyGrid = ({ scheduleItems = [], classes = [], studentCounts = n
                 )}
               </div>
               <div className="flex flex-col gap-2 pl-2">
-                {byDay[day].map(item => (
-                  <ScheduleCard
-                    key={item.id}
-                    item={item}
-                    cls={getClass(item.classId)}
-                    studentCount={studentCounts.get(item.classId)}
-                    showTeacher={showTeacher}
-                    onEdit={onEdit}
-                  />
-                ))}
+                {byDay[day].map(item => {
+                  const date = dateForDay(weekStart, day)
+                  return (
+                    <ScheduleCard
+                      key={item.id}
+                      item={item}
+                      cls={getClass(item.classId)}
+                      studentCount={studentCounts.get(item.classId)}
+                      showTeacher={showTeacher}
+                      onEdit={onEdit}
+                      canCheckAttendance={canCheckAttendance}
+                      attendanceRecord={attendanceMap.get(`${item.id}_${date}`) ?? null}
+                      onCheckIn={(it) => onCheckIn?.(it, date)}
+                    />
+                  )
+                })}
               </div>
             </div>
           )
