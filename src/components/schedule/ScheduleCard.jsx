@@ -1,5 +1,5 @@
 import { clsx } from 'clsx'
-import { Clock, MapPin, Users, Edit2, CheckSquare } from 'lucide-react'
+import { Clock, MapPin, Users } from 'lucide-react'
 import { getAttendanceStatus } from './attendanceStatus'
 
 // ─── Color Mapping by courseType ──────────────────────────
@@ -23,33 +23,38 @@ export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, can
       className={clsx(
         'group relative rounded-xl border p-2.5 cursor-pointer transition-all duration-150',
         'hover:shadow-md hover:-translate-y-0.5',
-        color.bg, color.border
+        color.bg, color.border,
+        att && clsx('border-l-4', att.bar)
       )}
       onClick={() => onEdit?.(item)}
     >
-      {/* Course type dot */}
+      {/* Header: course dot + class name + always-visible attendance chip */}
       <div className="flex items-center gap-1.5 mb-1.5">
         <span className={clsx('w-2 h-2 rounded-full shrink-0', color.dot)} />
         <span className={clsx('text-xs font-semibold truncate', color.text)}>
           {cls?.name ?? '—'}
         </span>
-        <div className="ml-auto flex items-center gap-0.5">
-          {canCheckAttendance && (
-            <button
-              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-white/60"
-              title="Chấm công giáo viên"
-              onClick={(e) => { e.stopPropagation(); onCheckIn?.(item) }}
-            >
-              <CheckSquare size={11} className={color.text} />
-            </button>
-          )}
+        {canCheckAttendance && (
           <button
-            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-white/60"
-            onClick={(e) => { e.stopPropagation(); onEdit?.(item) }}
+            className="ml-auto shrink-0"
+            title="Chấm công giáo viên"
+            onClick={(e) => { e.stopPropagation(); onCheckIn?.(item) }}
           >
-            <Edit2 size={11} className={color.text} />
+            {att ? (
+              <span className={clsx(
+                'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-semibold border',
+                att.bg, att.text, att.border
+              )}>
+                <span className={clsx('w-1.5 h-1.5 rounded-full', att.dot)} />
+                {att.label}
+              </span>
+            ) : (
+              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium text-navy-600 bg-navy-50 border border-navy-200 hover:bg-navy-100 transition-colors">
+                Chấm
+              </span>
+            )}
           </button>
-        </div>
+        )}
       </div>
 
       {/* Teacher name — only shown in admin "all teachers" view */}
@@ -81,13 +86,10 @@ export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, can
         </div>
       )}
 
-      {/* Teacher attendance status badge */}
-      {att && (
-        <div className={clsx('flex items-center gap-1 text-xs mt-1.5 pt-1.5 border-t font-medium', att.text, att.border)}>
-          <span className={clsx('w-2 h-2 rounded-full shrink-0', att.dot)} />
-          <span className="truncate">
-            {att.label}{attendanceRecord?.note ? ` · ${attendanceRecord.note}` : ''}
-          </span>
+      {/* Attendance note (status itself shown via stripe + chip) */}
+      {attendanceRecord?.note && (
+        <div className={clsx('text-xs mt-1.5 pt-1.5 border-t truncate', color.text, color.border, 'opacity-80')}>
+          {attendanceRecord.note}
         </div>
       )}
     </div>
