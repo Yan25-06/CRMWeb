@@ -2,7 +2,17 @@
 
 A production web app for managing attendance, tuition fees, homework, mock tests, and student progress reports at a small English language center in Vietnam. Built and deployed solo; currently used by real teachers.
 
-**Live:** [GitHub Pages](https://yan25-06.github.io/RollCallWeb/)
+**Live:** https://msphuongenglishcrm.studio/
+
+---
+
+## Try it out
+
+**Demo account:**
+```
+Email:    demo@gmail.com
+Password: 123456
+```
 
 ---
 
@@ -13,7 +23,7 @@ A production web app for managing attendance, tuition fees, homework, mock tests
 - **Homework** — assign and track submission status per session
 - **Mock tests** — record IELTS/TOEIC scores by skill, visualize progress over time
 - **Student reviews** — skill radar charts, PDF report cards, bulk export as ZIP
-- **Schedule** — weekly grid + daily agenda view
+- **Schedule** — weekly grid + daily agenda view, with admin teacher attendance check-in (present/absent/makeup) per slot
 - **Reports** — attendance, fees, homework, and mock test charts with Excel/PDF export
 - **Multi-teacher + admin** — teachers see only their own data; admin manages all classes and teachers
 

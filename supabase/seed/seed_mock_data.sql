@@ -297,6 +297,36 @@ VALUES
    6, '09:00:00', '11:00:00', 'Phòng 401', 'Thứ 7');
 
 -- ====================================================
+-- BƯỚC 6b : Teacher attendance (chấm công giáo viên mẫu)
+-- ====================================================
+-- Chấm công admin theo từng ca lịch cố định (schedule) trên một ngày.
+-- teacher_id = giáo viên phụ trách lớp của ca đó (join qua classes).
+-- Mix 3 trạng thái: present / absent (có note) / makeup (có note).
+-- Idempotent: cleanup BƯỚC 1 xóa classes → cascade schedule → cascade
+-- teacher_attendance, nên insert luôn sạch khi re-run. Thêm
+-- on conflict (schedule_id, date) do nothing để an toàn tuyệt đối.
+INSERT INTO public.teacher_attendance
+  (id, schedule_id, date, teacher_id, status, note)
+SELECT v.id, v.schedule_id, v.date, c.teacher_id, v.status, v.note
+FROM (VALUES
+  -- c01 ca Thứ 2 (sched01) — buổi tuần trước: có mặt
+  ('c0000000-0000-0000-0000-000000000001'::uuid,
+   '04000000-0000-0000-0000-000000000001'::uuid,
+   (current_date - 7)::date, 'present', NULL),
+  -- c03 ca Thứ 4 (sched04) — buổi tuần trước: vắng (có lý do)
+  ('c0000000-0000-0000-0000-000000000002'::uuid,
+   '04000000-0000-0000-0000-000000000004'::uuid,
+   (current_date - 7)::date, 'absent', 'Giáo viên bận việc gia đình'),
+  -- c04 ca Thứ 7 (sched05) — buổi tuần trước: dạy bù
+  ('c0000000-0000-0000-0000-000000000003'::uuid,
+   '04000000-0000-0000-0000-000000000005'::uuid,
+   (current_date - 7)::date, 'makeup', 'Dạy bù buổi nghỉ tuần trước')
+) AS v(id, schedule_id, date, status, note)
+JOIN public.schedule s ON s.id = v.schedule_id
+JOIN public.classes  c ON c.id = s.class_id
+ON CONFLICT (schedule_id, date) DO NOTHING;
+
+-- ====================================================
 -- BƯỚC 7  : Sessions (quá khứ / hôm nay / tương lai)
 -- ====================================================
 INSERT INTO public.sessions
@@ -1005,6 +1035,8 @@ SELECT 'schedule',               count(*) FROM public.schedule         WHERE cla
 UNION ALL
 SELECT 'sessions',               count(*) FROM public.sessions         WHERE class_id   IN (SELECT id FROM public.classes  WHERE teacher_id IN (SELECT t1 FROM _seed_teachers UNION SELECT t2 FROM _seed_teachers UNION SELECT ta FROM _seed_teachers))
 UNION ALL
+SELECT 'teacher_attendance',      count(*) FROM public.teacher_attendance WHERE schedule_id IN (SELECT id FROM public.schedule WHERE class_id IN (SELECT id FROM public.classes WHERE teacher_id IN (SELECT t1 FROM _seed_teachers UNION SELECT t2 FROM _seed_teachers UNION SELECT ta FROM _seed_teachers)))
+UNION ALL
 SELECT 'attendance',             count(*) FROM public.attendance       WHERE student_id IN (SELECT id FROM public.students WHERE teacher_id IN (SELECT t1 FROM _seed_teachers UNION SELECT t2 FROM _seed_teachers UNION SELECT ta FROM _seed_teachers))
 UNION ALL
 SELECT 'homeworks',              count(*) FROM public.homeworks        WHERE student_id IN (SELECT id FROM public.students WHERE teacher_id IN (SELECT t1 FROM _seed_teachers UNION SELECT t2 FROM _seed_teachers UNION SELECT ta FROM _seed_teachers))
@@ -1035,6 +1067,7 @@ ORDER BY 1;
 --   enrollments      9
 --   schedule         5
 --   sessions         12
+--   teacher_attendance 3
 --   attendance       22
 --   homeworks        14
 --   hw_assignments   5

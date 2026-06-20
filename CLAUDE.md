@@ -45,7 +45,7 @@ Mỗi service là một object với method `getAll / getById / create / update 
 - **UI không gọi `supabase.*` trực tiếp** — luôn qua service (trừ auth trong `useAuth.jsx`).
 - **`classService` hỗ trợ admin**: `create()` và `update()` chấp nhận `data.teacherId` tường minh để admin gán/đổi giáo viên phụ trách.
 
-Services đã có: `studentService`, `classService` (+`teacherService`), `enrollmentService`, `sessionService`, `attendanceService`, `homeworkService`, `hwAssignmentService`, `submissionService`, `scheduleService`, `feeService`, `paymentService`, `reviewService`, `sessionReviewService`, `generalCommentService`, `mockTestService`, `mockTestResultService`, `settingsService`.
+Services đã có: `studentService`, `classService` (+`teacherService`), `enrollmentService`, `sessionService`, `attendanceService`, `teacherAttendanceService`, `homeworkService`, `hwAssignmentService`, `submissionService`, `scheduleService`, `feeService`, `paymentService`, `reviewService`, `sessionReviewService`, `generalCommentService`, `mockTestService`, `mockTestResultService`, `settingsService`.
 
 ### Trạng thái migration theo trang
 - ✅ **Tất cả trang đã dùng services.** `src/store/db.js` và `src/store/mockTestExport.js` đã bị xóa (cutover hoàn tất, 2026-06-02).
@@ -83,6 +83,7 @@ Services đã có: `studentService`, `classService` (+`teacherService`), `enroll
 - **Students Directory** (`StudentsDirectoryPage`): route `students`, danh bạ tổng tất cả học sinh, lọc theo trạng thái/lớp/loại khóa, tìm kiếm, thêm nhanh, import Excel, bulk delete, sidebar chi tiết, điều hướng đến lớp. Prop `onNavigateToClass(classId)` từ `App.jsx`.
 - **Reports** (`ReportsPage`): 4 card báo cáo — Điểm Danh, Mock Test, Học Phí, Bài Tập. Bộ chọn lớp **chung** ở đầu trang áp dụng cho mọi card; filter khoảng tháng / học viên giữ cục bộ trong từng card. MockTestCard hiển thị toàn bộ học sinh (không giới hạn 5), legend ẩn/hiện series. Card Bài Tập dùng `homeworkService.getByClass` + `sessionService.getByClass`, vẽ grouped bar "Tổng giao / Hoàn thành" theo tháng. Card Điểm Danh và Học Phí hỗ trợ drill-down: click cột tháng → Modal bảng chi tiết buổi/học viên (Điểm Danh) hoặc danh sách thanh toán (Học Phí). Mọi card có `ExportButtons` (Excel + PDF).
 - **Settings** (`SettingsPage`): route `settings`, 3 section dùng pattern **edit button** (read-only mặc định → "Chỉnh sửa" → Lưu/Hủy, mỗi section có edit state riêng). (1) **Tài khoản cá nhân** (mọi user): tên hiển thị ghi vào `teachers.name` qua `useAuth().updateTeacherName(name)`, email read-only. (2) **Đổi Mật Khẩu** (mọi user): xác minh mật khẩu cũ qua `supabase.auth.signInWithPassword` rồi `supabase.auth.updateUser({ password })`; mật khẩu mới ≥6 ký tự + khớp xác nhận. (3) **Thông Tin Trung Tâm** (chỉ `teacher.is_admin`): tên trung tâm qua `settingsService.get/upsert`.
+- **Chấm công giáo viên** (admin): `SchedulePage` load `teacherAttendanceService.getByWeek` cho tuần đang xem (chỉ khi `canCheckTeacherAttendance`), build `Map<"scheduleId_date", record>`, truyền xuống `WeeklyGrid`/`DailyAgenda`. Chấm công qua `TeacherAttendanceModal` (3 trạng thái: present/absent/makeup + note). Bảng `teacher_attendance` (migration 20260620000001), unique `(schedule_id, date)`, RLS admin full write / teacher read-only. Hằng số trạng thái ở `src/components/schedule/attendanceStatus.js`.
 - Month/year picker ở top bar chỉ hiện cho trang `dashboard` và `fees`.
 - Layout: `Navbar` (sidebar/mobile nav) bên trái + main content, `ToastContainer` global.
 
@@ -123,7 +124,7 @@ src/
 - **A11y:** `Modal` đóng bằng Esc, khóa scroll nền, focus-trap, có `role="dialog"`/`aria-modal`. `Toast` hỗ trợ nhiều thông báo xếp chồng, có `role="alert"` + `aria-live`; gọi qua API `toast.success/error/info`.
 
 ### Phân quyền UI (BẮT BUỘC)
-- **Check quyền của người dùng hiện tại qua `usePermissions()`** (`src/hooks/usePermissions.js`) — **KHÔNG đọc `teacher.is_admin` trực tiếp trong component**. Hook là nguồn chân lý gating UI ở client, trả về cờ ngữ nghĩa theo năng lực: `isAdmin`, `canViewFees`, `canAccessAdmin`, `canManageCenterSettings`, `canManageStudents`, `canCreateMockTest`, `canManageClasses`, `canFilterByTeacher` (hiện tất cả = `isAdmin`, đổi rule chỉ sửa một dòng trong hook).
+- **Check quyền của người dùng hiện tại qua `usePermissions()`** (`src/hooks/usePermissions.js`) — **KHÔNG đọc `teacher.is_admin` trực tiếp trong component**. Hook là nguồn chân lý gating UI ở client, trả về cờ ngữ nghĩa theo năng lực: `isAdmin`, `canViewFees`, `canAccessAdmin`, `canManageCenterSettings`, `canManageStudents`, `canCreateMockTest`, `canManageClasses`, `canFilterByTeacher`, `canCheckTeacherAttendance` (hiện tất cả = `isAdmin`, đổi rule chỉ sửa một dòng trong hook).
 - Đây chỉ là lớp UX — **RLS ở Postgres vẫn là nguồn chân lý bảo mật**, không thay thế.
 - **Ngoại lệ (KHÔNG dùng hook):** thao tác dữ liệu trên `is_admin` của *giáo viên khác* (vd `classService.setAdmin`, `AdminPanelPage` toggle `t.is_admin` trong danh sách) và prop ngữ cảnh `isAdmin` của component tái dùng (`ClassModal`, AdminPanel truyền `true` cứng) — đây là dữ liệu/ngữ cảnh, không phải quyền của caller.
 
