@@ -1,5 +1,6 @@
 import { clsx } from 'clsx'
-import { Clock, MapPin, Users, Edit2 } from 'lucide-react'
+import { Clock, MapPin, Users, Edit2, CheckSquare } from 'lucide-react'
+import { getAttendanceStatus } from './attendanceStatus'
 
 // ─── Color Mapping by courseType ──────────────────────────
 export const COURSE_COLORS = {
@@ -13,8 +14,9 @@ export const getCourseColor = (courseType) =>
   COURSE_COLORS[courseType] ?? COURSE_COLORS['default']
 
 // ─── ScheduleCard ──────────────────────────────────────────
-export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit }) => {
+export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, canCheckAttendance = false, attendanceRecord = null, onCheckIn }) => {
   const color = getCourseColor(cls?.courseType)
+  const att = getAttendanceStatus(attendanceRecord?.status)
 
   return (
     <div
@@ -31,12 +33,23 @@ export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit }) =
         <span className={clsx('text-xs font-semibold truncate', color.text)}>
           {cls?.name ?? '—'}
         </span>
-        <button
-          className="ml-auto opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-white/60"
-          onClick={(e) => { e.stopPropagation(); onEdit?.(item) }}
-        >
-          <Edit2 size={11} className={color.text} />
-        </button>
+        <div className="ml-auto flex items-center gap-0.5">
+          {canCheckAttendance && (
+            <button
+              className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-white/60"
+              title="Chấm công giáo viên"
+              onClick={(e) => { e.stopPropagation(); onCheckIn?.(item) }}
+            >
+              <CheckSquare size={11} className={color.text} />
+            </button>
+          )}
+          <button
+            className="opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-white/60"
+            onClick={(e) => { e.stopPropagation(); onEdit?.(item) }}
+          >
+            <Edit2 size={11} className={color.text} />
+          </button>
+        </div>
       </div>
 
       {/* Teacher name — only shown in admin "all teachers" view */}
@@ -65,6 +78,16 @@ export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit }) =
         <div className={clsx('flex items-center gap-1 text-xs mt-0.5', color.text, 'opacity-70')}>
           <Users size={11} className="shrink-0" />
           <span>{studentCount} HV</span>
+        </div>
+      )}
+
+      {/* Teacher attendance status badge */}
+      {att && (
+        <div className={clsx('flex items-center gap-1 text-xs mt-1.5 pt-1.5 border-t font-medium', att.text, att.border)}>
+          <span className={clsx('w-2 h-2 rounded-full shrink-0', att.dot)} />
+          <span className="truncate">
+            {att.label}{attendanceRecord?.note ? ` · ${attendanceRecord.note}` : ''}
+          </span>
         </div>
       )}
     </div>
