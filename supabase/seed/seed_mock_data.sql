@@ -159,12 +159,14 @@ VALUES
 -- (maxScore không còn lưu trong skill_config; lưu trong mock_tests.sections)
 INSERT INTO public.classes
   (id, teacher_id, name, level, course_type, max_students,
-   schedule_days, schedule_time, start_date, skill_config)
+   schedule_days, schedule_time, schedule_day_list, start_time, end_time, room,
+   start_date, skill_config)
 VALUES
   ('02000000-0000-0000-0000-000000000001',
    (SELECT t1 FROM _seed_teachers),
    'IELTS Cơ Bản A1', 'IELTS', 'IELTS', 10,
    'Thứ 2, Thứ 5', '08:00 – 10:00',
+   '[1,4]'::jsonb, '08:00', '10:00', 'Phòng 101',
    current_date - 90,
    '[{"name":"Listening","order":0},
      {"name":"Reading","order":1},
@@ -175,6 +177,7 @@ VALUES
    (SELECT t1 FROM _seed_teachers),
    'IELTS Nâng Cao A2', 'IELTS Advanced', 'IELTS', 8,
    'Thứ 3', '14:00 – 16:00',
+   '[2]'::jsonb, '14:00', '16:00', 'Phòng 102',
    current_date - 60,
    '[{"name":"Listening","order":0},
      {"name":"Reading","order":1},
@@ -185,6 +188,7 @@ VALUES
    (SELECT t2 FROM _seed_teachers),
    'TOEIC Intensive B1', 'TOEIC', 'TOEIC', 12,
    'Thứ 4', '18:00 – 20:00',
+   '[3]'::jsonb, '18:00', '20:00', 'Phòng 103',
    current_date - 45,
    '[{"name":"Listening","order":0},
      {"name":"Reading","order":1}]'::jsonb),
@@ -193,10 +197,22 @@ VALUES
    (SELECT ta  FROM _seed_teachers),
    'Giao Tiếp Cơ Bản', 'Giao tiếp', 'Giao tiếp', 6,
    'Thứ 7', '09:00 – 11:00',
+   '[6]'::jsonb, '09:00', '11:00', 'Phòng 104',
    current_date - 30,
    '[{"name":"Phát âm","order":0},
      {"name":"Từ vựng","order":1},
      {"name":"Ngữ pháp","order":2}]'::jsonb);
+
+-- ====================================================
+-- BƯỚC 4b : Schedule (lịch dạy suy ra từ lịch học lớp)
+-- ====================================================
+INSERT INTO public.schedule (class_id, day_of_week, start_time, end_time, room)
+VALUES
+  ('02000000-0000-0000-0000-000000000001', 1, '08:00', '10:00', 'Phòng 101'),
+  ('02000000-0000-0000-0000-000000000001', 4, '08:00', '10:00', 'Phòng 101'),
+  ('02000000-0000-0000-0000-000000000002', 2, '14:00', '16:00', 'Phòng 102'),
+  ('02000000-0000-0000-0000-000000000003', 3, '18:00', '20:00', 'Phòng 103'),
+  ('02000000-0000-0000-0000-000000000004', 6, '09:00', '11:00', 'Phòng 104');
 
 -- ====================================================
 -- BƯỚC 5  : Enrollments (đủ status + fee_type)
