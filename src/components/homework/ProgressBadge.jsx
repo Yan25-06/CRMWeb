@@ -4,9 +4,9 @@ import { clsx } from 'clsx'
 const CYCLE = ['done', 'in_progress', 'not_done']
 
 const CONFIG = {
-  not_done:    { label: 'Không nộp',    className: 'bg-red-100 text-red-700 hover:bg-red-200' },
-  in_progress: { label: 'Chưa hoàn tất', className: 'bg-amber-100 text-amber-700 hover:bg-amber-200' },
   done:        { label: 'Hoàn tất',      className: 'bg-emerald-100 text-emerald-700 hover:bg-emerald-200' },
+  in_progress: { label: 'Chưa hoàn tất', className: 'bg-amber-100 text-amber-700 hover:bg-amber-200' },
+  not_done:    { label: 'Không nộp',    className: 'bg-red-100 text-red-700 hover:bg-red-200' },
 }
 
 // Backward compat: accept legacy numeric progress
