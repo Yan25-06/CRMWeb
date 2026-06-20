@@ -1,7 +1,8 @@
 import { useState } from 'react'
 import { clsx } from 'clsx'
-import { Clock, MapPin, Users, CalendarCheck, ChevronDown } from 'lucide-react'
+import { Clock, MapPin, Users, CalendarCheck, ChevronDown, CheckSquare } from 'lucide-react'
 import { getCourseColor } from './ScheduleCard'
+import { getAttendanceStatus } from './attendanceStatus'
 
 const DAY_NAMES = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy']
 
@@ -12,10 +13,11 @@ const DAY_NAMES = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ 
  * @param {Map}      studentCounts - Map<classId, count>
  * @param {Function} onAttendance  - callback(classId) navigate to attendance
  */
-export const DailyAgenda = ({ todayItems = [], classes = [], studentCounts = new Map(), showTeacher = false, onAttendance }) => {
+export const DailyAgenda = ({ todayItems = [], classes = [], studentCounts = new Map(), showTeacher = false, onAttendance, canCheckAttendance = false, attendanceMap = new Map(), onCheckIn }) => {
   const [collapsed, setCollapsed] = useState(false)
   const today = new Date()
   const todayLabel = `${DAY_NAMES[today.getDay()]}, ${today.getDate()}/${today.getMonth() + 1}/${today.getFullYear()}`
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
 
   const sorted = [...todayItems].sort((a, b) => a.startTime.localeCompare(b.startTime))
   const getClass = (classId) => classes.find(c => c.id === classId)
@@ -91,15 +93,37 @@ export const DailyAgenda = ({ todayItems = [], classes = [], studentCounts = new
                       </div>
                     </div>
 
-                    {/* Quick attendance button */}
-                    <button
-                      onClick={() => onAttendance?.(item.classId)}
-                      className="shrink-0 flex items-center gap-1 text-xs font-medium text-navy-600 hover:text-navy-900 bg-navy-50 hover:bg-navy-100 px-2.5 py-1.5 rounded-lg transition-colors"
-                      title="Đến trang điểm danh"
-                    >
-                      <CalendarCheck size={13} />
-                      Điểm danh
-                    </button>
+                    {/* Action group: quick attendance + teacher check-in */}
+                    <div className="shrink-0 flex flex-col items-end gap-1.5">
+                      <button
+                        onClick={() => onAttendance?.(item.classId)}
+                        className="flex items-center gap-1 text-xs font-medium text-navy-600 hover:text-navy-900 bg-navy-50 hover:bg-navy-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                        title="Đến trang điểm danh"
+                      >
+                        <CalendarCheck size={13} />
+                        Điểm danh
+                      </button>
+
+                      {canCheckAttendance && (() => {
+                        const record = attendanceMap.get(`${item.id}_${todayStr}`) ?? null
+                        const att = getAttendanceStatus(record?.status)
+                        return (
+                          <button
+                            onClick={() => onCheckIn?.(item, todayStr)}
+                            className={clsx(
+                              'flex items-center gap-1 text-xs font-medium px-2.5 py-1.5 rounded-lg transition-colors',
+                              att
+                                ? clsx(att.bg, att.text, 'hover:opacity-80')
+                                : 'text-navy-600 bg-navy-50 hover:bg-navy-100'
+                            )}
+                            title="Chấm công giáo viên"
+                          >
+                            <CheckSquare size={13} />
+                            {att ? att.label : 'Chấm công'}
+                          </button>
+                        )
+                      })()}
+                    </div>
                   </div>
                 </div>
               )
