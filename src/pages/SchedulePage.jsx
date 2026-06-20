@@ -191,6 +191,7 @@ export const SchedulePage = ({ onNavigate }) => {
   const handleSaveAttendance = useCallback(async ({ status, note }) => {
     if (!attTarget) return
     const cls = classes.find(c => c.id === attTarget.item.classId)
+    if (!cls?.teacherId) { toast.error('Không tìm thấy lớp/giáo viên'); return }
     try {
       await teacherAttendanceService.upsert({
         scheduleId: attTarget.item.id,
