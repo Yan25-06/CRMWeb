@@ -124,7 +124,7 @@ export const HomeworkTab = ({ classId, scheduleTime }) => {
       await homeworkService.create({
         sessionId: activeSessionId,
         studentId,
-        progress: 'not_done',
+        progress: 'done',
         title: sharedTitle,
         note: '',
       })
