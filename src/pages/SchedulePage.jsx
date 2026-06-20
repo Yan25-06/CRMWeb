@@ -5,7 +5,9 @@ import { Button, toast, Empty, Skeleton } from '@/components/ui'
 import { WeeklyGrid } from '@/components/schedule/WeeklyGrid'
 import { DailyAgenda } from '@/components/schedule/DailyAgenda'
 import { ScheduleModal } from '@/components/schedule/ScheduleModal'
+import { TeacherAttendanceModal } from '@/components/schedule/TeacherAttendanceModal'
 import { scheduleService } from '@/services/scheduleService'
+import { teacherAttendanceService } from '@/services/teacherAttendanceService'
 import { classService, teacherService } from '@/services/classService'
 import { enrollmentService } from '@/services/enrollmentService'
 import { usePermissions } from '@/hooks/usePermissions'
@@ -31,9 +33,16 @@ const formatWeekLabel = (weekStart) => {
   return `${s} – ${e}, ${year}`
 }
 
+const toDateStr = (date) => {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
+
 // ─── SchedulePage ────────────────────────────────────────────
 export const SchedulePage = ({ onNavigate }) => {
-  const { canFilterByTeacher: isAdmin } = usePermissions()
+  const { canFilterByTeacher: isAdmin, canCheckTeacherAttendance } = usePermissions()
 
   // Week navigation state
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()))
@@ -50,6 +59,11 @@ export const SchedulePage = ({ onNavigate }) => {
   const [teachers, setTeachers] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
+
+  // Teacher attendance (admin only)
+  const [attendance, setAttendance] = useState([])
+  const [attModalOpen, setAttModalOpen] = useState(false)
+  const [attTarget, setAttTarget] = useState(null) // { item, date }
 
   // Admin filter
   const [selectedTeacherId, setSelectedTeacherId] = useState('')
@@ -78,6 +92,22 @@ export const SchedulePage = ({ onNavigate }) => {
 
   useEffect(() => { loadData() }, [loadData])
 
+  // Load teacher attendance for the viewed week (admin only)
+  const loadAttendance = useCallback(async () => {
+    if (!canCheckTeacherAttendance) { setAttendance([]); return }
+    const from = toDateStr(weekStart)
+    const end = new Date(weekStart); end.setDate(end.getDate() + 6)
+    const to = toDateStr(end)
+    try {
+      const rows = await teacherAttendanceService.getByWeek(from, to)
+      setAttendance(rows)
+    } catch {
+      setAttendance([])
+    }
+  }, [canCheckTeacherAttendance, weekStart])
+
+  useEffect(() => { loadAttendance() }, [loadAttendance])
+
   // Admin filter: narrow classes and schedule by selected teacher
   const visibleClasses = useMemo(() => {
     if (!isAdmin || !selectedTeacherId) return classes
@@ -100,6 +130,13 @@ export const SchedulePage = ({ onNavigate }) => {
     }
     return map
   }, [visibleClasses, enrollments])
+
+  // Lookup map for teacher attendance: `${scheduleId}_${date}` → record
+  const attendanceMap = useMemo(() => {
+    const map = new Map()
+    for (const r of attendance) map.set(`${r.scheduleId}_${r.date}`, r)
+    return map
+  }, [attendance])
 
   // Today's items
   const todayDow = new Date().getDay()
@@ -145,6 +182,40 @@ export const SchedulePage = ({ onNavigate }) => {
       toast.error('Không thể xóa lịch dạy')
     }
   }, [loadData])
+
+  const openCheckIn = useCallback((item, date) => {
+    setAttTarget({ item, date })
+    setAttModalOpen(true)
+  }, [])
+
+  const handleSaveAttendance = useCallback(async ({ status, note }) => {
+    if (!attTarget) return
+    const cls = classes.find(c => c.id === attTarget.item.classId)
+    try {
+      await teacherAttendanceService.upsert({
+        scheduleId: attTarget.item.id,
+        date: attTarget.date,
+        teacherId: cls?.teacherId,
+        status,
+        note,
+      })
+      toast.success('Đã chấm công')
+      await loadAttendance()
+    } catch {
+      toast.error('Không thể chấm công')
+    }
+  }, [attTarget, classes, loadAttendance])
+
+  const handleDeleteAttendance = useCallback(async () => {
+    if (!attTarget) return
+    try {
+      await teacherAttendanceService.remove(attTarget.item.id, attTarget.date)
+      toast.success('Đã xóa chấm công')
+      await loadAttendance()
+    } catch {
+      toast.error('Không thể xóa chấm công')
+    }
+  }, [attTarget, loadAttendance])
 
   const handleAttendance = useCallback((classId) => {
     onNavigate?.('classes')
@@ -285,6 +356,10 @@ export const SchedulePage = ({ onNavigate }) => {
                 showTeacher={showTeacher}
                 onEdit={openEdit}
                 onAddDay={openAdd}
+                weekStart={weekStart}
+                canCheckAttendance={canCheckTeacherAttendance}
+                attendanceMap={attendanceMap}
+                onCheckIn={openCheckIn}
               />
             </div>
           )}
@@ -298,6 +373,9 @@ export const SchedulePage = ({ onNavigate }) => {
             studentCounts={studentCounts}
             showTeacher={showTeacher}
             onAttendance={handleAttendance}
+            canCheckAttendance={canCheckTeacherAttendance}
+            attendanceMap={attendanceMap}
+            onCheckIn={openCheckIn}
           />
         </div>
       </div>
@@ -310,6 +388,9 @@ export const SchedulePage = ({ onNavigate }) => {
           studentCounts={studentCounts}
           showTeacher={showTeacher}
           onAttendance={handleAttendance}
+          canCheckAttendance={canCheckTeacherAttendance}
+          attendanceMap={attendanceMap}
+          onCheckIn={openCheckIn}
         />
       </div>
 
@@ -323,6 +404,16 @@ export const SchedulePage = ({ onNavigate }) => {
         allSchedule={schedule}
         onSave={handleSave}
         onDelete={handleDelete}
+      />
+
+      <TeacherAttendanceModal
+        open={attModalOpen}
+        onClose={() => setAttModalOpen(false)}
+        cls={attTarget ? classes.find(c => c.id === attTarget.item.classId) : null}
+        date={attTarget?.date}
+        record={attTarget ? attendanceMap.get(`${attTarget.item.id}_${attTarget.date}`) ?? null : null}
+        onSave={handleSaveAttendance}
+        onDelete={handleDeleteAttendance}
       />
 
     </div>
