@@ -120,12 +120,14 @@ export const classService = {
       .select()
       .single()
     if (error) throw new Error(error.message)
-    await scheduleService.syncForClass(row.id, {
-      dayList: data.scheduleDayList,
-      startTime: data.startTime,
-      endTime: data.endTime,
-      room: data.room,
-    })
+    if (data.scheduleDayList !== undefined) {
+      await scheduleService.syncForClass(row.id, {
+        dayList: data.scheduleDayList,
+        startTime: data.startTime,
+        endTime: data.endTime,
+        room: data.room,
+      })
+    }
     return fromDB(row)
   },
 
