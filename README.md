@@ -24,6 +24,8 @@ Password: 123456
 - **Mock tests** — record IELTS/TOEIC scores by skill, visualize progress over time
 - **Student reviews** — skill radar charts, PDF report cards, bulk export as ZIP
 - **Schedule** — weekly grid + daily agenda view, with admin teacher attendance check-in (present/absent/makeup) per slot
+- **Lịch dạy tự động** — đặt lịch học của lớp (chọn thứ + giờ) → các ca tự xuất hiện và đồng bộ trên trang Lịch Dạy
+- **Chấm công giáo viên hiển thị trực quan** — trạng thái chấm công ngay trên thẻ lịch tuần (viền màu + chip trạng thái)
 - **Reports** — attendance, fees, homework, and mock test charts with Excel/PDF export
 - **Multi-teacher + admin** — teachers see only their own data; admin manages all classes and teachers
 

@@ -84,6 +84,7 @@ Services đã có: `studentService`, `classService` (+`teacherService`), `enroll
 - **Reports** (`ReportsPage`): 4 card báo cáo — Điểm Danh, Mock Test, Học Phí, Bài Tập. Bộ chọn lớp **chung** ở đầu trang áp dụng cho mọi card; filter khoảng tháng / học viên giữ cục bộ trong từng card. MockTestCard hiển thị toàn bộ học sinh (không giới hạn 5), legend ẩn/hiện series. Card Bài Tập dùng `homeworkService.getByClass` + `sessionService.getByClass`, vẽ grouped bar "Tổng giao / Hoàn thành" theo tháng. Card Điểm Danh và Học Phí hỗ trợ drill-down: click cột tháng → Modal bảng chi tiết buổi/học viên (Điểm Danh) hoặc danh sách thanh toán (Học Phí). Mọi card có `ExportButtons` (Excel + PDF).
 - **Settings** (`SettingsPage`): route `settings`, 3 section dùng pattern **edit button** (read-only mặc định → "Chỉnh sửa" → Lưu/Hủy, mỗi section có edit state riêng). (1) **Tài khoản cá nhân** (mọi user): tên hiển thị ghi vào `teachers.name` qua `useAuth().updateTeacherName(name)`, email read-only. (2) **Đổi Mật Khẩu** (mọi user): xác minh mật khẩu cũ qua `supabase.auth.signInWithPassword` rồi `supabase.auth.updateUser({ password })`; mật khẩu mới ≥6 ký tự + khớp xác nhận. (3) **Thông Tin Trung Tâm** (chỉ `teacher.is_admin`): tên trung tâm qua `settingsService.get/upsert`.
 - **Chấm công giáo viên** (admin): `SchedulePage` load `teacherAttendanceService.getByWeek` cho tuần đang xem (chỉ khi `canCheckTeacherAttendance`), build `Map<"scheduleId_date", record>`, truyền xuống `WeeklyGrid`/`DailyAgenda`. Chấm công qua `TeacherAttendanceModal` (3 trạng thái: present/absent/makeup + note). Bảng `teacher_attendance` (migration 20260620000001), unique `(schedule_id, date)`, RLS admin full write / teacher read-only. Hằng số trạng thái ở `src/components/schedule/attendanceStatus.js`.
+- **ScheduleCard (chấm công):** trạng thái chấm công hiển thị bằng **viền màu trái** (`att.bar` trong `attendanceStatus.js`) + **chip luôn hiện** ở góc phải (đã chấm = pill màu; chưa chấm = chip "Chấm"). Bấm chip = mở `TeacherAttendanceModal` (stopPropagation); bấm thân thẻ = sửa lịch. Chỉ hiện khi `canCheckTeacherAttendance`.
 - Month/year picker ở top bar chỉ hiện cho trang `dashboard` và `fees`.
 - Layout: `Navbar` (sidebar/mobile nav) bên trái + main content, `ToastContainer` global.
 
@@ -191,5 +192,11 @@ Project quản lý thay đổi qua OpenSpec (`openspec/`). Có skill tích hợp
 ## Model settings
 - `settingsService` chỉ map `centerName`, `defaultFeePerSession`, `currency` (đã **bỏ `teacherName`/`teacher_name`** ở service layer — cột DB còn nhưng orphan, không migration drop).
 - **Tên hiển thị giáo viên lưu duy nhất tại `teachers.name`**, đọc qua `useAuth().teacher.name`, ghi qua `useAuth().updateTeacherName(name)` (refresh `teacher` state tại chỗ). Không lưu tên ở bảng `settings`.
+
+## Model lịch học của lớp (migration 20260620000002)
+- **`classes.schedule_day_list`** (jsonb): mảng thứ trong tuần theo quy ước JS `0=CN…6=T7` (VD lớp 3-5-7 → `[2,4,6]`). `start_time`/`end_time` (text `HH:MM`), `room` (text) — lịch học cố định, **cùng giờ mọi buổi**.
+- `classService.fromDB/toDB` map `scheduleDayList/startTime/endTime/room`; `toDB` tự suy ra `schedule_days`/`schedule_time` (chuỗi hiển thị, tương thích ngược) và **chỉ ghi block lịch khi `data.scheduleDayList !== undefined`** (để update riêng teacher không xoá lịch).
+- **Tự đồng bộ lịch dạy:** `scheduleService.syncForClass(classId, { dayList, startTime, endTime, room })` được gọi trong `classService.create/update` → upsert hàng `schedule` theo `(class_id, day_of_week)` cho thứ được chọn, xóa thứ bỏ chọn (giữ `note` từng ca). `dayList` rỗng → no-op. Lịch học của lớp là nguồn chân lý; lưới `schedule` là projection.
+- `ClassModal`: chọn thứ bằng nhóm nút T2…CN + 2 ô `type=time` + ô phòng (thay 2 ô chữ tự do cũ).
 
 ---
