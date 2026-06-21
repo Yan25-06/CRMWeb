@@ -13,6 +13,9 @@ export const fmtDate = (iso) => {
   return `${d}/${m}/${y}`
 }
 
+// Cắt chuỗi giờ Postgres "HH:MM:SS" → "HH:MM"
+export const fmtTime = (t) => (t || '').slice(0, 5)
+
 export const todayISO = () => new Date().toISOString().split('T')[0]
 
 export const monthISO = (date = new Date()) =>

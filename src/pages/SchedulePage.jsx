@@ -1,11 +1,11 @@
 import { useState, useMemo, useCallback, useEffect } from 'react'
 import { clsx } from 'clsx'
-import { Plus, ChevronLeft, ChevronRight, Calendar } from 'lucide-react'
+import { Plus, ChevronLeft, ChevronRight, Calendar, CalendarCheck } from 'lucide-react'
 import { Button, toast, Empty, Skeleton } from '@/components/ui'
 import { WeeklyGrid } from '@/components/schedule/WeeklyGrid'
-import { DailyAgenda } from '@/components/schedule/DailyAgenda'
 import { ScheduleModal } from '@/components/schedule/ScheduleModal'
-import { TeacherAttendanceModal } from '@/components/schedule/TeacherAttendanceModal'
+import { getCourseColor } from '@/components/schedule/ScheduleCard'
+import { fmtTime } from '@/utils/helpers'
 import { scheduleService } from '@/services/scheduleService'
 import { teacherAttendanceService } from '@/services/teacherAttendanceService'
 import { classService, teacherService } from '@/services/classService'
@@ -62,8 +62,6 @@ export const SchedulePage = ({ onNavigate }) => {
 
   // Teacher attendance (admin only)
   const [attendance, setAttendance] = useState([])
-  const [attModalOpen, setAttModalOpen] = useState(false)
-  const [attTarget, setAttTarget] = useState(null) // { item, date }
 
   // Admin filter
   const [selectedTeacherId, setSelectedTeacherId] = useState('')
@@ -183,40 +181,43 @@ export const SchedulePage = ({ onNavigate }) => {
     }
   }, [loadData])
 
-  const openCheckIn = useCallback((item, date) => {
-    setAttTarget({ item, date })
-    setAttModalOpen(true)
-  }, [])
-
-  const handleSaveAttendance = useCallback(async ({ status, note }) => {
-    if (!attTarget) return
-    const cls = classes.find(c => c.id === attTarget.item.classId)
+  // Chấm công 2 trạng thái: bấm chip toggle Đã dạy ↔ Vắng (mặc định Đã dạy, không modal)
+  const handleToggleAttendance = useCallback(async (item, date) => {
+    const cls = classes.find(c => c.id === item.classId)
     if (!cls?.teacherId) { toast.error('Không tìm thấy lớp/giáo viên'); return }
+    const record = attendanceMap.get(`${item.id}_${date}`)
+    const nextStatus = record?.status === 'absent' ? 'present' : 'absent'
     try {
       await teacherAttendanceService.upsert({
-        scheduleId: attTarget.item.id,
-        date: attTarget.date,
-        teacherId: cls?.teacherId,
-        status,
-        note,
+        scheduleId: item.id,
+        date,
+        teacherId: cls.teacherId,
+        status: nextStatus,
+        note: record?.note ?? null,
       })
-      toast.success('Đã chấm công')
       await loadAttendance()
     } catch {
       toast.error('Không thể chấm công')
     }
-  }, [attTarget, classes, loadAttendance])
+  }, [classes, attendanceMap, loadAttendance])
 
-  const handleDeleteAttendance = useCallback(async () => {
-    if (!attTarget) return
+  const handleSetAttendanceNote = useCallback(async (item, date, note) => {
+    const cls = classes.find(c => c.id === item.classId)
+    if (!cls?.teacherId) return
+    const record = attendanceMap.get(`${item.id}_${date}`)
     try {
-      await teacherAttendanceService.remove(attTarget.item.id, attTarget.date)
-      toast.success('Đã xóa chấm công')
+      await teacherAttendanceService.upsert({
+        scheduleId: item.id,
+        date,
+        teacherId: cls.teacherId,
+        status: record?.status ?? 'absent',
+        note,
+      })
       await loadAttendance()
     } catch {
-      toast.error('Không thể xóa chấm công')
+      toast.error('Không thể lưu ghi chú')
     }
-  }, [attTarget, loadAttendance])
+  }, [classes, attendanceMap, loadAttendance])
 
   const handleAttendance = useCallback((classId) => {
     onNavigate?.('classes')
@@ -305,11 +306,37 @@ export const SchedulePage = ({ onNavigate }) => {
         )}
       </div>
 
-      {/* ── Main layout: Desktop = grid + sidebar, Mobile = agenda + grid ── */}
-      <div className="flex gap-6 items-start">
+      {/* ── Thanh "Hôm nay" ngang gọn ── */}
+      {!loading && !error && todayItems.length > 0 && (
+        <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm px-3 py-2 flex items-center gap-2 flex-wrap">
+          <span className="text-xs font-semibold text-navy-700 shrink-0">Hôm nay:</span>
+          {[...todayItems].sort((a, b) => a.startTime.localeCompare(b.startTime)).map(item => {
+            const cls = visibleClasses.find(c => c.id === item.classId)
+            const color = getCourseColor(cls?.courseType)
+            return (
+              <div key={item.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-navy-50 text-xs">
+                <span className={clsx('w-2 h-2 rounded-full shrink-0', color.dot)} />
+                <span className="font-medium text-navy-800">{cls?.name ?? '—'}</span>
+                <span className="text-navy-400">{fmtTime(item.startTime)}–{fmtTime(item.endTime)}</span>
+                {item.room && <span className="text-navy-400">· {item.room}</span>}
+                <button
+                  onClick={() => handleAttendance(item.classId)}
+                  className="ml-1 text-navy-500 hover:text-navy-800 transition-colors"
+                  title="Điểm danh học viên"
+                >
+                  <CalendarCheck size={13} />
+                </button>
+              </div>
+            )
+          })}
+        </div>
+      )}
+
+      {/* ── Lưới thời khóa biểu (full bề ngang) ── */}
+      <div className="w-full">
 
         {/* Grid area */}
-        <div className="flex-1 min-w-0">
+        <div className="min-w-0">
           {loading ? (
             <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-4">
               <div className="grid grid-cols-7 gap-2 mb-3">
@@ -360,39 +387,12 @@ export const SchedulePage = ({ onNavigate }) => {
                 weekStart={weekStart}
                 canCheckAttendance={canCheckTeacherAttendance}
                 attendanceMap={attendanceMap}
-                onCheckIn={openCheckIn}
+                onToggleAttendance={handleToggleAttendance}
+                onAttendanceNote={handleSetAttendanceNote}
               />
             </div>
           )}
         </div>
-
-        {/* Sidebar — DailyAgenda (desktop: beside grid, mobile: hidden, shown above grid by DailyAgenda) */}
-        <div className="w-72 shrink-0 hidden md:block">
-          <DailyAgenda
-            todayItems={todayItems}
-            classes={visibleClasses}
-            studentCounts={studentCounts}
-            showTeacher={showTeacher}
-            onAttendance={handleAttendance}
-            canCheckAttendance={canCheckTeacherAttendance}
-            attendanceMap={attendanceMap}
-            onCheckIn={openCheckIn}
-          />
-        </div>
-      </div>
-
-      {/* Mobile DailyAgenda — shown above grid */}
-      <div className="md:hidden -mt-2">
-        <DailyAgenda
-          todayItems={todayItems}
-          classes={visibleClasses}
-          studentCounts={studentCounts}
-          showTeacher={showTeacher}
-          onAttendance={handleAttendance}
-          canCheckAttendance={canCheckTeacherAttendance}
-          attendanceMap={attendanceMap}
-          onCheckIn={openCheckIn}
-        />
       </div>
 
       {/* ── Modal ──────────────────────────────────────── */}
@@ -405,16 +405,6 @@ export const SchedulePage = ({ onNavigate }) => {
         allSchedule={schedule}
         onSave={handleSave}
         onDelete={handleDelete}
-      />
-
-      <TeacherAttendanceModal
-        open={attModalOpen}
-        onClose={() => setAttModalOpen(false)}
-        cls={attTarget ? classes.find(c => c.id === attTarget.item.classId) : null}
-        date={attTarget?.date}
-        record={attTarget ? attendanceMap.get(`${attTarget.item.id}_${attTarget.date}`) ?? null : null}
-        onSave={handleSaveAttendance}
-        onDelete={handleDeleteAttendance}
       />
 
     </div>

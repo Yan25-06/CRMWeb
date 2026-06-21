@@ -1,6 +1,8 @@
+import { useState, useEffect, useRef } from 'react'
 import { clsx } from 'clsx'
 import { Clock, MapPin, Users } from 'lucide-react'
 import { getAttendanceStatus } from './attendanceStatus'
+import { fmtTime } from '@/utils/helpers'
 
 // ─── Color Mapping by courseType ──────────────────────────
 export const COURSE_COLORS = {
@@ -14,9 +16,23 @@ export const getCourseColor = (courseType) =>
   COURSE_COLORS[courseType] ?? COURSE_COLORS['default']
 
 // ─── ScheduleCard ──────────────────────────────────────────
-export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, canCheckAttendance = false, attendanceRecord = null, onCheckIn }) => {
+export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, canCheckAttendance = false, attendanceRecord = null, onToggleAttendance, onAttendanceNote }) => {
   const color = getCourseColor(cls?.courseType)
-  const att = getAttendanceStatus(attendanceRecord?.status)
+
+  // 2 trạng thái: mặc định "Đã dạy", chỉ 'absent' mới là Vắng (bản ghi cũ khác → coi như Đã dạy)
+  const isAbsent = attendanceRecord?.status === 'absent'
+  const att = getAttendanceStatus(isAbsent ? 'absent' : 'present')
+
+  // Ghi chú ca dạy — chỉ hiện khi Vắng, debounce lưu
+  const [noteVal, setNoteVal] = useState(attendanceRecord?.note ?? '')
+  const noteTimer = useRef(null)
+  useEffect(() => { setNoteVal(attendanceRecord?.note ?? '') }, [attendanceRecord?.note])
+
+  const handleNote = (val) => {
+    setNoteVal(val)
+    if (noteTimer.current) clearTimeout(noteTimer.current)
+    noteTimer.current = setTimeout(() => onAttendanceNote?.(item, val), 400)
+  }
 
   return (
     <div
@@ -24,7 +40,7 @@ export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, can
         'group relative rounded-xl border p-2.5 cursor-pointer transition-all duration-150',
         'hover:shadow-md hover:-translate-y-0.5',
         color.bg, color.border,
-        att && clsx('border-l-4', att.bar)
+        isAbsent && clsx('border-l-4', att.bar)
       )}
       onClick={() => onEdit?.(item)}
     >
@@ -36,23 +52,15 @@ export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, can
         </span>
         {canCheckAttendance && (
           <button
-            className="ml-auto shrink-0"
-            title="Chấm công giáo viên"
-            onClick={(e) => { e.stopPropagation(); onCheckIn?.(item) }}
-          >
-            {att ? (
-              <span className={clsx(
-                'inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-semibold border',
-                att.bg, att.text, att.border
-              )}>
-                <span className={clsx('w-1.5 h-1.5 rounded-full', att.dot)} />
-                {att.label}
-              </span>
-            ) : (
-              <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-xs font-medium text-navy-600 bg-navy-50 border border-navy-200 hover:bg-navy-100 transition-colors">
-                Chấm
-              </span>
+            className={clsx(
+              'ml-auto shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-semibold border transition-colors',
+              att.bg, att.text, att.border, 'hover:opacity-80'
             )}
+            title="Bấm để đổi Đã dạy / Vắng"
+            onClick={(e) => { e.stopPropagation(); onToggleAttendance?.(item) }}
+          >
+            <span className={clsx('w-1.5 h-1.5 rounded-full', att.dot)} />
+            {att.label}
           </button>
         )}
       </div>
@@ -67,7 +75,7 @@ export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, can
       {/* Time */}
       <div className={clsx('flex items-center gap-1 text-xs', color.text)}>
         <Clock size={11} className="shrink-0" />
-        <span>{item.startTime}–{item.endTime}</span>
+        <span>{fmtTime(item.startTime)}–{fmtTime(item.endTime)}</span>
       </div>
 
       {/* Room */}
@@ -86,11 +94,16 @@ export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, can
         </div>
       )}
 
-      {/* Attendance note (status itself shown via stripe + chip) */}
-      {attendanceRecord?.note && (
-        <div className={clsx('text-xs mt-1.5 pt-1.5 border-t truncate', color.text, color.border, 'opacity-80')}>
-          {attendanceRecord.note}
-        </div>
+      {/* Note input — chỉ hiện khi Vắng */}
+      {canCheckAttendance && isAbsent && (
+        <input
+          type="text"
+          value={noteVal}
+          onChange={(e) => handleNote(e.target.value)}
+          onClick={(e) => e.stopPropagation()}
+          placeholder="Ghi chú (lý do vắng / dạy bù)..."
+          className="mt-1.5 w-full text-xs px-2 py-1 rounded-lg border border-red-200 bg-white text-navy-700 placeholder:text-navy-300 focus:outline-none focus:ring-1 focus:ring-red-300"
+        />
       )}
     </div>
   )
