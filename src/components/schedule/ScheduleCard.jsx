@@ -101,7 +101,7 @@ export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, can
           value={noteVal}
           onChange={(e) => handleNote(e.target.value)}
           onClick={(e) => e.stopPropagation()}
-          placeholder="Ghi chú (lý do vắng / dạy bù)..."
+          placeholder="Ghi chú"
           className="mt-1.5 w-full text-xs px-2 py-1 rounded-lg border border-red-200 bg-white text-navy-700 placeholder:text-navy-300 focus:outline-none focus:ring-1 focus:ring-red-300"
         />
       )}

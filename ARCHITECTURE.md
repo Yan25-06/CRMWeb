@@ -22,7 +22,7 @@ Bản chất là một **SPA React thuần (client-only)**, không có backend r
 └─────────────────────────────────────────────┘
 ```
 
-Không có server Node, không có API riêng. Deploy ra **GitHub Pages** (static, build vào `docs/`).
+Không có server Node, không có API riêng. Build static vào `dist/` (base `/`), deploy lên host tĩnh.
 
 ---
 
@@ -37,7 +37,7 @@ Không có server Node, không có API riêng. Deploy ra **GitHub Pages** (stati
 | Biểu đồ | chart.js + react-chartjs-2 |
 | Xuất file | xlsx (Excel), jspdf + html2canvas (PDF) — lazy-load trong handler |
 
-**Scripts:** `npm run dev` (port 5173), `npm run build` (→ `docs/`, base `/RollCallWeb/`), `npm run preview`. Không có test runner, không có linter cấu hình sẵn.
+**Scripts:** `npm run dev` (port 5173), `npm run build` (→ `dist/`, base `/`), `npm run preview`. Không có test runner, không có linter cấu hình sẵn.
 
 **Env bắt buộc:** `.env` cần `VITE_SUPABASE_URL` + `VITE_SUPABASE_ANON_KEY`. Thiếu → `src/lib/supabase.js` throw ngay khi load.
 

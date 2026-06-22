@@ -55,7 +55,7 @@ Password: 123456
 | Charts | Chart.js + react-chartjs-2 |
 | Export | html2canvas, jsPDF, xlsx, jszip |
 | Icons | lucide-react |
-| Deploy | GitHub Pages (static, output → `docs/`) |
+| Deploy | Static build (output → `dist/`) |
 
 ---
 
@@ -84,5 +84,5 @@ npm run dev
 ```
 
 ```bash
-npm run build   # outputs to docs/ for GitHub Pages
+npm run build   # outputs to dist/
 ```

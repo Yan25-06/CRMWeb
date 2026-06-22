@@ -17,7 +17,7 @@ Web app quản lý điểm danh + học phí cho giáo viên/trung tâm tiếng 
 
 ## Scripts
 - `npm run dev` — dev server (http://localhost:5173)
-- `npm run build` — build production → **xuất ra `docs/`** (không phải `dist/`), `base: '/RollCallWeb/'` (deploy GitHub Pages)
+- `npm run build` — build production → **xuất ra `dist/`**, `base: '/'` (xem `vite.config.js`)
 - `npm run preview`
 - Không có test runner, không có linter cấu hình sẵn.
 
@@ -68,7 +68,7 @@ Services đã có: `studentService`, `classService` (+`teacherService`), `enroll
 - **ErrorBoundary** (`src/components/ErrorBoundary.jsx`): class component (ngoại lệ hợp lệ với quy tắc "chỉ functional") bắt lỗi render toàn cục → màn hình khôi phục tiếng Việt + nút "Tải lại trang"; vẫn `console.error` stack để debug.
 
 ## Triển khai production
-- Runbook bắt buộc trước go-live ở **`DEPLOYMENT.md`** (root, KHÔNG đặt trong `docs/` vì `docs/` là output build): bootstrap admin (`is_admin` set qua SQL Editor), cấu hình Auth Site/Redirect URL, tắt tự đăng ký, bật backup, kiểm thử tài khoản giáo viên thường. KHÔNG chạy seed mock lên production.
+- Runbook bắt buộc trước go-live ở **`DEPLOYMENT.md`** (root): bootstrap admin (`is_admin` set qua SQL Editor), cấu hình Auth Site/Redirect URL, tắt tự đăng ký, bật backup, kiểm thử tài khoản giáo viên thường. KHÔNG chạy seed mock lên production.
 - **Lazy-load export:** `xlsx`/`jspdf`/`html2canvas`/`jszip` dùng `await import()` trong handler (giảm bundle khởi động), bọc try/catch + `toast.error`. Áp dụng ở `ExportExcelButton`, `ExportPdfButton`, `mockTestExport.js`, `ClassOverviewTable`, `ImportStudentsModal`, `BulkExportModal`.
 
 ## Routing & Layout
