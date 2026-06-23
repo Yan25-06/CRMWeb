@@ -6,8 +6,9 @@ import { studentService } from '@/services/studentService'
 import { feeService } from '@/services/feeService'
 import { ClassModal } from '@/components/classes/ClassModal'
 import { Button, Card, Modal, StatCard, toast, ConfirmModal } from '@/components/ui'
-import { Plus, Users, GraduationCap, UserCog, AlertCircle, ChevronRight, ShieldCheck, ShieldOff } from 'lucide-react'
+import { Plus, Users, GraduationCap, UserCog, AlertCircle, ChevronRight, ShieldCheck, ShieldOff, Wallet } from 'lucide-react'
 import clsx from 'clsx'
+import { fmtVND } from '@/utils/helpers'
 
 export function AdminPanelPage() {
   const { teacher } = useAuth()
@@ -24,6 +25,8 @@ export function AdminPanelPage() {
   const [selectedTeacherId, setSelectedTeacherId] = useState(null)
   const [togglingAdminId, setTogglingAdminId] = useState(null)
   const [confirmAdmin, setConfirmAdmin] = useState({ open: false, teacher: null })
+  const [salaryDraft, setSalaryDraft] = useState({})   // { [teacherId]: '12000000' }
+  const [savingSalaryId, setSavingSalaryId] = useState(null)
 
   useEffect(() => {
     loadTeachers()
@@ -119,6 +122,26 @@ export function AdminPanelPage() {
       toast.error('Lỗi: ' + err.message)
     } finally {
       setTogglingAdminId(null)
+    }
+  }
+
+  const handleSaveSalary = async (t) => {
+    const raw = salaryDraft[t.id]
+    const value = raw === '' || raw == null ? null : Number(raw)
+    if (value != null && (Number.isNaN(value) || value < 0)) {
+      toast.error('Lương không hợp lệ')
+      return
+    }
+    setSavingSalaryId(t.id)
+    try {
+      await teacherService.update(t.id, { monthlySalary: value })
+      toast.success('Đã lưu lương tháng')
+      setSalaryDraft(d => { const n = { ...d }; delete n[t.id]; return n })
+      loadTeachers()
+    } catch (err) {
+      toast.error('Lỗi lưu lương: ' + err.message)
+    } finally {
+      setSavingSalaryId(null)
     }
   }
 
@@ -258,6 +281,32 @@ export function AdminPanelPage() {
                         </span>
                       )}
                     </button>
+
+                    {/* Lương tháng */}
+                    <div className="px-4 pb-3 flex items-center gap-2">
+                      <Wallet size={13} className="text-navy-400 shrink-0" />
+                      <input
+                        type="number"
+                        min="0"
+                        step="100000"
+                        value={salaryDraft[t.id] ?? (t.monthlySalary ?? '')}
+                        onChange={e => setSalaryDraft(d => ({ ...d, [t.id]: e.target.value }))}
+                        placeholder="Lương tháng"
+                        className="input text-xs py-1 flex-1 min-w-0"
+                      />
+                      <button
+                        onClick={() => handleSaveSalary(t)}
+                        disabled={savingSalaryId === t.id || salaryDraft[t.id] === undefined}
+                        className="text-xs font-medium px-2.5 py-1 rounded-lg bg-navy-50 text-navy-700 hover:bg-navy-100 transition-colors disabled:opacity-40"
+                      >
+                        {savingSalaryId === t.id ? '...' : 'Lưu'}
+                      </button>
+                    </div>
+                    {t.monthlySalary != null && (
+                      <p className="px-4 -mt-2 pb-2 text-xs text-navy-400">
+                        Hiện tại: {fmtVND(t.monthlySalary)}
+                      </p>
+                    )}
 
                     {/* Admin toggle button */}
                     {!isSelf && (
