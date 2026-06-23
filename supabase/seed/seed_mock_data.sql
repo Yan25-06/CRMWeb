@@ -92,6 +92,21 @@ DELETE FROM public.students
                        UNION SELECT ta FROM _seed_teachers);
 
 -- ====================================================
+-- BƯỚC 1b : Lương giáo viên (monthly_salary mock)
+-- ====================================================
+UPDATE public.teachers
+  SET monthly_salary = 10000000
+  WHERE id = (SELECT t1 FROM _seed_teachers);
+
+UPDATE public.teachers
+  SET monthly_salary = 12000000
+  WHERE id = (SELECT t2 FROM _seed_teachers);
+
+UPDATE public.teachers
+  SET monthly_salary = 15000000
+  WHERE id = (SELECT ta FROM _seed_teachers);
+
+-- ====================================================
 -- BƯỚC 2  : Settings (1 row / teacher)
 -- ====================================================
 INSERT INTO public.settings
@@ -333,14 +348,19 @@ FROM (VALUES
   ('c0000000-0000-0000-0000-000000000002'::uuid,
    '04000000-0000-0000-0000-000000000004'::uuid,
    (current_date - 7)::date, 'absent', 'Giáo viên bận việc gia đình'),
-  -- c04 ca Thứ 7 (sched05) — buổi tuần trước: dạy bù
+  -- c04 ca Thứ 7 (sched05) — buổi tuần trước: vắng, có người dạy thay (sẽ set substitute bên dưới)
   ('c0000000-0000-0000-0000-000000000003'::uuid,
    '04000000-0000-0000-0000-000000000005'::uuid,
-   (current_date - 7)::date, 'makeup', 'Dạy bù buổi nghỉ tuần trước')
+   (current_date - 7)::date, 'absent', 'Bận hội thảo')
 ) AS v(id, schedule_id, date, status, note)
 JOIN public.schedule s ON s.id = v.schedule_id
 JOIN public.classes  c ON c.id = s.class_id
 ON CONFLICT (schedule_id, date) DO NOTHING;
+
+-- Dạy thay: record vắng c04 (sched05) → t1 dạy thay cho ta
+UPDATE public.teacher_attendance
+  SET substitute_teacher_id = (SELECT t1 FROM _seed_teachers)
+  WHERE id = 'c0000000-0000-0000-0000-000000000003';
 
 -- ====================================================
 -- BƯỚC 7  : Sessions (quá khứ / hôm nay / tương lai)

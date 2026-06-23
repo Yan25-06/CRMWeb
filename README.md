@@ -27,6 +27,7 @@ Password: 123456
 - **Lịch dạy tự động** — đặt lịch học của lớp (chọn thứ + giờ) → các ca tự xuất hiện và đồng bộ trên trang Lịch Dạy
 - **Chấm công giáo viên hiển thị trực quan** — trạng thái chấm công ngay trên thẻ lịch tuần (viền màu + chip trạng thái)
 - **Reports** — attendance, fees, homework, and mock test charts with Excel/PDF export
+- **Lương giáo viên & dạy thay** — Admin đặt lương tháng cho giáo viên trong Admin Panel. Tại tab "Lịch Dạy", khi chấm vắng có thể chọn người dạy thay. Tab "Bảng Lương" tính toán và hiển thị lương thực nhận theo tháng (admin xem tất cả; giáo viên xem của mình); hỗ trợ export Excel.
 - **Multi-teacher + admin** — teachers see only their own data; admin manages all classes and teachers
 
 ---
