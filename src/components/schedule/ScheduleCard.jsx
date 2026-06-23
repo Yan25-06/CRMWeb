@@ -16,7 +16,7 @@ export const getCourseColor = (courseType) =>
   COURSE_COLORS[courseType] ?? COURSE_COLORS['default']
 
 // ─── ScheduleCard ──────────────────────────────────────────
-export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, canCheckAttendance = false, attendanceRecord = null, onToggleAttendance, onAttendanceNote }) => {
+export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, canCheckAttendance = false, attendanceRecord = null, onToggleAttendance, onAttendanceNote, teachers = [], onSetSubstitute }) => {
   const color = getCourseColor(cls?.courseType)
 
   // 2 trạng thái: mặc định "Đã dạy", chỉ 'absent' mới là Vắng (bản ghi cũ khác → coi như Đã dạy)
@@ -94,16 +94,29 @@ export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, can
         </div>
       )}
 
-      {/* Note input — chỉ hiện khi Vắng */}
+      {/* Khi Vắng: chọn người dạy thay + ghi chú */}
       {canCheckAttendance && isAbsent && (
-        <input
-          type="text"
-          value={noteVal}
-          onChange={(e) => handleNote(e.target.value)}
-          onClick={(e) => e.stopPropagation()}
-          placeholder="Ghi chú"
-          className="mt-1.5 w-full text-xs px-2 py-1 rounded-lg border border-red-200 bg-white text-navy-700 placeholder:text-navy-300 focus:outline-none focus:ring-1 focus:ring-red-300"
-        />
+        <div className="mt-1.5 flex flex-col gap-1.5" onClick={(e) => e.stopPropagation()}>
+          <select
+            value={attendanceRecord?.substituteTeacherId ?? ''}
+            onChange={(e) => onSetSubstitute?.(item, e.target.value || null)}
+            className="w-full text-xs px-2 py-1 rounded-lg border border-red-200 bg-white text-navy-700 focus:outline-none focus:ring-1 focus:ring-red-300"
+          >
+            <option value="">— Không có người dạy thay —</option>
+            {teachers
+              .filter(t => t.id !== cls?.teacherId)
+              .map(t => (
+                <option key={t.id} value={t.id}>Dạy thay: {t.name || t.email}</option>
+              ))}
+          </select>
+          <input
+            type="text"
+            value={noteVal}
+            onChange={(e) => handleNote(e.target.value)}
+            placeholder="Ghi chú"
+            className="w-full text-xs px-2 py-1 rounded-lg border border-red-200 bg-white text-navy-700 placeholder:text-navy-300 focus:outline-none focus:ring-1 focus:ring-red-300"
+          />
+        </div>
       )}
     </div>
   )
