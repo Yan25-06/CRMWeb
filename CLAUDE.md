@@ -17,7 +17,7 @@ Web app quản lý điểm danh + học phí cho giáo viên/trung tâm tiếng 
 
 ## Scripts
 - `npm run dev` — dev server (http://localhost:5173)
-- `npm run build` — build production → **xuất ra `docs/`** (không phải `dist/`), `base: '/RollCallWeb/'` (deploy GitHub Pages)
+- `npm run build` — build production → **xuất ra `dist/`**, `base: '/'` (xem `vite.config.js`)
 - `npm run preview`
 - Không có test runner, không có linter cấu hình sẵn.
 
@@ -45,7 +45,7 @@ Mỗi service là một object với method `getAll / getById / create / update 
 - **UI không gọi `supabase.*` trực tiếp** — luôn qua service (trừ auth trong `useAuth.jsx`).
 - **`classService` hỗ trợ admin**: `create()` và `update()` chấp nhận `data.teacherId` tường minh để admin gán/đổi giáo viên phụ trách.
 
-Services đã có: `studentService`, `classService` (+`teacherService`), `enrollmentService`, `sessionService`, `attendanceService`, `homeworkService`, `hwAssignmentService`, `submissionService`, `scheduleService`, `feeService`, `paymentService`, `reviewService`, `sessionReviewService`, `generalCommentService`, `mockTestService`, `mockTestResultService`, `settingsService`.
+Services đã có: `studentService`, `classService` (+`teacherService`), `enrollmentService`, `sessionService`, `attendanceService`, `teacherAttendanceService`, `homeworkService`, `hwAssignmentService`, `submissionService`, `scheduleService`, `feeService`, `paymentService`, `reviewService`, `sessionReviewService`, `generalCommentService`, `mockTestService`, `mockTestResultService`, `settingsService`.
 
 ### Trạng thái migration theo trang
 - ✅ **Tất cả trang đã dùng services.** `src/store/db.js` và `src/store/mockTestExport.js` đã bị xóa (cutover hoàn tất, 2026-06-02).
@@ -68,7 +68,7 @@ Services đã có: `studentService`, `classService` (+`teacherService`), `enroll
 - **ErrorBoundary** (`src/components/ErrorBoundary.jsx`): class component (ngoại lệ hợp lệ với quy tắc "chỉ functional") bắt lỗi render toàn cục → màn hình khôi phục tiếng Việt + nút "Tải lại trang"; vẫn `console.error` stack để debug.
 
 ## Triển khai production
-- Runbook bắt buộc trước go-live ở **`DEPLOYMENT.md`** (root, KHÔNG đặt trong `docs/` vì `docs/` là output build): bootstrap admin (`is_admin` set qua SQL Editor), cấu hình Auth Site/Redirect URL, tắt tự đăng ký, bật backup, kiểm thử tài khoản giáo viên thường. KHÔNG chạy seed mock lên production.
+- Runbook bắt buộc trước go-live ở **`DEPLOYMENT.md`** (root): bootstrap admin (`is_admin` set qua SQL Editor), cấu hình Auth Site/Redirect URL, tắt tự đăng ký, bật backup, kiểm thử tài khoản giáo viên thường. KHÔNG chạy seed mock lên production.
 - **Lazy-load export:** `xlsx`/`jspdf`/`html2canvas`/`jszip` dùng `await import()` trong handler (giảm bundle khởi động), bọc try/catch + `toast.error`. Áp dụng ở `ExportExcelButton`, `ExportPdfButton`, `mockTestExport.js`, `ClassOverviewTable`, `ImportStudentsModal`, `BulkExportModal`.
 
 ## Routing & Layout
@@ -83,6 +83,22 @@ Services đã có: `studentService`, `classService` (+`teacherService`), `enroll
 - **Students Directory** (`StudentsDirectoryPage`): route `students`, danh bạ tổng tất cả học sinh, lọc theo trạng thái/lớp/loại khóa, tìm kiếm, thêm nhanh, import Excel, bulk delete, sidebar chi tiết, điều hướng đến lớp. Prop `onNavigateToClass(classId)` từ `App.jsx`.
 - **Reports** (`ReportsPage`): 4 card báo cáo — Điểm Danh, Mock Test, Học Phí, Bài Tập. Bộ chọn lớp **chung** ở đầu trang áp dụng cho mọi card; filter khoảng tháng / học viên giữ cục bộ trong từng card. MockTestCard hiển thị toàn bộ học sinh (không giới hạn 5), legend ẩn/hiện series. Card Bài Tập dùng `homeworkService.getByClass` + `sessionService.getByClass`, vẽ grouped bar "Tổng giao / Hoàn thành" theo tháng. Card Điểm Danh và Học Phí hỗ trợ drill-down: click cột tháng → Modal bảng chi tiết buổi/học viên (Điểm Danh) hoặc danh sách thanh toán (Học Phí). Mọi card có `ExportButtons` (Excel + PDF).
 - **Settings** (`SettingsPage`): route `settings`, 3 section dùng pattern **edit button** (read-only mặc định → "Chỉnh sửa" → Lưu/Hủy, mỗi section có edit state riêng). (1) **Tài khoản cá nhân** (mọi user): tên hiển thị ghi vào `teachers.name` qua `useAuth().updateTeacherName(name)`, email read-only. (2) **Đổi Mật Khẩu** (mọi user): xác minh mật khẩu cũ qua `supabase.auth.signInWithPassword` rồi `supabase.auth.updateUser({ password })`; mật khẩu mới ≥6 ký tự + khớp xác nhận. (3) **Thông Tin Trung Tâm** (chỉ `teacher.is_admin`): tên trung tâm qua `settingsService.get/upsert`.
+- **Chấm công giáo viên** (admin): `SchedulePage` load `teacherAttendanceService.getByWeek` cho tuần đang xem (chỉ khi `canCheckTeacherAttendance`), build `Map<"scheduleId_date", record>`, truyền xuống `WeeklyGrid`. Chấm công **2 trạng thái, không modal** (giống điểm danh): mặc định "Đã dạy", bấm chip toggle sang "Vắng" → `handleToggleAttendance` gọi `teacherAttendanceService.upsert` ngay. Bảng `teacher_attendance` (migration 20260620000001), unique `(schedule_id, date)`, RLS admin full write / teacher read-only. Hằng số trạng thái (`present`/`absent`) ở `src/components/schedule/attendanceStatus.js` (đã bỏ `makeup`). `TeacherAttendanceModal` đã xóa.
+- **ScheduleCard (chấm công):** chip ở góc phải = trạng thái (mặc định "Đã dạy" xanh; bấm → "Vắng" đỏ + viền trái đỏ qua `att.bar`). Khi "Vắng" hiện **ô ghi chú inline** trên thẻ (debounce → `handleSetAttendanceNote`). Khi "Vắng" còn hiện **dropdown dạy thay**: admin chọn giáo viên dạy thay → lưu `substitute_teacher_id` vào record `teacher_attendance`. Props `onToggleAttendance(item)` + `onAttendanceNote(item, note)` (WeeklyGrid kèm `date`). Bấm thân thẻ = sửa lịch. Chỉ hiện khi `canCheckTeacherAttendance`. Giờ hiển thị qua `fmtTime` (cắt còn `HH:MM`).
+- **SchedulePage layout:** lưới `WeeklyGrid` chiếm **trọn bề ngang**; "Ca dạy hôm nay" là **thanh ngang gọn** phía trên lưới (pill: tên lớp + giờ `HH:MM` + phòng + nút "Điểm danh"). Không còn sidebar `DailyAgenda`. `DailyAgenda` giờ chỉ dùng ở Dashboard (đã bỏ phần chấm công, giữ "Điểm danh").
+- **Trang "Giảng Dạy" (SchedulePage) — 2 tab:**
+  - **Tab "Lịch Dạy"**: lưới `WeeklyGrid` + chấm công + dropdown dạy thay (như mô tả trên).
+  - **Tab "Bảng Lương"** (`PayrollTab.jsx`): bảng tính lương theo tháng. Admin xem tất cả giáo viên; giáo viên thường xem của mình. Có bộ chọn tháng/năm + export Excel (lazy-load `xlsx`).
+- **Mô hình lương giáo viên** (migration `20260622000001_add_teacher_salary_and_substitute.sql`):
+  - `teachers.monthly_salary` (numeric, nullable): lương tháng cố định — **chỉ admin set** (trigger DB bảo vệ, giáo viên thường không tự sửa được).
+  - Đơn giá buổi = `monthly_salary / số buổi theo lịch trong tháng` (dùng hàm `countWeekdayOccurrences` từ `src/utils/payroll.js`).
+  - Lương thực nhận = `đơn giá × (số buổi đã dạy + số buổi dạy thay)`.
+  - Logic thuần (không side-effect) tập trung tại `src/utils/payroll.js` (`countWeekdayOccurrences`, `buildPayrollRows`); UI tại `src/components/schedule/PayrollTab.jsx`.
+- **Dạy thay** (`substitute_teacher_id`): cột `teacher_attendance.substitute_teacher_id` (uuid FK → `teachers.id`). Khi giáo viên vắng, admin chọn người dạy thay qua dropdown trên ScheduleCard → công buổi đó tính cho người dạy thay (theo đơn giá của chính họ); người vắng mất công buổi đó. Policy SELECT `teacher_attendance` mở rộng thêm điều kiện `substitute_teacher_id = auth.uid()` để giáo viên dạy thay đọc được record của mình.
+- **Service & hook cập nhật:**
+  - `teacherService.update` nhận `{ name, monthlySalary }`; `getAll` trả thêm field `monthlySalary`.
+  - `teacherAttendanceService` thêm mapping `substituteTeacherId` trong `fromDB/toDB` + method `getByMonth(year, month)`.
+  - `usePermissions` thêm cờ `canViewAllPayroll` (= `isAdmin`).
 - Month/year picker ở top bar chỉ hiện cho trang `dashboard` và `fees`.
 - Layout: `Navbar` (sidebar/mobile nav) bên trái + main content, `ToastContainer` global.
 
@@ -123,7 +139,7 @@ src/
 - **A11y:** `Modal` đóng bằng Esc, khóa scroll nền, focus-trap, có `role="dialog"`/`aria-modal`. `Toast` hỗ trợ nhiều thông báo xếp chồng, có `role="alert"` + `aria-live`; gọi qua API `toast.success/error/info`.
 
 ### Phân quyền UI (BẮT BUỘC)
-- **Check quyền của người dùng hiện tại qua `usePermissions()`** (`src/hooks/usePermissions.js`) — **KHÔNG đọc `teacher.is_admin` trực tiếp trong component**. Hook là nguồn chân lý gating UI ở client, trả về cờ ngữ nghĩa theo năng lực: `isAdmin`, `canViewFees`, `canAccessAdmin`, `canManageCenterSettings`, `canManageStudents`, `canCreateMockTest`, `canManageClasses`, `canFilterByTeacher` (hiện tất cả = `isAdmin`, đổi rule chỉ sửa một dòng trong hook).
+- **Check quyền của người dùng hiện tại qua `usePermissions()`** (`src/hooks/usePermissions.js`) — **KHÔNG đọc `teacher.is_admin` trực tiếp trong component**. Hook là nguồn chân lý gating UI ở client, trả về cờ ngữ nghĩa theo năng lực: `isAdmin`, `canViewFees`, `canAccessAdmin`, `canManageCenterSettings`, `canManageStudents`, `canCreateMockTest`, `canManageClasses`, `canFilterByTeacher`, `canCheckTeacherAttendance` (hiện tất cả = `isAdmin`, đổi rule chỉ sửa một dòng trong hook).
 - Đây chỉ là lớp UX — **RLS ở Postgres vẫn là nguồn chân lý bảo mật**, không thay thế.
 - **Ngoại lệ (KHÔNG dùng hook):** thao tác dữ liệu trên `is_admin` của *giáo viên khác* (vd `classService.setAdmin`, `AdminPanelPage` toggle `t.is_admin` trong danh sách) và prop ngữ cảnh `isAdmin` của component tái dùng (`ClassModal`, AdminPanel truyền `true` cứng) — đây là dữ liệu/ngữ cảnh, không phải quyền của caller.
 
@@ -190,5 +206,11 @@ Project quản lý thay đổi qua OpenSpec (`openspec/`). Có skill tích hợp
 ## Model settings
 - `settingsService` chỉ map `centerName`, `defaultFeePerSession`, `currency` (đã **bỏ `teacherName`/`teacher_name`** ở service layer — cột DB còn nhưng orphan, không migration drop).
 - **Tên hiển thị giáo viên lưu duy nhất tại `teachers.name`**, đọc qua `useAuth().teacher.name`, ghi qua `useAuth().updateTeacherName(name)` (refresh `teacher` state tại chỗ). Không lưu tên ở bảng `settings`.
+
+## Model lịch học của lớp (migration 20260620000002)
+- **`classes.schedule_day_list`** (jsonb): mảng thứ trong tuần theo quy ước JS `0=CN…6=T7` (VD lớp 3-5-7 → `[2,4,6]`). `start_time`/`end_time` (text `HH:MM`), `room` (text) — lịch học cố định, **cùng giờ mọi buổi**.
+- `classService.fromDB/toDB` map `scheduleDayList/startTime/endTime/room`; `toDB` tự suy ra `schedule_days`/`schedule_time` (chuỗi hiển thị, tương thích ngược) và **chỉ ghi block lịch khi `data.scheduleDayList !== undefined`** (để update riêng teacher không xoá lịch).
+- **Tự đồng bộ lịch dạy:** `scheduleService.syncForClass(classId, { dayList, startTime, endTime, room })` được gọi trong `classService.create/update` → upsert hàng `schedule` theo `(class_id, day_of_week)` cho thứ được chọn, xóa thứ bỏ chọn (giữ `note` từng ca). `dayList` rỗng → no-op. Lịch học của lớp là nguồn chân lý; lưới `schedule` là projection.
+- `ClassModal`: chọn thứ bằng nhóm nút T2…CN + 2 ô `type=time` + ô phòng (thay 2 ô chữ tự do cũ).
 
 ---

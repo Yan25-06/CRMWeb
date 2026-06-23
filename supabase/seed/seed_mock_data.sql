@@ -92,6 +92,21 @@ DELETE FROM public.students
                        UNION SELECT ta FROM _seed_teachers);
 
 -- ====================================================
+-- BƯỚC 1b : Lương giáo viên (monthly_salary mock)
+-- ====================================================
+UPDATE public.teachers
+  SET monthly_salary = 10000000
+  WHERE id = (SELECT t1 FROM _seed_teachers);
+
+UPDATE public.teachers
+  SET monthly_salary = 12000000
+  WHERE id = (SELECT t2 FROM _seed_teachers);
+
+UPDATE public.teachers
+  SET monthly_salary = 15000000
+  WHERE id = (SELECT ta FROM _seed_teachers);
+
+-- ====================================================
 -- BƯỚC 2  : Settings (1 row / teacher)
 -- ====================================================
 INSERT INTO public.settings
@@ -159,12 +174,14 @@ VALUES
 -- (maxScore không còn lưu trong skill_config; lưu trong mock_tests.sections)
 INSERT INTO public.classes
   (id, teacher_id, name, level, course_type, max_students,
-   schedule_days, schedule_time, start_date, skill_config)
+   schedule_days, schedule_time, schedule_day_list, start_time, end_time, room,
+   start_date, skill_config)
 VALUES
   ('02000000-0000-0000-0000-000000000001',
    (SELECT t1 FROM _seed_teachers),
    'IELTS Cơ Bản A1', 'IELTS', 'IELTS', 10,
    'Thứ 2, Thứ 5', '08:00 – 10:00',
+   '[1,4]'::jsonb, '08:00', '10:00', 'Phòng 101',
    current_date - 90,
    '[{"name":"Listening","order":0},
      {"name":"Reading","order":1},
@@ -175,6 +192,7 @@ VALUES
    (SELECT t1 FROM _seed_teachers),
    'IELTS Nâng Cao A2', 'IELTS Advanced', 'IELTS', 8,
    'Thứ 3', '14:00 – 16:00',
+   '[2]'::jsonb, '14:00', '16:00', 'Phòng 102',
    current_date - 60,
    '[{"name":"Listening","order":0},
      {"name":"Reading","order":1},
@@ -185,6 +203,7 @@ VALUES
    (SELECT t2 FROM _seed_teachers),
    'TOEIC Intensive B1', 'TOEIC', 'TOEIC', 12,
    'Thứ 4', '18:00 – 20:00',
+   '[3]'::jsonb, '18:00', '20:00', 'Phòng 103',
    current_date - 45,
    '[{"name":"Listening","order":0},
      {"name":"Reading","order":1}]'::jsonb),
@@ -193,10 +212,22 @@ VALUES
    (SELECT ta  FROM _seed_teachers),
    'Giao Tiếp Cơ Bản', 'Giao tiếp', 'Giao tiếp', 6,
    'Thứ 7', '09:00 – 11:00',
+   '[6]'::jsonb, '09:00', '11:00', 'Phòng 104',
    current_date - 30,
    '[{"name":"Phát âm","order":0},
      {"name":"Từ vựng","order":1},
      {"name":"Ngữ pháp","order":2}]'::jsonb);
+
+-- ====================================================
+-- BƯỚC 4b : Schedule (lịch dạy suy ra từ lịch học lớp)
+-- ====================================================
+INSERT INTO public.schedule (class_id, day_of_week, start_time, end_time, room)
+VALUES
+  ('02000000-0000-0000-0000-000000000001', 1, '08:00', '10:00', 'Phòng 101'),
+  ('02000000-0000-0000-0000-000000000001', 4, '08:00', '10:00', 'Phòng 101'),
+  ('02000000-0000-0000-0000-000000000002', 2, '14:00', '16:00', 'Phòng 102'),
+  ('02000000-0000-0000-0000-000000000003', 3, '18:00', '20:00', 'Phòng 103'),
+  ('02000000-0000-0000-0000-000000000004', 6, '09:00', '11:00', 'Phòng 104');
 
 -- ====================================================
 -- BƯỚC 5  : Enrollments (đủ status + fee_type)
@@ -295,6 +326,41 @@ VALUES
   ('04000000-0000-0000-0000-000000000005',
    '02000000-0000-0000-0000-000000000004',  -- c04
    6, '09:00:00', '11:00:00', 'Phòng 401', 'Thứ 7');
+
+-- ====================================================
+-- BƯỚC 6b : Teacher attendance (chấm công giáo viên mẫu)
+-- ====================================================
+-- Chấm công admin theo từng ca lịch cố định (schedule) trên một ngày.
+-- teacher_id = giáo viên phụ trách lớp của ca đó (join qua classes).
+-- Mix 3 trạng thái: present / absent (có note) / makeup (có note).
+-- Idempotent: cleanup BƯỚC 1 xóa classes → cascade schedule → cascade
+-- teacher_attendance, nên insert luôn sạch khi re-run. Thêm
+-- on conflict (schedule_id, date) do nothing để an toàn tuyệt đối.
+INSERT INTO public.teacher_attendance
+  (id, schedule_id, date, teacher_id, status, note)
+SELECT v.id, v.schedule_id, v.date, c.teacher_id, v.status, v.note
+FROM (VALUES
+  -- c01 ca Thứ 2 (sched01) — buổi tuần trước: có mặt
+  ('c0000000-0000-0000-0000-000000000001'::uuid,
+   '04000000-0000-0000-0000-000000000001'::uuid,
+   (current_date - 7)::date, 'present', NULL),
+  -- c03 ca Thứ 4 (sched04) — buổi tuần trước: vắng (có lý do)
+  ('c0000000-0000-0000-0000-000000000002'::uuid,
+   '04000000-0000-0000-0000-000000000004'::uuid,
+   (current_date - 7)::date, 'absent', 'Giáo viên bận việc gia đình'),
+  -- c04 ca Thứ 7 (sched05) — buổi tuần trước: vắng, có người dạy thay (sẽ set substitute bên dưới)
+  ('c0000000-0000-0000-0000-000000000003'::uuid,
+   '04000000-0000-0000-0000-000000000005'::uuid,
+   (current_date - 7)::date, 'absent', 'Bận hội thảo')
+) AS v(id, schedule_id, date, status, note)
+JOIN public.schedule s ON s.id = v.schedule_id
+JOIN public.classes  c ON c.id = s.class_id
+ON CONFLICT (schedule_id, date) DO NOTHING;
+
+-- Dạy thay: record vắng c04 (sched05) → t1 dạy thay cho ta
+UPDATE public.teacher_attendance
+  SET substitute_teacher_id = (SELECT t1 FROM _seed_teachers)
+  WHERE id = 'c0000000-0000-0000-0000-000000000003';
 
 -- ====================================================
 -- BƯỚC 7  : Sessions (quá khứ / hôm nay / tương lai)
@@ -1005,6 +1071,8 @@ SELECT 'schedule',               count(*) FROM public.schedule         WHERE cla
 UNION ALL
 SELECT 'sessions',               count(*) FROM public.sessions         WHERE class_id   IN (SELECT id FROM public.classes  WHERE teacher_id IN (SELECT t1 FROM _seed_teachers UNION SELECT t2 FROM _seed_teachers UNION SELECT ta FROM _seed_teachers))
 UNION ALL
+SELECT 'teacher_attendance',      count(*) FROM public.teacher_attendance WHERE schedule_id IN (SELECT id FROM public.schedule WHERE class_id IN (SELECT id FROM public.classes WHERE teacher_id IN (SELECT t1 FROM _seed_teachers UNION SELECT t2 FROM _seed_teachers UNION SELECT ta FROM _seed_teachers)))
+UNION ALL
 SELECT 'attendance',             count(*) FROM public.attendance       WHERE student_id IN (SELECT id FROM public.students WHERE teacher_id IN (SELECT t1 FROM _seed_teachers UNION SELECT t2 FROM _seed_teachers UNION SELECT ta FROM _seed_teachers))
 UNION ALL
 SELECT 'homeworks',              count(*) FROM public.homeworks        WHERE student_id IN (SELECT id FROM public.students WHERE teacher_id IN (SELECT t1 FROM _seed_teachers UNION SELECT t2 FROM _seed_teachers UNION SELECT ta FROM _seed_teachers))
@@ -1035,6 +1103,7 @@ ORDER BY 1;
 --   enrollments      9
 --   schedule         5
 --   sessions         12
+--   teacher_attendance 3
 --   attendance       22
 --   homeworks        14
 --   hw_assignments   5

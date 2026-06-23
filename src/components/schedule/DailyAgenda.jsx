@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { clsx } from 'clsx'
 import { Clock, MapPin, Users, CalendarCheck, ChevronDown } from 'lucide-react'
 import { getCourseColor } from './ScheduleCard'
+import { fmtTime } from '@/utils/helpers'
 
 const DAY_NAMES = ['Chủ Nhật', 'Thứ Hai', 'Thứ Ba', 'Thứ Tư', 'Thứ Năm', 'Thứ Sáu', 'Thứ Bảy']
 
@@ -73,7 +74,7 @@ export const DailyAgenda = ({ todayItems = [], classes = [], studentCounts = new
                         <div className="flex items-center gap-3 mt-0.5">
                           <span className="flex items-center gap-1 text-xs text-navy-400">
                             <Clock size={11} />
-                            {item.startTime}–{item.endTime}
+                            {fmtTime(item.startTime)}–{fmtTime(item.endTime)}
                           </span>
                           {item.room && (
                             <span className="flex items-center gap-1 text-xs text-navy-400">
@@ -91,15 +92,17 @@ export const DailyAgenda = ({ todayItems = [], classes = [], studentCounts = new
                       </div>
                     </div>
 
-                    {/* Quick attendance button */}
-                    <button
-                      onClick={() => onAttendance?.(item.classId)}
-                      className="shrink-0 flex items-center gap-1 text-xs font-medium text-navy-600 hover:text-navy-900 bg-navy-50 hover:bg-navy-100 px-2.5 py-1.5 rounded-lg transition-colors"
-                      title="Đến trang điểm danh"
-                    >
-                      <CalendarCheck size={13} />
-                      Điểm danh
-                    </button>
+                    {/* Action: quick attendance */}
+                    <div className="shrink-0">
+                      <button
+                        onClick={() => onAttendance?.(item.classId)}
+                        className="flex items-center gap-1 text-xs font-medium text-navy-600 hover:text-navy-900 bg-navy-50 hover:bg-navy-100 px-2.5 py-1.5 rounded-lg transition-colors"
+                        title="Đến trang điểm danh"
+                      >
+                        <CalendarCheck size={13} />
+                        Điểm danh
+                      </button>
+                    </div>
                   </div>
                 </div>
               )
