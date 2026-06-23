@@ -48,15 +48,15 @@ export const FeesPage = ({ year, month }) => {
   const [defaultStudentId, setDefaultStudentId] = useState(null)
   const [payStatusFilter, setPayStatusFilter] = useState('all')
   const [classFilter, setClassFilter] = useState('all')
-  const refresh = useCallback(async () => {
-    setLoading(true)
+  const refresh = useCallback(async (silent = false) => {
+    if (!silent) setLoading(true)
     try {
       const data = await feeService.buildFeesRows(year, month)
       setRows(data)
     } catch (e) {
       toast.error('Không tải được dữ liệu học phí')
     } finally {
-      setLoading(false)
+      if (!silent) setLoading(false)
     }
   }, [year, month])
 
@@ -66,7 +66,7 @@ export const FeesPage = ({ year, month }) => {
     try {
       await paymentService.create({ ...data, period: data.period })
       toast.success('Đã ghi nhận thanh toán!')
-      refresh()
+      refresh(true)
     } catch {
       toast.error('Lưu không thành công, vui lòng thử lại.')
     }
@@ -237,7 +237,7 @@ export const FeesPage = ({ year, month }) => {
             rows={filteredRows}
             period={currentPeriod}
             onAddPayment={openAdd}
-            onRefresh={refresh}
+            onRefresh={() => refresh(true)}
         />
       )}
 

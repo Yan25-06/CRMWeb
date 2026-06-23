@@ -3,6 +3,16 @@ import { Modal, Input, Button, toast } from '@/components/ui'
 import { MockTestSectionBuilder } from '@/components/mock-test/MockTestSectionBuilder'
 import { DEFAULT_SKILL_CONFIG } from '@/services/classService'
 
+const DAY_OPTIONS = [
+  { value: 1, label: 'T2' },
+  { value: 2, label: 'T3' },
+  { value: 3, label: 'T4' },
+  { value: 4, label: 'T5' },
+  { value: 5, label: 'T6' },
+  { value: 6, label: 'T7' },
+  { value: 0, label: 'CN' },
+]
+
 const toSections = (skillConfig) =>
   skillConfig.map((sk, i) => ({ id: crypto.randomUUID(), name: sk.name, maxScore: 9, order: sk.order ?? i }))
 
@@ -15,8 +25,10 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
     level: '',
     maxStudents: 0,
     courseType: 'Giao Tiếp',
-    scheduleDays: '',
-    scheduleTime: '',
+    scheduleDayList: [],
+    startTime: '',
+    endTime: '',
+    room: '',
     startDate: '',
     teacherId: '',
   })
@@ -31,8 +43,10 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
           level: classItem.level || '',
           maxStudents: classItem.maxStudents || 0,
           courseType: classItem.courseType || 'Giao Tiếp',
-          scheduleDays: classItem.scheduleDays || '',
-          scheduleTime: classItem.scheduleTime || '',
+          scheduleDayList: Array.isArray(classItem.scheduleDayList) ? classItem.scheduleDayList : [],
+          startTime: classItem.startTime || '',
+          endTime: classItem.endTime || '',
+          room: classItem.room || '',
           startDate: classItem.startDate || '',
           teacherId: classItem.teacherId || '',
         })
@@ -43,8 +57,10 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
           level: '',
           maxStudents: 0,
           courseType: 'Giao Tiếp',
-          scheduleDays: '',
-          scheduleTime: '',
+          scheduleDayList: [],
+          startTime: '',
+          endTime: '',
+          room: '',
           startDate: '',
           teacherId: '',
         })
@@ -65,12 +81,28 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
     if (errors[name]) setErrors(prev => ({ ...prev, [name]: null }))
   }
 
+  const toggleDay = (d) => {
+    setFormData(prev => ({
+      ...prev,
+      scheduleDayList: prev.scheduleDayList.includes(d)
+        ? prev.scheduleDayList.filter(x => x !== d)
+        : [...prev.scheduleDayList, d],
+    }))
+  }
+
   const handleSubmit = (e) => {
     e.preventDefault()
 
     const newErrors = {}
     if (!formData.name.trim()) newErrors.name = 'Tên lớp là bắt buộc'
     if (isAdmin && !classItem && !formData.teacherId) newErrors.teacherId = 'Vui lòng chọn giáo viên'
+
+    if (formData.scheduleDayList.length > 0) {
+      if (!formData.startTime) newErrors.startTime = 'Vui lòng nhập giờ bắt đầu'
+      if (!formData.endTime) newErrors.endTime = 'Vui lòng nhập giờ kết thúc'
+      if (formData.startTime && formData.endTime && formData.startTime >= formData.endTime)
+        newErrors.endTime = 'Giờ kết thúc phải sau giờ bắt đầu'
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors)
@@ -168,22 +200,52 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
           />
         </div>
 
+        <div className="flex flex-col gap-1">
+          <label className="text-sm font-medium text-navy-700">Lịch học (Thứ)</label>
+          <div className="flex flex-wrap gap-1.5">
+            {DAY_OPTIONS.map(d => (
+              <button
+                key={d.value}
+                type="button"
+                onClick={() => toggleDay(d.value)}
+                className={`px-3 py-1.5 rounded-lg text-sm font-medium border transition-colors ${
+                  formData.scheduleDayList.includes(d.value)
+                    ? 'bg-navy-800 text-white border-navy-800'
+                    : 'bg-white text-navy-600 border-navy-200 hover:border-navy-300'
+                }`}
+              >
+                {d.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
         <div className="grid grid-cols-2 gap-4">
           <Input
-            label="Lịch học (Thứ)"
-            name="scheduleDays"
-            value={formData.scheduleDays}
+            label="Giờ bắt đầu"
+            name="startTime"
+            type="time"
+            value={formData.startTime}
             onChange={handleChange}
-            placeholder="VD: Thứ 2-4-6"
+            error={errors.startTime}
           />
           <Input
-            label="Giờ học"
-            name="scheduleTime"
-            value={formData.scheduleTime}
+            label="Giờ kết thúc"
+            name="endTime"
+            type="time"
+            value={formData.endTime}
             onChange={handleChange}
-            placeholder="VD: 19:00-20:30"
+            error={errors.endTime}
           />
         </div>
+
+        <Input
+          label="Phòng học (tùy chọn)"
+          name="room"
+          value={formData.room}
+          onChange={handleChange}
+          placeholder="VD: Phòng 102"
+        />
 
         <Input
           label="Ngày khai giảng"

@@ -2,7 +2,17 @@
 
 A production web app for managing attendance, tuition fees, homework, mock tests, and student progress reports at a small English language center in Vietnam. Built and deployed solo; currently used by real teachers.
 
-**Live:** [GitHub Pages](https://yan25-06.github.io/RollCallWeb/)
+**Live:** https://msphuongenglishcrm.studio/
+
+---
+
+## Try it out
+
+**Demo account:**
+```
+Email:    demo@gmail.com
+Password: 123456
+```
 
 ---
 
@@ -13,8 +23,11 @@ A production web app for managing attendance, tuition fees, homework, mock tests
 - **Homework** — assign and track submission status per session
 - **Mock tests** — record IELTS/TOEIC scores by skill, visualize progress over time
 - **Student reviews** — skill radar charts, PDF report cards, bulk export as ZIP
-- **Schedule** — weekly grid + daily agenda view
+- **Schedule** — weekly grid + daily agenda view, with admin teacher attendance check-in (present/absent/makeup) per slot
+- **Lịch dạy tự động** — đặt lịch học của lớp (chọn thứ + giờ) → các ca tự xuất hiện và đồng bộ trên trang Lịch Dạy
+- **Chấm công giáo viên hiển thị trực quan** — trạng thái chấm công ngay trên thẻ lịch tuần (viền màu + chip trạng thái)
 - **Reports** — attendance, fees, homework, and mock test charts with Excel/PDF export
+- **Lương giáo viên & dạy thay** — Admin đặt lương tháng cho giáo viên trong Admin Panel. Tại tab "Lịch Dạy", khi chấm vắng có thể chọn người dạy thay. Tab "Bảng Lương" tính toán và hiển thị lương thực nhận theo tháng (admin xem tất cả; giáo viên xem của mình); hỗ trợ export Excel.
 - **Multi-teacher + admin** — teachers see only their own data; admin manages all classes and teachers
 
 ---
@@ -43,7 +56,7 @@ A production web app for managing attendance, tuition fees, homework, mock tests
 | Charts | Chart.js + react-chartjs-2 |
 | Export | html2canvas, jsPDF, xlsx, jszip |
 | Icons | lucide-react |
-| Deploy | GitHub Pages (static, output → `docs/`) |
+| Deploy | Static build (output → `dist/`) |
 
 ---
 
@@ -72,5 +85,5 @@ npm run dev
 ```
 
 ```bash
-npm run build   # outputs to docs/ for GitHub Pages
+npm run build   # outputs to dist/
 ```
