@@ -21,13 +21,18 @@ export const getCourseColor = (courseType) =>
 const TRUNC = 7
 const trunc = (s) => s.length > TRUNC ? s.slice(0, TRUNC - 1) + '…' : s
 
-const SubstituteDropdown = ({ teachers, cls, value, onChange, noteVal, onNote }) => {
+const SubstituteDropdown = ({ teachers, cls, value, onChange, noteVal, onNote, onOpenChange }) => {
   const [open, setOpen] = useState(false)
   const ref = useRef(null)
 
+  const handleSetOpen = (val) => {
+    setOpen(val)
+    onOpenChange?.(val)
+  }
+
   useEffect(() => {
     if (!open) return
-    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) handleSetOpen(false) }
     document.addEventListener('mousedown', close)
     return () => document.removeEventListener('mousedown', close)
   }, [open])
@@ -37,14 +42,14 @@ const SubstituteDropdown = ({ teachers, cls, value, onChange, noteVal, onNote })
   const selectedLabel = selected ? (selected.name || selected.email || '?') : null
   const triggerText = selectedLabel ? `Dạy thay: ${trunc(selectedLabel)}` : '— Không có người dạy thay —'
 
-  const pick = useCallback((id) => { onChange(id); setOpen(false) }, [onChange])
+  const pick = useCallback((id) => { onChange(id); handleSetOpen(false) }, [onChange])
 
   return (
     <div className="mt-1.5 flex flex-col gap-1.5" onClick={(e) => e.stopPropagation()}>
       <div ref={ref} className="relative">
         <button
           type="button"
-          onClick={() => setOpen(v => !v)}
+          onClick={() => handleSetOpen(!open)}
           className="w-full flex items-center justify-between text-xs px-2 py-1 rounded-lg border border-red-200 bg-white text-navy-700 focus:outline-none focus:ring-1 focus:ring-red-300"
         >
           <span className="truncate">{triggerText}</span>
@@ -97,6 +102,9 @@ export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, can
   const isAbsent = attendanceRecord?.status === 'absent'
   const att = getAttendanceStatus(isAbsent ? 'absent' : 'present')
 
+  // Nâng z-index khi dropdown dạy thay đang mở để không bị card bên dưới che
+  const [dropdownOpen, setDropdownOpen] = useState(false)
+
   // Ghi chú ca dạy — chỉ hiện khi Vắng, debounce lưu
   const [noteVal, setNoteVal] = useState(attendanceRecord?.note ?? '')
   const noteTimer = useRef(null)
@@ -114,7 +122,8 @@ export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, can
         'group relative rounded-xl border p-2.5 cursor-pointer transition-all duration-150',
         'hover:shadow-md hover:-translate-y-0.5',
         color.bg, color.border,
-        isAbsent && clsx('border-l-4', att.bar)
+        isAbsent && clsx('border-l-4', att.bar),
+        dropdownOpen && 'z-10'
       )}
       onClick={() => onEdit?.(item)}
     >
@@ -177,6 +186,7 @@ export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, can
           onChange={(id) => onSetSubstitute?.(item, id || null)}
           noteVal={noteVal}
           onNote={handleNote}
+          onOpenChange={setDropdownOpen}
         />
       )}
     </div>

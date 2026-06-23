@@ -10,7 +10,7 @@ lerna-debug.log*
 # Dependencies
 .superpowers/
 node_modules/
-# dist/
+dist/
 dist-ssr/
 *.local
 
