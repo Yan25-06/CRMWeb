@@ -25,7 +25,7 @@ const dateForDay = (weekStart, dayOfWeek) => {
  * @param {Function} onEdit     - callback(item) when a card is clicked
  * @param {Function} onAddDay   - callback(dayOfWeek) when "+" in column header clicked
  */
-export const WeeklyGrid = ({ scheduleItems = [], classes = [], studentCounts = new Map(), showTeacher = false, onEdit, onAddDay, weekStart = null, canCheckAttendance = false, attendanceMap = new Map(), onToggleAttendance, onAttendanceNote }) => {
+export const WeeklyGrid = ({ scheduleItems = [], classes = [], studentCounts = new Map(), showTeacher = false, onEdit, onAddDay, weekStart = null, canCheckAttendance = false, attendanceMap = new Map(), onToggleAttendance, onAttendanceNote, teachers = [], onSetSubstitute }) => {
   const byDay = {}
   for (const day of DAY_ORDER) {
     byDay[day] = scheduleItems
@@ -82,6 +82,8 @@ export const WeeklyGrid = ({ scheduleItems = [], classes = [], studentCounts = n
                       attendanceRecord={attendanceMap.get(`${item.id}_${date}`) ?? null}
                       onToggleAttendance={(it) => onToggleAttendance?.(it, date)}
                       onAttendanceNote={(it, note) => onAttendanceNote?.(it, date, note)}
+                      teachers={teachers}
+                      onSetSubstitute={(it, teacherId) => onSetSubstitute?.(it, date, teacherId)}
                     />
                   )
                 })
@@ -123,6 +125,8 @@ export const WeeklyGrid = ({ scheduleItems = [], classes = [], studentCounts = n
                       attendanceRecord={attendanceMap.get(`${item.id}_${date}`) ?? null}
                       onToggleAttendance={(it) => onToggleAttendance?.(it, date)}
                       onAttendanceNote={(it, note) => onAttendanceNote?.(it, date, note)}
+                      teachers={teachers}
+                      onSetSubstitute={(it, teacherId) => onSetSubstitute?.(it, date, teacherId)}
                     />
                   )
                 })}
