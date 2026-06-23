@@ -7,6 +7,7 @@ const fromDB = (row) => row ? {
   teacherId: row.teacher_id,
   status: row.status,
   note: row.note,
+  substituteTeacherId: row.substitute_teacher_id ?? null,
   createdAt: row.created_at,
 } : null
 
@@ -16,6 +17,7 @@ const toDB = (data) => ({
   teacher_id: data.teacherId,
   status: data.status,
   note: data.note ?? null,
+  substitute_teacher_id: data.substituteTeacherId ?? null,
 })
 
 export const teacherAttendanceService = {
@@ -30,11 +32,25 @@ export const teacherAttendanceService = {
     return (data ?? []).map(fromDB)
   },
 
-  // Tạo hoặc cập nhật record theo (schedule_id, date).
-  async upsert({ scheduleId, date, teacherId, status, note }) {
+  // Lấy mọi record trong một tháng (year + month 1-12) cho bảng lương.
+  async getByMonth(year, month) {
+    const from = `${year}-${String(month).padStart(2, '0')}-01`
+    const lastDay = new Date(year, month, 0).getDate()
+    const to = `${year}-${String(month).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
     const { data, error } = await supabase
       .from('teacher_attendance')
-      .upsert(toDB({ scheduleId, date, teacherId, status, note }), {
+      .select('*')
+      .gte('date', from)
+      .lte('date', to)
+    if (error) throw new Error(error.message)
+    return (data ?? []).map(fromDB)
+  },
+
+  // Tạo hoặc cập nhật record theo (schedule_id, date).
+  async upsert({ scheduleId, date, teacherId, status, note, substituteTeacherId }) {
+    const { data, error } = await supabase
+      .from('teacher_attendance')
+      .upsert(toDB({ scheduleId, date, teacherId, status, note, substituteTeacherId }), {
         onConflict: 'schedule_id,date',
       })
       .select()
