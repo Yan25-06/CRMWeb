@@ -69,16 +69,25 @@ export const teacherService = {
   async getAll() {
     const { data, error } = await supabase
       .from('teachers')
-      .select('id, name, email, is_admin')
+      .select('id, name, email, is_admin, monthly_salary')
       .order('name')
     if (error) throw new Error(error.message)
-    return data
+    return (data ?? []).map(t => ({
+      id: t.id,
+      name: t.name,
+      email: t.email,
+      is_admin: t.is_admin,
+      monthlySalary: t.monthly_salary ?? null,
+    }))
   },
 
-  async update(id, { name }) {
+  async update(id, { name, monthlySalary }) {
+    const payload = {}
+    if (name !== undefined) payload.name = name
+    if (monthlySalary !== undefined) payload.monthly_salary = monthlySalary
     const { error } = await supabase
       .from('teachers')
-      .update({ name })
+      .update(payload)
       .eq('id', id)
     if (error) throw new Error(error.message)
   },
