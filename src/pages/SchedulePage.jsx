@@ -11,6 +11,7 @@ import { teacherAttendanceService } from '@/services/teacherAttendanceService'
 import { classService, teacherService } from '@/services/classService'
 import { enrollmentService } from '@/services/enrollmentService'
 import { usePermissions } from '@/hooks/usePermissions'
+import { PayrollTab } from '@/components/schedule/PayrollTab'
 
 // ─── Helpers ────────────────────────────────────────────────
 const getWeekStart = (date) => {
@@ -42,10 +43,11 @@ const toDateStr = (date) => {
 
 // ─── SchedulePage ────────────────────────────────────────────
 export const SchedulePage = ({ onNavigate }) => {
-  const { canFilterByTeacher: isAdmin, canCheckTeacherAttendance } = usePermissions()
+  const { canFilterByTeacher: isAdmin, canCheckTeacherAttendance, canViewAllPayroll } = usePermissions()
 
   // Week navigation state
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()))
+  const [activeTab, setActiveTab] = useState('schedule')   // 'schedule' | 'payroll'
 
   // Modal state
   const [modalOpen, setModalOpen]     = useState(false)
@@ -194,6 +196,7 @@ export const SchedulePage = ({ onNavigate }) => {
         teacherId: cls.teacherId,
         status: nextStatus,
         note: record?.note ?? null,
+        substituteTeacherId: nextStatus === 'absent' ? (record?.substituteTeacherId ?? null) : null,
       })
       await loadAttendance()
     } catch {
@@ -219,6 +222,26 @@ export const SchedulePage = ({ onNavigate }) => {
     }
   }, [classes, attendanceMap, loadAttendance])
 
+  // Chọn / bỏ người dạy thay cho một buổi vắng.
+  const handleSetSubstitute = useCallback(async (item, date, substituteTeacherId) => {
+    const cls = classes.find(c => c.id === item.classId)
+    if (!cls?.teacherId) return
+    const record = attendanceMap.get(`${item.id}_${date}`)
+    try {
+      await teacherAttendanceService.upsert({
+        scheduleId: item.id,
+        date,
+        teacherId: cls.teacherId,
+        status: record?.status ?? 'absent',
+        note: record?.note ?? null,
+        substituteTeacherId,
+      })
+      await loadAttendance()
+    } catch {
+      toast.error('Không thể lưu người dạy thay')
+    }
+  }, [classes, attendanceMap, loadAttendance])
+
   const handleAttendance = useCallback((classId) => {
     onNavigate?.('classes')
   }, [onNavigate])
@@ -239,161 +262,204 @@ export const SchedulePage = ({ onNavigate }) => {
       {/* ── Page Header ─────────────────────────────── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-display font-bold text-navy-900">Lịch Dạy</h1>
-          <p className="text-sm text-navy-400 mt-0.5">Quản lý thời khóa biểu cố định hàng tuần</p>
+          <h1 className="text-2xl font-display font-bold text-navy-900">Giảng Dạy</h1>
+          <p className="text-sm text-navy-400 mt-0.5">Thời khóa biểu, chấm công và lương giáo viên</p>
         </div>
-        <Button
-          variant="primary"
-          size="md"
-          onClick={() => openAdd(null)}
-          className="flex items-center gap-2 shrink-0"
-        >
-          <Plus size={16} />
-          Xếp Lịch
-        </Button>
-      </div>
-
-      {/* ── Week navigation + Teacher filter ─────────── */}
-      <div className="flex items-center gap-2 bg-white rounded-2xl border border-navy-100 shadow-navy-sm px-3 py-2">
-        {/* Week prev/next */}
-        <button
-          onClick={prevWeek}
-          className="p-1 rounded-lg text-navy-400 hover:text-navy-700 hover:bg-navy-50 transition-colors shrink-0"
-          title="Tuần trước"
-        >
-          <ChevronLeft size={16} />
-        </button>
-
-        <div className="text-center shrink-0">
-          <p className="text-xs font-semibold text-navy-800 whitespace-nowrap">{formatWeekLabel(weekStart)}</p>
-        </div>
-
-        <button
-          onClick={nextWeek}
-          className="p-1 rounded-lg text-navy-400 hover:text-navy-700 hover:bg-navy-50 transition-colors shrink-0"
-          title="Tuần sau"
-        >
-          <ChevronRight size={16} />
-        </button>
-
-        {!isCurrentWeek && (
-          <button
-            onClick={goToday}
-            className="text-xs font-medium text-navy-600 hover:text-navy-900 bg-navy-50 hover:bg-navy-100 px-2.5 py-1 rounded-lg transition-colors shrink-0"
+        {activeTab === 'schedule' && (
+          <Button
+            variant="primary"
+            size="md"
+            onClick={() => openAdd(null)}
+            className="flex items-center gap-2 shrink-0"
           >
-            Hôm nay
-          </button>
-        )}
-
-        {/* Spacer */}
-        <div className="flex-1" />
-
-        {/* Admin: Teacher filter dropdown */}
-        {isAdmin && teachers.length > 0 && (
-          <div className="flex items-center gap-2 shrink-0">
-            <span className="text-xs text-navy-400 hidden sm:block">Giáo viên:</span>
-            <select
-              value={selectedTeacherId}
-              onChange={e => setSelectedTeacherId(e.target.value)}
-              className="text-xs border border-navy-200 rounded-lg px-2.5 py-1.5 text-navy-700 bg-navy-50 hover:bg-navy-100 focus:outline-none focus:ring-2 focus:ring-navy-300 transition-colors cursor-pointer"
-            >
-              <option value="">Tất cả giáo viên</option>
-              {teachers.map(t => (
-                <option key={t.id} value={t.id}>{t.name || t.email}</option>
-              ))}
-            </select>
-          </div>
+            <Plus size={16} />
+            Xếp Lịch
+          </Button>
         )}
       </div>
 
-      {/* ── Thanh "Hôm nay" ngang gọn ── */}
-      {!loading && !error && todayItems.length > 0 && (
-        <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm px-3 py-2 flex items-center gap-2 flex-wrap">
-          <span className="text-xs font-semibold text-navy-700 shrink-0">Hôm nay:</span>
-          {[...todayItems].sort((a, b) => a.startTime.localeCompare(b.startTime)).map(item => {
-            const cls = visibleClasses.find(c => c.id === item.classId)
-            const color = getCourseColor(cls?.courseType)
-            return (
-              <div key={item.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-navy-50 text-xs">
-                <span className={clsx('w-2 h-2 rounded-full shrink-0', color.dot)} />
-                <span className="font-medium text-navy-800">{cls?.name ?? '—'}</span>
-                <span className="text-navy-400">{fmtTime(item.startTime)}–{fmtTime(item.endTime)}</span>
-                {item.room && <span className="text-navy-400">· {item.room}</span>}
-                <button
-                  onClick={() => handleAttendance(item.classId)}
-                  className="ml-1 text-navy-500 hover:text-navy-800 transition-colors"
-                  title="Điểm danh học viên"
+      {/* ── Tabs ─────────────────────────────────────── */}
+      <div className="flex items-center gap-1 border-b border-navy-100">
+        <button
+          onClick={() => setActiveTab('schedule')}
+          className={clsx(
+            'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px',
+            activeTab === 'schedule'
+              ? 'border-navy-800 text-navy-900'
+              : 'border-transparent text-navy-400 hover:text-navy-700'
+          )}
+        >
+          Lịch Dạy
+        </button>
+        <button
+          onClick={() => setActiveTab('payroll')}
+          className={clsx(
+            'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px',
+            activeTab === 'payroll'
+              ? 'border-navy-800 text-navy-900'
+              : 'border-transparent text-navy-400 hover:text-navy-700'
+          )}
+        >
+          Bảng Lương
+        </button>
+      </div>
+
+      {activeTab === 'schedule' && (
+        <>
+          {/* ── Week navigation + Teacher filter ─────────── */}
+          <div className="flex items-center gap-2 bg-white rounded-2xl border border-navy-100 shadow-navy-sm px-3 py-2">
+            {/* Week prev/next */}
+            <button
+              onClick={prevWeek}
+              className="p-1 rounded-lg text-navy-400 hover:text-navy-700 hover:bg-navy-50 transition-colors shrink-0"
+              title="Tuần trước"
+            >
+              <ChevronLeft size={16} />
+            </button>
+
+            <div className="text-center shrink-0">
+              <p className="text-xs font-semibold text-navy-800 whitespace-nowrap">{formatWeekLabel(weekStart)}</p>
+            </div>
+
+            <button
+              onClick={nextWeek}
+              className="p-1 rounded-lg text-navy-400 hover:text-navy-700 hover:bg-navy-50 transition-colors shrink-0"
+              title="Tuần sau"
+            >
+              <ChevronRight size={16} />
+            </button>
+
+            {!isCurrentWeek && (
+              <button
+                onClick={goToday}
+                className="text-xs font-medium text-navy-600 hover:text-navy-900 bg-navy-50 hover:bg-navy-100 px-2.5 py-1 rounded-lg transition-colors shrink-0"
+              >
+                Hôm nay
+              </button>
+            )}
+
+            {/* Spacer */}
+            <div className="flex-1" />
+
+            {/* Admin: Teacher filter dropdown */}
+            {isAdmin && teachers.length > 0 && (
+              <div className="flex items-center gap-2 shrink-0">
+                <span className="text-xs text-navy-400 hidden sm:block">Giáo viên:</span>
+                <select
+                  value={selectedTeacherId}
+                  onChange={e => setSelectedTeacherId(e.target.value)}
+                  className="text-xs border border-navy-200 rounded-lg px-2.5 py-1.5 text-navy-700 bg-navy-50 hover:bg-navy-100 focus:outline-none focus:ring-2 focus:ring-navy-300 transition-colors cursor-pointer"
                 >
-                  <CalendarCheck size={13} />
-                </button>
-              </div>
-            )
-          })}
-        </div>
-      )}
-
-      {/* ── Lưới thời khóa biểu (full bề ngang) ── */}
-      <div className="w-full">
-
-        {/* Grid area */}
-        <div className="min-w-0">
-          {loading ? (
-            <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-4">
-              <div className="grid grid-cols-7 gap-2 mb-3">
-                {[1,2,3,4,5,6,7].map(i => <Skeleton key={i} className="h-6 rounded-lg" />)}
-              </div>
-              {[1,2,3].map(row => (
-                <div key={row} className="grid grid-cols-7 gap-2 mb-2">
-                  {[1,2,3,4,5,6,7].map(col => (
-                    <Skeleton key={col} className="h-16 rounded-xl" />
+                  <option value="">Tất cả giáo viên</option>
+                  {teachers.map(t => (
+                    <option key={t.id} value={t.id}>{t.name || t.email}</option>
                   ))}
-                </div>
-              ))}
-            </div>
-          ) : error ? (
-            <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-12">
-              <Empty
-                icon={<Calendar size={40} />}
-                title="Không thể tải lịch dạy"
-                desc="Đã xảy ra lỗi khi tải dữ liệu. Vui lòng thử lại."
-                action={
-                  <Button variant="primary" size="sm" onClick={loadData}>Thử lại</Button>
-                }
-              />
-            </div>
-          ) : visibleSchedule.length === 0 ? (
-            <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-12">
-              <Empty
-                icon={<Calendar size={40} />}
-                title={selectedTeacherId ? 'Giáo viên này chưa có lịch dạy' : 'Chưa có lịch dạy nào'}
-                desc={selectedTeacherId ? 'Thử chọn giáo viên khác hoặc bấm "+ Xếp Lịch".' : "Bấm '+ Xếp Lịch' để thêm ca dạy đầu tiên vào thời khóa biểu."}
-                action={
-                  <Button variant="primary" size="sm" onClick={() => openAdd(null)} className="flex items-center gap-1.5">
-                    <Plus size={14} />
-                    Xếp Lịch Đầu Tiên
-                  </Button>
-                }
-              />
-            </div>
-          ) : (
-            <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-4">
-              <WeeklyGrid
-                scheduleItems={visibleSchedule}
-                classes={visibleClasses}
-                studentCounts={studentCounts}
-                showTeacher={showTeacher}
-                onEdit={openEdit}
-                onAddDay={openAdd}
-                weekStart={weekStart}
-                canCheckAttendance={canCheckTeacherAttendance}
-                attendanceMap={attendanceMap}
-                onToggleAttendance={handleToggleAttendance}
-                onAttendanceNote={handleSetAttendanceNote}
-              />
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* ── Thanh "Hôm nay" ngang gọn ── */}
+          {!loading && !error && todayItems.length > 0 && (
+            <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm px-3 py-2 flex items-center gap-2 flex-wrap">
+              <span className="text-xs font-semibold text-navy-700 shrink-0">Hôm nay:</span>
+              {[...todayItems].sort((a, b) => a.startTime.localeCompare(b.startTime)).map(item => {
+                const cls = visibleClasses.find(c => c.id === item.classId)
+                const color = getCourseColor(cls?.courseType)
+                return (
+                  <div key={item.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-navy-50 text-xs">
+                    <span className={clsx('w-2 h-2 rounded-full shrink-0', color.dot)} />
+                    <span className="font-medium text-navy-800">{cls?.name ?? '—'}</span>
+                    <span className="text-navy-400">{fmtTime(item.startTime)}–{fmtTime(item.endTime)}</span>
+                    {item.room && <span className="text-navy-400">· {item.room}</span>}
+                    <button
+                      onClick={() => handleAttendance(item.classId)}
+                      className="ml-1 text-navy-500 hover:text-navy-800 transition-colors"
+                      title="Điểm danh học viên"
+                    >
+                      <CalendarCheck size={13} />
+                    </button>
+                  </div>
+                )
+              })}
             </div>
           )}
-        </div>
-      </div>
+
+          {/* ── Lưới thời khóa biểu (full bề ngang) ── */}
+          <div className="w-full">
+
+            {/* Grid area */}
+            <div className="min-w-0">
+              {loading ? (
+                <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-4">
+                  <div className="grid grid-cols-7 gap-2 mb-3">
+                    {[1,2,3,4,5,6,7].map(i => <Skeleton key={i} className="h-6 rounded-lg" />)}
+                  </div>
+                  {[1,2,3].map(row => (
+                    <div key={row} className="grid grid-cols-7 gap-2 mb-2">
+                      {[1,2,3,4,5,6,7].map(col => (
+                        <Skeleton key={col} className="h-16 rounded-xl" />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              ) : error ? (
+                <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-12">
+                  <Empty
+                    icon={<Calendar size={40} />}
+                    title="Không thể tải lịch dạy"
+                    desc="Đã xảy ra lỗi khi tải dữ liệu. Vui lòng thử lại."
+                    action={
+                      <Button variant="primary" size="sm" onClick={loadData}>Thử lại</Button>
+                    }
+                  />
+                </div>
+              ) : visibleSchedule.length === 0 ? (
+                <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-12">
+                  <Empty
+                    icon={<Calendar size={40} />}
+                    title={selectedTeacherId ? 'Giáo viên này chưa có lịch dạy' : 'Chưa có lịch dạy nào'}
+                    desc={selectedTeacherId ? 'Thử chọn giáo viên khác hoặc bấm "+ Xếp Lịch".' : "Bấm '+ Xếp Lịch' để thêm ca dạy đầu tiên vào thời khóa biểu."}
+                    action={
+                      <Button variant="primary" size="sm" onClick={() => openAdd(null)} className="flex items-center gap-1.5">
+                        <Plus size={14} />
+                        Xếp Lịch Đầu Tiên
+                      </Button>
+                    }
+                  />
+                </div>
+              ) : (
+                <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-4">
+                  <WeeklyGrid
+                    scheduleItems={visibleSchedule}
+                    classes={visibleClasses}
+                    studentCounts={studentCounts}
+                    showTeacher={showTeacher}
+                    onEdit={openEdit}
+                    onAddDay={openAdd}
+                    weekStart={weekStart}
+                    canCheckAttendance={canCheckTeacherAttendance}
+                    attendanceMap={attendanceMap}
+                    onToggleAttendance={handleToggleAttendance}
+                    onAttendanceNote={handleSetAttendanceNote}
+                    teachers={teachers}
+                    onSetSubstitute={handleSetSubstitute}
+                  />
+                </div>
+              )}
+            </div>
+          </div>
+        </>
+      )}
+
+      {activeTab === 'payroll' && (
+        <PayrollTab
+          classes={classes}
+          schedule={schedule}
+          teachers={teachers}
+          isAdmin={canViewAllPayroll}
+        />
+      )}
 
       {/* ── Modal ──────────────────────────────────────── */}
       <ScheduleModal
