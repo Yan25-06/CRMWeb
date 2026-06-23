@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
+import { ChevronDown } from 'lucide-react'
 import { clsx } from 'clsx'
 import { Clock, MapPin, Users } from 'lucide-react'
 import { getAttendanceStatus } from './attendanceStatus'
@@ -14,6 +15,79 @@ export const COURSE_COLORS = {
 
 export const getCourseColor = (courseType) =>
   COURSE_COLORS[courseType] ?? COURSE_COLORS['default']
+
+// ─── SubstituteDropdown ────────────────────────────────────
+// Custom dropdown: trigger hiện tên ngắn, options list hiện tên đầy đủ.
+const TRUNC = 7
+const trunc = (s) => s.length > TRUNC ? s.slice(0, TRUNC - 1) + '…' : s
+
+const SubstituteDropdown = ({ teachers, cls, value, onChange, noteVal, onNote }) => {
+  const [open, setOpen] = useState(false)
+  const ref = useRef(null)
+
+  useEffect(() => {
+    if (!open) return
+    const close = (e) => { if (ref.current && !ref.current.contains(e.target)) setOpen(false) }
+    document.addEventListener('mousedown', close)
+    return () => document.removeEventListener('mousedown', close)
+  }, [open])
+
+  const options = teachers.filter(t => t.id !== cls?.teacherId)
+  const selected = options.find(t => t.id === value)
+  const selectedLabel = selected ? (selected.name || selected.email || '?') : null
+  const triggerText = selectedLabel ? `Dạy thay: ${trunc(selectedLabel)}` : '— Không có người dạy thay —'
+
+  const pick = useCallback((id) => { onChange(id); setOpen(false) }, [onChange])
+
+  return (
+    <div className="mt-1.5 flex flex-col gap-1.5" onClick={(e) => e.stopPropagation()}>
+      <div ref={ref} className="relative">
+        <button
+          type="button"
+          onClick={() => setOpen(v => !v)}
+          className="w-full flex items-center justify-between text-xs px-2 py-1 rounded-lg border border-red-200 bg-white text-navy-700 focus:outline-none focus:ring-1 focus:ring-red-300"
+        >
+          <span className="truncate">{triggerText}</span>
+          <ChevronDown size={11} className="shrink-0 ml-1 opacity-50" />
+        </button>
+        {open && (
+          <div className="absolute z-50 top-full left-0 right-0 mt-0.5 bg-white border border-red-200 rounded-lg shadow-lg overflow-hidden">
+            <button
+              type="button"
+              onClick={() => pick('')}
+              className="w-full text-left px-2 py-1.5 text-xs text-navy-400 hover:bg-navy-50"
+            >
+              — Không có người dạy thay —
+            </button>
+            {options.map(t => {
+              const label = t.name || t.email || '?'
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => pick(t.id)}
+                  className={clsx(
+                    'w-full text-left px-2 py-1.5 text-xs hover:bg-navy-50',
+                    t.id === value ? 'font-semibold text-navy-800 bg-navy-50' : 'text-navy-700'
+                  )}
+                >
+                  Dạy thay: {label}
+                </button>
+              )
+            })}
+          </div>
+        )}
+      </div>
+      <input
+        type="text"
+        value={noteVal}
+        onChange={(e) => onNote(e.target.value)}
+        placeholder="Ghi chú"
+        className="w-full text-xs px-2 py-1 rounded-lg border border-red-200 bg-white text-navy-700 placeholder:text-navy-300 focus:outline-none focus:ring-1 focus:ring-red-300"
+      />
+    </div>
+  )
+}
 
 // ─── ScheduleCard ──────────────────────────────────────────
 export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, canCheckAttendance = false, attendanceRecord = null, onToggleAttendance, onAttendanceNote, teachers = [], onSetSubstitute }) => {
@@ -96,27 +170,14 @@ export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, can
 
       {/* Khi Vắng: chọn người dạy thay + ghi chú */}
       {canCheckAttendance && isAbsent && (
-        <div className="mt-1.5 flex flex-col gap-1.5" onClick={(e) => e.stopPropagation()}>
-          <select
-            value={attendanceRecord?.substituteTeacherId ?? ''}
-            onChange={(e) => onSetSubstitute?.(item, e.target.value || null)}
-            className="w-full text-xs px-2 py-1 rounded-lg border border-red-200 bg-white text-navy-700 focus:outline-none focus:ring-1 focus:ring-red-300"
-          >
-            <option value="">— Không có người dạy thay —</option>
-            {teachers
-              .filter(t => t.id !== cls?.teacherId)
-              .map(t => (
-                <option key={t.id} value={t.id}>Dạy thay: {t.name || t.email}</option>
-              ))}
-          </select>
-          <input
-            type="text"
-            value={noteVal}
-            onChange={(e) => handleNote(e.target.value)}
-            placeholder="Ghi chú"
-            className="w-full text-xs px-2 py-1 rounded-lg border border-red-200 bg-white text-navy-700 placeholder:text-navy-300 focus:outline-none focus:ring-1 focus:ring-red-300"
-          />
-        </div>
+        <SubstituteDropdown
+          teachers={teachers}
+          cls={cls}
+          value={attendanceRecord?.substituteTeacherId ?? ''}
+          onChange={(id) => onSetSubstitute?.(item, id || null)}
+          noteVal={noteVal}
+          onNote={handleNote}
+        />
       )}
     </div>
   )

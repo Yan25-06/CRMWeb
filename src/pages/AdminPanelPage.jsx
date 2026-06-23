@@ -5,10 +5,10 @@ import { teacherService, classService } from '@/services/classService'
 import { studentService } from '@/services/studentService'
 import { feeService } from '@/services/feeService'
 import { ClassModal } from '@/components/classes/ClassModal'
-import { Button, Card, Modal, StatCard, toast, ConfirmModal } from '@/components/ui'
-import { Plus, Users, GraduationCap, UserCog, AlertCircle, ChevronRight, ShieldCheck, ShieldOff, Wallet } from 'lucide-react'
-import clsx from 'clsx'
+import { Button, Card, Modal, StatCard, toast, ConfirmModal, CurrencyInput } from '@/components/ui'
+import { Plus, Users, GraduationCap, UserCog, AlertCircle, ChevronRight, ShieldCheck, ShieldOff, Pencil, X } from 'lucide-react'
 import { fmtVND } from '@/utils/helpers'
+import clsx from 'clsx'
 
 export function AdminPanelPage() {
   const { teacher } = useAuth()
@@ -25,7 +25,8 @@ export function AdminPanelPage() {
   const [selectedTeacherId, setSelectedTeacherId] = useState(null)
   const [togglingAdminId, setTogglingAdminId] = useState(null)
   const [confirmAdmin, setConfirmAdmin] = useState({ open: false, teacher: null })
-  const [salaryDraft, setSalaryDraft] = useState({})   // { [teacherId]: '12000000' }
+  const [editingSalaryId, setEditingSalaryId] = useState(null)  // teacherId đang chỉnh sửa lương
+  const [salaryDraft, setSalaryDraft] = useState('')
   const [savingSalaryId, setSavingSalaryId] = useState(null)
 
   useEffect(() => {
@@ -125,18 +126,24 @@ export function AdminPanelPage() {
     }
   }
 
+  const handleEditSalary = (t) => {
+    setEditingSalaryId(t.id)
+    setSalaryDraft(t.monthlySalary != null ? String(t.monthlySalary) : '')
+  }
+
+  const handleCancelSalary = () => {
+    setEditingSalaryId(null)
+    setSalaryDraft('')
+  }
+
   const handleSaveSalary = async (t) => {
-    const raw = salaryDraft[t.id]
-    const value = raw === '' || raw == null ? null : Number(raw)
-    if (value != null && (Number.isNaN(value) || value < 0)) {
-      toast.error('Lương không hợp lệ')
-      return
-    }
+    const value = salaryDraft === '' ? null : Number(salaryDraft)
     setSavingSalaryId(t.id)
     try {
       await teacherService.update(t.id, { monthlySalary: value })
       toast.success('Đã lưu lương tháng')
-      setSalaryDraft(d => { const n = { ...d }; delete n[t.id]; return n })
+      setEditingSalaryId(null)
+      setSalaryDraft('')
       loadTeachers()
     } catch (err) {
       toast.error('Lỗi lưu lương: ' + err.message)
@@ -283,30 +290,50 @@ export function AdminPanelPage() {
                     </button>
 
                     {/* Lương tháng */}
-                    <div className="px-4 pb-3 flex items-center gap-2">
-                      <Wallet size={13} className="text-navy-400 shrink-0" />
-                      <input
-                        type="number"
-                        min="0"
-                        step="100000"
-                        value={salaryDraft[t.id] ?? (t.monthlySalary ?? '')}
-                        onChange={e => setSalaryDraft(d => ({ ...d, [t.id]: e.target.value }))}
-                        placeholder="Lương tháng"
-                        className="input text-xs py-1 flex-1 min-w-0"
-                      />
-                      <button
-                        onClick={() => handleSaveSalary(t)}
-                        disabled={savingSalaryId === t.id || salaryDraft[t.id] === undefined}
-                        className="text-xs font-medium px-2.5 py-1 rounded-lg bg-navy-50 text-navy-700 hover:bg-navy-100 transition-colors disabled:opacity-40"
-                      >
-                        {savingSalaryId === t.id ? '...' : 'Lưu'}
-                      </button>
+                    <div className="px-4 pb-3">
+                      {editingSalaryId === t.id ? (
+                        <div className="flex items-end gap-2">
+                          <div className="flex-1 min-w-0">
+                            <CurrencyInput
+                              label="Lương tháng"
+                              value={salaryDraft}
+                              onChange={val => setSalaryDraft(val)}
+                              className="text-xs py-1"
+                            />
+                          </div>
+                          <button
+                            onClick={() => handleSaveSalary(t)}
+                            disabled={savingSalaryId === t.id}
+                            className="text-xs font-medium px-2.5 py-1 rounded-lg bg-navy-800 text-white hover:bg-navy-700 transition-colors disabled:opacity-40 mb-0.5"
+                          >
+                            {savingSalaryId === t.id ? '...' : 'Lưu'}
+                          </button>
+                          <button
+                            onClick={handleCancelSalary}
+                            disabled={savingSalaryId === t.id}
+                            className="mb-0.5 text-navy-400 hover:text-navy-600 transition-colors disabled:opacity-40"
+                          >
+                            <X size={15} />
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <p className="text-xs text-navy-500 mb-0.5">Lương tháng</p>
+                            <p className="text-sm font-medium text-navy-800">
+                              {t.monthlySalary != null ? fmtVND(t.monthlySalary) : <span className="text-navy-400 font-normal">Chưa đặt</span>}
+                            </p>
+                          </div>
+                          <button
+                            onClick={() => handleEditSalary(t)}
+                            className="text-navy-400 hover:text-navy-700 transition-colors p-1"
+                            title="Chỉnh sửa lương"
+                          >
+                            <Pencil size={13} />
+                          </button>
+                        </div>
+                      )}
                     </div>
-                    {t.monthlySalary != null && (
-                      <p className="px-4 -mt-2 pb-2 text-xs text-navy-400">
-                        Hiện tại: {fmtVND(t.monthlySalary)}
-                      </p>
-                    )}
 
                     {/* Admin toggle button */}
                     {!isSelf && (
