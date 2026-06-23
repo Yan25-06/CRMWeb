@@ -5,7 +5,6 @@ import { ExportExcelButton } from '@/components/reports/ExportExcelButton'
 import { useAuth } from '@/hooks/useAuth'
 import { buildPayrollRows } from '@/utils/payroll'
 import { teacherAttendanceService } from '@/services/teacherAttendanceService'
-import { teacherService } from '@/services/classService'
 import { fmtVND } from '@/utils/helpers'
 
 const currentMonthValue = () => {
