@@ -98,9 +98,12 @@ const SubstituteDropdown = ({ teachers, cls, value, onChange, noteVal, onNote, o
 export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, canCheckAttendance = false, attendanceRecord = null, onToggleAttendance, onAttendanceNote, teachers = [], onSetSubstitute }) => {
   const color = getCourseColor(cls?.courseType)
 
-  // 2 trạng thái: mặc định "Đã dạy", chỉ 'absent' mới là Vắng (bản ghi cũ khác → coi như Đã dạy)
-  const isAbsent = attendanceRecord?.status === 'absent'
-  const att = getAttendanceStatus(isAbsent ? 'absent' : 'present')
+  // 3 trạng thái: không có record (hoặc status lạ) = 'pending'; 'present'; 'absent'.
+  const status = attendanceRecord?.status === 'present' ? 'present'
+    : attendanceRecord?.status === 'absent' ? 'absent'
+    : 'pending'
+  const isAbsent = status === 'absent'
+  const att = getAttendanceStatus(status)
 
   // Nâng z-index khi dropdown dạy thay đang mở để không bị card bên dưới che
   const [dropdownOpen, setDropdownOpen] = useState(false)
@@ -139,7 +142,7 @@ export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, can
               'ml-auto shrink-0 inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full text-xs font-semibold border transition-colors',
               att.bg, att.text, att.border, 'hover:opacity-80'
             )}
-            title="Bấm để đổi Đã dạy / Vắng"
+            title="Bấm để đổi: Chưa xác nhận → Đã dạy → Vắng"
             onClick={(e) => { e.stopPropagation(); onToggleAttendance?.(item) }}
           >
             <span className={clsx('w-1.5 h-1.5 rounded-full', att.dot)} />
