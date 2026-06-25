@@ -8,6 +8,7 @@ const fromDB = (row) => row ? {
   status: row.status,
   note: row.note,
   substituteTeacherId: row.substitute_teacher_id ?? null,
+  substituteConfirmed: row.substitute_confirmed ?? false,
   createdAt: row.created_at,
 } : null
 
@@ -18,6 +19,7 @@ const toDB = (data) => ({
   status: data.status,
   note: data.note ?? null,
   substitute_teacher_id: data.substituteTeacherId ?? null,
+  substitute_confirmed: data.substituteConfirmed ?? false,
 })
 
 export const teacherAttendanceService = {
@@ -47,10 +49,10 @@ export const teacherAttendanceService = {
   },
 
   // Tạo hoặc cập nhật record theo (schedule_id, date).
-  async upsert({ scheduleId, date, teacherId, status, note, substituteTeacherId }) {
+  async upsert({ scheduleId, date, teacherId, status, note, substituteTeacherId, substituteConfirmed }) {
     const { data, error } = await supabase
       .from('teacher_attendance')
-      .upsert(toDB({ scheduleId, date, teacherId, status, note, substituteTeacherId }), {
+      .upsert(toDB({ scheduleId, date, teacherId, status, note, substituteTeacherId, substituteConfirmed }), {
         onConflict: 'schedule_id,date',
       })
       .select()
@@ -66,5 +68,53 @@ export const teacherAttendanceService = {
       .eq('schedule_id', scheduleId)
       .eq('date', date)
     if (error) throw new Error(error.message)
+  },
+
+  // Buổi GV hiện tại (auth.uid) được giao dạy thay trong khoảng ngày.
+  // Trả [{ id, scheduleId, date, substituteConfirmed, classId, className, room,
+  //        startTime, endTime, mainTeacherName }]
+  async getSubstituteAssignments(dateFrom, dateTo) {
+    const { data: { user } } = await supabase.auth.getUser()
+    if (!user) return []
+    const { data, error } = await supabase
+      .from('teacher_attendance')
+      .select(`
+        id, schedule_id, date, substitute_confirmed,
+        schedule:schedule_id (
+          class_id, start_time, end_time, room,
+          class:class_id ( name )
+        ),
+        mainTeacher:teacher_id ( name )
+      `)
+      .eq('substitute_teacher_id', user.id)
+      .eq('status', 'absent')
+      .gte('date', dateFrom)
+      .lte('date', dateTo)
+    if (error) throw new Error(error.message)
+    return (data ?? []).map(r => ({
+      id: r.id,
+      scheduleId: r.schedule_id,
+      date: r.date,
+      substituteConfirmed: r.substitute_confirmed ?? false,
+      classId: r.schedule?.class_id ?? null,
+      className: r.schedule?.class?.name ?? '—',
+      room: r.schedule?.room ?? null,
+      startTime: r.schedule?.start_time ?? null,
+      endTime: r.schedule?.end_time ?? null,
+      mainTeacherName: r.mainTeacher?.name ?? '—',
+    }))
+  },
+
+  // GV dạy thay xác nhận đã dạy — chỉ set substitute_confirmed.
+  async confirmSubstitute(scheduleId, date, confirmed = true) {
+    const { data, error } = await supabase
+      .from('teacher_attendance')
+      .update({ substitute_confirmed: confirmed })
+      .eq('schedule_id', scheduleId)
+      .eq('date', date)
+      .select()
+      .single()
+    if (error) throw new Error(error.message)
+    return fromDB(data)
   },
 }
