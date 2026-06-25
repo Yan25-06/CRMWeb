@@ -118,3 +118,39 @@ Thay đổi lớn quản lý qua `openspec/`. Skills: `openspec-propose` → `op
 
 `supabase/seed/seed_mock_data.sql` — chỉ dùng cho dev/test.
 Không chạy seed lên production.
+
+---
+
+## Architecture Notes
+
+### Chấm công giáo viên (opt-in, 3 trạng thái)
+
+Bảng `teacher_attendance` — migration `20260625000001_teacher_attendance_optin_substitute_confirm.sql`.
+
+**Mô hình:** Không có record = "Chưa xác nhận" (không tính lương). Mỗi lần bấm chip:
+- Chưa xác nhận → Đã dạy (`status='present'`) → Vắng (`status='absent'`) → xóa record (về Chưa xác nhận).
+
+**Quyền chấm công:**
+- `canCheckAllAttendance` (= `isAdmin`): admin toggle mọi ca, gán dạy thay.
+- `canCheckOwnAttendance` (= mọi teacher, luôn `true`): GV tự chấm buổi lớp mình phụ trách.
+- RLS tương ứng: policy `teacher self insert/update/delete` + policy `substitute confirm update`.
+
+**Dạy thay:**
+- Admin chọn GV dạy thay qua `SubstituteDropdown` trên ScheduleCard khi status='absent'.
+- GV dạy thay thấy danh sách buổi được giao ở section `SubstituteAssignments` (chỉ khi không phải admin); tự xác nhận → `substitute_confirmed=true`.
+- Lương tính cho dạy thay **chỉ khi** `substitute_confirmed=true`.
+
+**Công thức lương** (`src/utils/payroll.js`):
+- `taught = count(status='present')` — không còn dùng `scheduled - absent`.
+- `subs = count(substitute_confirmed=true)` — buổi dạy thay đã xác nhận.
+- `pending = scheduled - taught - absent` — buổi chưa xác nhận (cột "Chưa XN" ở PayrollTab).
+
+**Components mới:**
+- `src/components/schedule/SubstituteAssignments.jsx` — section "Buổi được giao dạy thay".
+- `src/utils/helpers.js` thêm export `fmtDayList(dayList)` — format danh sách thứ thành chuỗi hiển thị.
+
+**SchedulePage — 2 tab:**
+- Tab "Lịch Dạy": `WeeklyGrid` + chip chấm công (3 trạng thái) + `SubstituteDropdown` + `SubstituteAssignments` (nếu có buổi dạy thay chưa xác nhận).
+- Tab "Bảng Lương" (`PayrollTab.jsx`): bảng tính lương theo tháng; admin xem tất cả GV, GV thường xem của mình. Cột: Lịch dạy, Đã dạy, Vắng, **Chưa XN**, Dạy thay, Lương.
+
+**Admin Panel:** Card mỗi GV có nút "Xem lịch dạy" → expand danh sách lớp + ngày dạy.

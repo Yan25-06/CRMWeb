@@ -330,36 +330,38 @@ VALUES
 -- ====================================================
 -- BƯỚC 6b : Teacher attendance (chấm công giáo viên mẫu)
 -- ====================================================
--- Chấm công admin theo từng ca lịch cố định (schedule) trên một ngày.
--- teacher_id = giáo viên phụ trách lớp của ca đó (join qua classes).
--- Mix 3 trạng thái: present / absent (có note) / makeup (có note).
+-- Mô hình opt-in: KHÔNG có record = "Chưa xác nhận" (không tính lương).
+-- status='present' = đã dạy (tính lương); status='absent' = vắng.
+-- teacher_id = giáo viên phụ trách lớp (join qua schedule → classes).
+-- substitute_confirmed = true khi GV dạy thay đã xác nhận buổi đó.
 -- Idempotent: cleanup BƯỚC 1 xóa classes → cascade schedule → cascade
 -- teacher_attendance, nên insert luôn sạch khi re-run. Thêm
 -- on conflict (schedule_id, date) do nothing để an toàn tuyệt đối.
 INSERT INTO public.teacher_attendance
-  (id, schedule_id, date, teacher_id, status, note)
-SELECT v.id, v.schedule_id, v.date, c.teacher_id, v.status, v.note
+  (id, schedule_id, date, teacher_id, status, note, substitute_confirmed)
+SELECT v.id, v.schedule_id, v.date, c.teacher_id, v.status, v.note, v.sub_confirmed
 FROM (VALUES
-  -- c01 ca Thứ 2 (sched01) — buổi tuần trước: có mặt
+  -- c01 ca Thứ 2 (sched01) — buổi tuần trước: có mặt (GV tự xác nhận)
   ('c0000000-0000-0000-0000-000000000001'::uuid,
    '04000000-0000-0000-0000-000000000001'::uuid,
-   (current_date - 7)::date, 'present', NULL),
-  -- c03 ca Thứ 4 (sched04) — buổi tuần trước: vắng (có lý do)
+   (current_date - 7)::date, 'present', NULL, false),
+  -- c03 ca Thứ 4 (sched04) — buổi tuần trước: vắng (có lý do), chưa có dạy thay
   ('c0000000-0000-0000-0000-000000000002'::uuid,
    '04000000-0000-0000-0000-000000000004'::uuid,
-   (current_date - 7)::date, 'absent', 'Giáo viên bận việc gia đình'),
-  -- c04 ca Thứ 7 (sched05) — buổi tuần trước: vắng, có người dạy thay (sẽ set substitute bên dưới)
+   (current_date - 7)::date, 'absent', 'Giáo viên bận việc gia đình', false),
+  -- c04 ca Thứ 7 (sched05) — buổi tuần trước: vắng, có người dạy thay đã xác nhận
   ('c0000000-0000-0000-0000-000000000003'::uuid,
    '04000000-0000-0000-0000-000000000005'::uuid,
-   (current_date - 7)::date, 'absent', 'Bận hội thảo')
-) AS v(id, schedule_id, date, status, note)
+   (current_date - 7)::date, 'absent', 'Bận hội thảo', false)
+) AS v(id, schedule_id, date, status, note, sub_confirmed)
 JOIN public.schedule s ON s.id = v.schedule_id
 JOIN public.classes  c ON c.id = s.class_id
 ON CONFLICT (schedule_id, date) DO NOTHING;
 
--- Dạy thay: record vắng c04 (sched05) → t1 dạy thay cho ta
+-- Dạy thay: record vắng c04 (sched05) → t1 dạy thay cho ta, đã xác nhận
 UPDATE public.teacher_attendance
-  SET substitute_teacher_id = (SELECT t1 FROM _seed_teachers)
+  SET substitute_teacher_id = (SELECT t1 FROM _seed_teachers),
+      substitute_confirmed   = true
   WHERE id = 'c0000000-0000-0000-0000-000000000003';
 
 -- ====================================================

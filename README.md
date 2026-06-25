@@ -23,11 +23,11 @@ Password: 123456
 - **Homework** — assign and track submission status per session
 - **Mock tests** — record IELTS/TOEIC scores by skill, visualize progress over time
 - **Student reviews** — skill radar charts, PDF report cards, bulk export as ZIP
-- **Schedule** — weekly grid + daily agenda view, with admin teacher attendance check-in (present/absent/makeup) per slot
+- **Schedule** — weekly grid + daily agenda view; teacher attendance check-in with 3-state opt-in model (unconfirmed / present / absent) per slot; teachers self-confirm their own classes
 - **Lịch dạy tự động** — đặt lịch học của lớp (chọn thứ + giờ) → các ca tự xuất hiện và đồng bộ trên trang Lịch Dạy
-- **Chấm công giáo viên hiển thị trực quan** — trạng thái chấm công ngay trên thẻ lịch tuần (viền màu + chip trạng thái)
+- **Chấm công giáo viên opt-in** — 3 trạng thái: Chưa xác nhận / Đã dạy / Vắng. Giáo viên tự chấm buổi lớp mình; admin chấm tất cả và gán dạy thay. Dạy thay tự xác nhận qua mục "Buổi được giao dạy thay".
 - **Reports** — attendance, fees, homework, and mock test charts with Excel/PDF export
-- **Lương giáo viên & dạy thay** — Admin đặt lương tháng cho giáo viên trong Admin Panel. Tại tab "Lịch Dạy", khi chấm vắng có thể chọn người dạy thay. Tab "Bảng Lương" tính toán và hiển thị lương thực nhận theo tháng (admin xem tất cả; giáo viên xem của mình); hỗ trợ export Excel.
+- **Lương giáo viên & dạy thay** — Admin đặt lương tháng trong Admin Panel. Tab "Bảng Lương" tính lương theo số buổi đã dạy (status='present') + dạy thay đã xác nhận; hỗ trợ export Excel. Cột "Chưa XN" hiển thị buổi chưa bấm xác nhận.
 - **Multi-teacher + admin** — teachers see only their own data; admin manages all classes and teachers
 
 ---
