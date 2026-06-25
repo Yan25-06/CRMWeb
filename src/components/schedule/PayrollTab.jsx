@@ -61,6 +61,7 @@ export const PayrollTab = ({ classes = [], schedule = [], teachers = [], isAdmin
     { key: 'scheduled', label: 'Buổi theo lịch' },
     { key: 'taught', label: 'Đã dạy' },
     { key: 'absent', label: 'Vắng' },
+    { key: 'pending', label: 'Chưa xác nhận' },
     { key: 'subs', label: 'Dạy thay' },
     { key: 'rateFmt', label: 'Đơn giá/buổi' },
     { key: 'payFmt', label: 'Thực nhận' },
@@ -68,6 +69,7 @@ export const PayrollTab = ({ classes = [], schedule = [], teachers = [], isAdmin
   const excelRows = rows.map(r => ({
     ...r,
     baseFmt: fmtVND(r.base),
+    pending: Math.max(0, r.scheduled - r.taught - r.absent),
     rateFmt: fmtVND(r.rate),
     payFmt: fmtVND(r.actualPay),
   }))
@@ -110,6 +112,7 @@ export const PayrollTab = ({ classes = [], schedule = [], teachers = [], isAdmin
                 <th className="py-2 pr-3 font-medium text-navy-600 text-center">Buổi/lịch</th>
                 <th className="py-2 pr-3 font-medium text-navy-600 text-center">Đã dạy</th>
                 <th className="py-2 pr-3 font-medium text-navy-600 text-center">Vắng</th>
+                <th className="py-2 pr-3 font-medium text-navy-600 text-center">Chưa XN</th>
                 <th className="py-2 pr-3 font-medium text-navy-600 text-center">Dạy thay</th>
                 <th className="py-2 pr-3 font-medium text-navy-600 text-right">Đơn giá/buổi</th>
                 <th className="py-2 font-medium text-navy-600 text-right">Thực nhận</th>
@@ -128,6 +131,7 @@ export const PayrollTab = ({ classes = [], schedule = [], teachers = [], isAdmin
                   <td className="py-1.5 pr-3 text-navy-700 text-center">{r.scheduled}</td>
                   <td className="py-1.5 pr-3 text-green-600 text-center">{r.taught}</td>
                   <td className="py-1.5 pr-3 text-red-500 text-center">{r.absent}</td>
+                  <td className="py-1.5 pr-3 text-slate-500 text-center">{Math.max(0, r.scheduled - r.taught - r.absent)}</td>
                   <td className="py-1.5 pr-3 text-navy-700 text-center">{r.subs}</td>
                   <td className="py-1.5 pr-3 text-navy-500 text-right">{fmtVND(r.rate)}</td>
                   <td className="py-1.5 text-navy-900 font-semibold text-right">{fmtVND(r.actualPay)}</td>
