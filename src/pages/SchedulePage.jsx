@@ -44,7 +44,7 @@ const toDateStr = (date) => {
 
 // ─── SchedulePage ────────────────────────────────────────────
 export const SchedulePage = ({ onNavigate }) => {
-  const { canFilterByTeacher: isAdmin, canCheckAllAttendance, canCheckOwnAttendance, canViewAllPayroll } = usePermissions()
+  const { canFilterByTeacher: isAdmin, canCheckOwnAttendance, canViewAllPayroll } = usePermissions()
 
   // Week navigation state
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()))
