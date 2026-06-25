@@ -31,8 +31,7 @@ onSaved: () => void
 **Nội dung:**
 - Tiêu đề: "Ghi danh X học sinh vào [Tên lớp]"
 - Danh sách học sinh được ghi danh (tên, xổ thu gọn)
-- Toggle Theo tháng / Theo khóa
-- `CurrencyInput` học phí
+- Toggle Theo tháng / Theo khóa + `CurrencyInput` học phí (re-implement trực tiếp, không tái dùng `FeeInputs` nội bộ)
 - Nút "Ghi danh X học sinh" → gọi `enrollmentService.create()` cho từng học sinh (Promise.all) → toast thành công → `onSaved()`
 
 **Logic:**
@@ -70,12 +69,16 @@ isAdmin: boolean
 - Danh sách scroll: tất cả học sinh **chưa có enrollment trong lớp này**
   - Mỗi row: checkbox + avatar + tên + SĐT + badge trạng thái tổng (chưa có lớp / đang học lớp X)
 - Chip đếm "Đã chọn X học sinh"
-- Fee form (`FeeInputs` component tái dùng từ `EnrollmentModal`)
+- Fee form: toggle Theo tháng/Theo khóa + `CurrencyInput` (re-implement trực tiếp trong modal — `FeeInputs` hiện là component nội bộ của `EnrollmentModal.jsx`, không extract)
 - Nút "Ghi danh X học sinh" (disabled khi 0 chọn)
 
 **Data:** Gọi `studentService.getAll()` khi modal mở. Filter client-side loại bỏ studentId đã có trong `currentEnrollments`.
 
-**Nút "Tạo học sinh mới" (admin only):** Giữ nguyên ở `StudentSidebar` header — vẫn mở `EnrollmentModal` cũ với `mode="add"` cho flow tạo mới + ghi danh 1 người.
+**Nút "Tạo học sinh mới" (admin only):** Header `StudentSidebar` sẽ có **2 nút** khi `isAdmin`:
+- "＋ Thêm" → mở `BulkEnrollPickerModal`
+- "Tạo mới" (nhỏ hơn, variant secondary) → mở `EnrollmentModal` cũ với `mode="add"` cho flow tạo học sinh + ghi danh 1 người
+
+Giáo viên thường chỉ thấy nút "＋ Thêm".
 
 ---
 
@@ -124,8 +127,8 @@ BulkEnrollPickerModal / EnrollModeBar
 |------|----------|
 | `src/components/students/BulkEnrollPickerModal.jsx` | **Tạo mới** — modal chọn nhiều HS cho ClassDetailPage |
 | `src/components/students/BulkFeeModal.jsx` | **Tạo mới** — modal đặt học phí chung, dùng ở cả 2 nơi |
-| `src/components/students/StudentSidebar.jsx` | Đổi prop `onAddStudent` → mở `BulkEnrollPickerModal`; giữ nút "Tạo mới" riêng cho admin |
-| `src/pages/ClassDetailPage/tabs/StudentsTab.jsx` | Import + wire `BulkEnrollPickerModal`; truyền `currentEnrollments` |
+| `src/components/students/StudentSidebar.jsx` | Thêm prop `onCreateStudent`; admin thấy 2 nút (Thêm + Tạo mới), teacher thấy 1 nút |
+| `src/pages/ClassDetailPage/tabs/StudentsTab.jsx` | Wire `BulkEnrollPickerModal` + giữ `EnrollmentModal` cho admin tạo mới; truyền `currentEnrollments` |
 | `src/pages/StudentsDirectoryPage.jsx` | Thêm `EnrollModeBar`, logic chế độ ghi danh, wire `BulkFeeModal` |
 
 Không cần migration DB, không cần thay đổi service layer.
