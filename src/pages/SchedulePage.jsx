@@ -12,6 +12,7 @@ import { classService, teacherService } from '@/services/classService'
 import { enrollmentService } from '@/services/enrollmentService'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PayrollTab } from '@/components/schedule/PayrollTab'
+import { SubstituteAssignments } from '@/components/schedule/SubstituteAssignments'
 
 // ─── Helpers ────────────────────────────────────────────────
 const getWeekStart = (date) => {
@@ -43,7 +44,7 @@ const toDateStr = (date) => {
 
 // ─── SchedulePage ────────────────────────────────────────────
 export const SchedulePage = ({ onNavigate }) => {
-  const { canFilterByTeacher: isAdmin, canCheckTeacherAttendance, canViewAllPayroll } = usePermissions()
+  const { canFilterByTeacher: isAdmin, canCheckAllAttendance, canCheckOwnAttendance, canViewAllPayroll } = usePermissions()
 
   // Week navigation state
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()))
@@ -62,8 +63,11 @@ export const SchedulePage = ({ onNavigate }) => {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(false)
 
-  // Teacher attendance (admin only)
+  // Teacher attendance
   const [attendance, setAttendance] = useState([])
+
+  // Buổi dạy thay được giao cho GV hiện tại
+  const [subAssignments, setSubAssignments] = useState([])
 
   // Admin filter
   const [selectedTeacherId, setSelectedTeacherId] = useState('')
@@ -92,9 +96,9 @@ export const SchedulePage = ({ onNavigate }) => {
 
   useEffect(() => { loadData() }, [loadData])
 
-  // Load teacher attendance for the viewed week (admin only)
+  // Load teacher attendance for the viewed week
   const loadAttendance = useCallback(async () => {
-    if (!canCheckTeacherAttendance) { setAttendance([]); return }
+    if (!canCheckOwnAttendance) { setAttendance([]); return }
     const from = toDateStr(weekStart)
     const end = new Date(weekStart); end.setDate(end.getDate() + 6)
     const to = toDateStr(end)
@@ -104,9 +108,23 @@ export const SchedulePage = ({ onNavigate }) => {
     } catch {
       setAttendance([])
     }
-  }, [canCheckTeacherAttendance, weekStart])
+  }, [canCheckOwnAttendance, weekStart])
 
   useEffect(() => { loadAttendance() }, [loadAttendance])
+
+  // Load buổi dạy thay được giao trong tuần hiện tại
+  const loadSubAssignments = useCallback(async () => {
+    const from = toDateStr(weekStart)
+    const end = new Date(weekStart); end.setDate(end.getDate() + 6)
+    try {
+      const rows = await teacherAttendanceService.getSubstituteAssignments(from, toDateStr(end))
+      setSubAssignments(rows)
+    } catch {
+      setSubAssignments([])
+    }
+  }, [weekStart])
+
+  useEffect(() => { loadSubAssignments() }, [loadSubAssignments])
 
   // Admin filter: narrow classes and schedule by selected teacher
   const visibleClasses = useMemo(() => {
@@ -183,21 +201,21 @@ export const SchedulePage = ({ onNavigate }) => {
     }
   }, [loadData])
 
-  // Chấm công 2 trạng thái: bấm chip toggle Đã dạy ↔ Vắng (mặc định Đã dạy, không modal)
+  // Chấm công 3 trạng thái: pending → present → absent → pending (xóa record)
   const handleToggleAttendance = useCallback(async (item, date) => {
     const cls = classes.find(c => c.id === item.classId)
     if (!cls?.teacherId) { toast.error('Không tìm thấy lớp/giáo viên'); return }
     const record = attendanceMap.get(`${item.id}_${date}`)
-    const nextStatus = record?.status === 'absent' ? 'present' : 'absent'
+    const cur = record?.status === 'present' ? 'present' : record?.status === 'absent' ? 'absent' : 'pending'
     try {
-      await teacherAttendanceService.upsert({
-        scheduleId: item.id,
-        date,
-        teacherId: cls.teacherId,
-        status: nextStatus,
-        note: record?.note ?? null,
-        substituteTeacherId: nextStatus === 'absent' ? (record?.substituteTeacherId ?? null) : null,
-      })
+      if (cur === 'pending') {
+        await teacherAttendanceService.upsert({ scheduleId: item.id, date, teacherId: cls.teacherId, status: 'present', note: record?.note ?? null })
+      } else if (cur === 'present') {
+        await teacherAttendanceService.upsert({ scheduleId: item.id, date, teacherId: cls.teacherId, status: 'absent', note: record?.note ?? null, substituteTeacherId: record?.substituteTeacherId ?? null })
+      } else {
+        // absent → pending: xóa record
+        await teacherAttendanceService.remove(item.id, date)
+      }
       await loadAttendance()
     } catch {
       toast.error('Không thể chấm công')
@@ -241,6 +259,16 @@ export const SchedulePage = ({ onNavigate }) => {
       toast.error('Không thể lưu người dạy thay')
     }
   }, [classes, attendanceMap, loadAttendance])
+
+  const handleConfirmSubstitute = useCallback(async (assignment) => {
+    try {
+      await teacherAttendanceService.confirmSubstitute(assignment.scheduleId, assignment.date, true)
+      toast.success('Đã xác nhận dạy thay')
+      await loadSubAssignments()
+    } catch {
+      toast.error('Không thể xác nhận')
+    }
+  }, [loadSubAssignments])
 
   const handleAttendance = useCallback((classId) => {
     onNavigate?.('classes')
@@ -430,6 +458,12 @@ export const SchedulePage = ({ onNavigate }) => {
                 </div>
               ) : (
                 <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-4">
+                  {!loading && subAssignments.length > 0 && (
+                    <SubstituteAssignments
+                      assignments={subAssignments}
+                      onConfirm={handleConfirmSubstitute}
+                    />
+                  )}
                   <WeeklyGrid
                     scheduleItems={visibleSchedule}
                     classes={visibleClasses}
@@ -438,7 +472,7 @@ export const SchedulePage = ({ onNavigate }) => {
                     onEdit={openEdit}
                     onAddDay={openAdd}
                     weekStart={weekStart}
-                    canCheckAttendance={canCheckTeacherAttendance}
+                    canCheckAttendance={canCheckOwnAttendance}
                     attendanceMap={attendanceMap}
                     onToggleAttendance={handleToggleAttendance}
                     onAttendanceNote={handleSetAttendanceNote}
