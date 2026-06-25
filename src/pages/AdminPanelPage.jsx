@@ -6,8 +6,8 @@ import { studentService } from '@/services/studentService'
 import { feeService } from '@/services/feeService'
 import { ClassModal } from '@/components/classes/ClassModal'
 import { Button, Card, Modal, StatCard, toast, ConfirmModal, CurrencyInput } from '@/components/ui'
-import { Plus, Users, GraduationCap, UserCog, AlertCircle, ChevronRight, ShieldCheck, ShieldOff, Pencil, X } from 'lucide-react'
-import { fmtVND } from '@/utils/helpers'
+import { Plus, Users, GraduationCap, UserCog, AlertCircle, ChevronRight, ShieldCheck, ShieldOff, Pencil, X, ChevronDown, ChevronUp } from 'lucide-react'
+import { fmtVND, fmtTime, fmtDayList } from '@/utils/helpers'
 import clsx from 'clsx'
 
 export function AdminPanelPage() {
@@ -28,6 +28,7 @@ export function AdminPanelPage() {
   const [editingSalaryId, setEditingSalaryId] = useState(null)  // teacherId đang chỉnh sửa lương
   const [salaryDraft, setSalaryDraft] = useState('')
   const [savingSalaryId, setSavingSalaryId] = useState(null)
+  const [expandedTeacherId, setExpandedTeacherId] = useState(null)
 
   useEffect(() => {
     loadTeachers()
@@ -357,6 +358,48 @@ export function AdminPanelPage() {
                           )}
                           {t.is_admin ? 'Thu hồi Admin' : 'Cấp Admin'}
                         </button>
+                      </div>
+                    )}
+
+                    {/* Toggle expand lịch dạy */}
+                    <div className="px-4 pb-2">
+                      <button
+                        onClick={() => setExpandedTeacherId(expandedTeacherId === t.id ? null : t.id)}
+                        className="flex items-center gap-1 text-xs font-medium text-navy-500 hover:text-navy-800 transition-colors"
+                      >
+                        {expandedTeacherId === t.id ? <ChevronUp size={13} /> : <ChevronDown size={13} />}
+                        {expandedTeacherId === t.id ? 'Ẩn lịch dạy' : 'Xem lịch dạy'}
+                      </button>
+                    </div>
+
+                    {expandedTeacherId === t.id && (
+                      <div className="px-4 pb-3 border-t border-dashed border-navy-100 pt-2">
+                        <p className="text-[10px] font-bold uppercase tracking-wide text-navy-400 mb-1.5">
+                          Lớp phụ trách &amp; lịch dạy
+                        </p>
+                        {classes.filter(c => c.teacherId === t.id).length === 0 ? (
+                          <p className="text-xs text-navy-400">Chưa có lớp nào</p>
+                        ) : (
+                          <div className="flex flex-col gap-1.5">
+                            {classes.filter(c => c.teacherId === t.id).map(c => (
+                              <div key={c.id} className="flex items-start justify-between gap-2">
+                                <div className="min-w-0">
+                                  <p className="text-xs font-semibold text-navy-800 truncate">{c.name}</p>
+                                  <p className="text-[11px] text-navy-500">
+                                    {fmtDayList(c.scheduleDayList)}
+                                    {c.startTime ? ` · ${fmtTime(c.startTime)}–${fmtTime(c.endTime)}` : ''}
+                                    {c.room ? ` · ${c.room}` : ''}
+                                  </p>
+                                </div>
+                                {c.courseType && (
+                                  <span className="text-[10px] bg-navy-100 text-navy-600 px-1.5 py-0.5 rounded shrink-0">
+                                    {c.courseType}
+                                  </span>
+                                )}
+                              </div>
+                            ))}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
