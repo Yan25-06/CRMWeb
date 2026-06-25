@@ -233,6 +233,7 @@ export const SchedulePage = ({ onNavigate }) => {
         teacherId: cls.teacherId,
         status: record?.status ?? 'absent',
         note,
+        substituteConfirmed: record?.substituteConfirmed ?? false,
       })
       await loadAttendance()
     } catch {
@@ -253,6 +254,7 @@ export const SchedulePage = ({ onNavigate }) => {
         status: record?.status ?? 'absent',
         note: record?.note ?? null,
         substituteTeacherId,
+        substituteConfirmed: record?.substituteConfirmed ?? false,
       })
       await loadAttendance()
     } catch {
