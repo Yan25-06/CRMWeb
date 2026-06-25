@@ -1,8 +1,9 @@
 // Tính lương giáo viên theo tháng — hàm THUẦN (không gọi supabase).
-// Công thức (spec 2026-06-22):
+// Công thức (spec 2026-06-22, opt-in model):
 //   rate (đơn giá/buổi) = monthlySalary / scheduled  (scheduled>0 else 0)
 //   actualPay = rate * (taught + subs)
-//   taught = scheduled - absent ; subs = số buổi GV dạy thay cho người khác.
+//   taught = đếm record status='present' (opt-in: chỉ xác nhận dạy mới tính)
+//   subs = đếm dạy thay đã xác nhận (substituteConfirmed=true)
 
 // Số lần một thứ (0=CN..6=T7) xuất hiện trong tháng year/month(1-12).
 export function countWeekdayOccurrences(year, month, dayOfWeek) {
@@ -35,14 +36,18 @@ export function buildPayrollRows({ year, month, teachers, classes, schedule, att
     scheduledByTeacher.set(tid, (scheduledByTeacher.get(tid) ?? 0) + occ)
   }
 
-  // absent theo giáo viên (record status='absent' của chính họ)
+  // taught theo GV = số record status='present' của chính họ (opt-in: xác nhận dạy).
+  const taughtByTeacher = new Map()
   const absentByTeacher = new Map()
-  // subs theo giáo viên (record có substituteTeacherId = họ)
+  // subs theo GV = số record substituteTeacherId=họ VÀ đã xác nhận dạy thay (opt-in).
   const subsByTeacher = new Map()
   for (const a of attendance) {
+    if (a.status === 'present') {
+      taughtByTeacher.set(a.teacherId, (taughtByTeacher.get(a.teacherId) ?? 0) + 1)
+    }
     if (a.status === 'absent') {
       absentByTeacher.set(a.teacherId, (absentByTeacher.get(a.teacherId) ?? 0) + 1)
-      if (a.substituteTeacherId) {
+      if (a.substituteTeacherId && a.substituteConfirmed) {
         subsByTeacher.set(a.substituteTeacherId, (subsByTeacher.get(a.substituteTeacherId) ?? 0) + 1)
       }
     }
@@ -52,7 +57,7 @@ export function buildPayrollRows({ year, month, teachers, classes, schedule, att
     const base = t.monthlySalary ?? 0
     const scheduled = scheduledByTeacher.get(t.id) ?? 0
     const absent = absentByTeacher.get(t.id) ?? 0
-    const taught = Math.max(0, scheduled - absent)
+    const taught = taughtByTeacher.get(t.id) ?? 0
     const subs = subsByTeacher.get(t.id) ?? 0
     const rate = scheduled > 0 ? base / scheduled : 0
     const actualPay = Math.round(rate * (taught + subs))
