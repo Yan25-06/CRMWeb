@@ -416,6 +416,16 @@ export const SchedulePage = ({ onNavigate }) => {
           {/* ── Lưới thời khóa biểu (full bề ngang) ── */}
           <div className="w-full">
 
+            {/* Buổi được giao dạy thay — above the grid */}
+            {!loading && subAssignments.length > 0 && (
+              <div className="mb-4">
+                <SubstituteAssignments
+                  assignments={subAssignments}
+                  onConfirm={handleConfirmSubstitute}
+                />
+              </div>
+            )}
+
             {/* Grid area */}
             <div className="min-w-0">
               {loading ? (
@@ -458,12 +468,6 @@ export const SchedulePage = ({ onNavigate }) => {
                 </div>
               ) : (
                 <div className="bg-white rounded-2xl border border-navy-100 shadow-navy-sm p-4">
-                  {!loading && subAssignments.length > 0 && (
-                    <SubstituteAssignments
-                      assignments={subAssignments}
-                      onConfirm={handleConfirmSubstitute}
-                    />
-                  )}
                   <WeeklyGrid
                     scheduleItems={visibleSchedule}
                     classes={visibleClasses}
