@@ -261,15 +261,10 @@ export const ReviewsPage = ({ settings = {} }) => {
   useEffect(() => {
     if (!selectedStudentId || !selectedClassId) { setAttendancePct(null); setHomeworkPct(null); return }
     Promise.all([
-      attendanceService.getByRange(selectedStudentId, selectedClassId, dateRange.fromDate, dateRange.toDate),
+      attendanceService.getRateByRange(selectedStudentId, selectedClassId, dateRange.fromDate, dateRange.toDate),
       homeworkService.getByRange(selectedStudentId, selectedClassId, dateRange.fromDate, dateRange.toDate),
-    ]).then(([attRecs, hwRecs]) => {
-      if (attRecs.length) {
-        const present = attRecs.filter(r => r.present !== false).length
-        setAttendancePct(Math.round((present / attRecs.length) * 1000) / 10)
-      } else {
-        setAttendancePct(null)
-      }
+    ]).then(([attRate, hwRecs]) => {
+      setAttendancePct(attRate?.pct ?? null)
       if (hwRecs.length) {
         let done = 0, inProg = 0
         hwRecs.forEach(r => {
