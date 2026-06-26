@@ -6,6 +6,7 @@ import { studentService } from '@/services/studentService'
 import { classService } from '@/services/classService'
 import { enrollmentService } from '@/services/enrollmentService'
 import { EnrollmentModal } from '@/components/students/EnrollmentModal'
+import { BulkFeeModal } from '@/components/students/BulkFeeModal'
 import { StudentEditModal } from '@/components/students/StudentEditModal'
 import { ImportStudentsModal } from '@/components/students/ImportStudentsModal'
 import { ExportExcelButton } from '@/components/reports/ExportExcelButton'
@@ -35,7 +36,7 @@ function calcStatus(enrollments) {
 }
 
 // ─── Student row ─────────────────────────────────────────────────────────────
-const StudentRow = ({ student, enrollments, classes, selected, onSelect, onClick, classMap, isAdmin }) => {
+const StudentRow = ({ student, enrollments, classes, selected, onSelect, onClick, classMap, isAdmin, showCheckbox, disabledCheck }) => {
   const status = calcStatus(enrollments)
   const badge = STATUS_BADGE[status]
   const activeEnrollments = enrollments.filter(e => e.status === 'active')
@@ -46,13 +47,14 @@ const StudentRow = ({ student, enrollments, classes, selected, onSelect, onClick
       className={clsx('border-b border-navy-50 hover:bg-navy-50/50 cursor-pointer transition-colors', selected && 'bg-navy-50')}
       onClick={onClick}
     >
-      {isAdmin && (
+      {showCheckbox && (
         <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
           <input
             type="checkbox"
             checked={selected}
+            disabled={disabledCheck}
             onChange={onSelect}
-            className="rounded border-navy-300 text-navy-800 focus:ring-navy-500"
+            className="rounded border-navy-300 text-navy-800 focus:ring-navy-500 disabled:opacity-40"
           />
         </td>
       )}
@@ -221,6 +223,7 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
   const [showEnrollModal, setShowEnrollModal] = useState(false)
   const [showImportModal, setShowImportModal] = useState(false)
   const [confirmBulkDelete, setConfirmBulkDelete] = useState(false)
+  const [bulkFeeOpen, setBulkFeeOpen] = useState(false)
 
   const [quickAddName, setQuickAddName] = useState('')
   const [quickAddLoading, setQuickAddLoading] = useState(false)
@@ -256,6 +259,25 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
     }
     return map
   }, [enrollments])
+
+  const enrollMode = classFilter !== ''
+  const selectedClassName = classMap[classFilter]?.name || ''
+
+  // HS đã có trong lớp đang lọc (mọi status) → không cho tick lại
+  const alreadyInClass = useMemo(() => {
+    if (!enrollMode) return new Set()
+    return new Set(
+      (enrollmentsByStudent
+        ? Object.entries(enrollmentsByStudent)
+        : []
+      )
+        .filter(([, enrs]) => enrs.some(e => e.classId === classFilter))
+        .map(([sid]) => sid)
+    )
+  }, [enrollMode, enrollmentsByStudent, classFilter])
+
+  // Đổi lớp → reset lựa chọn
+  useEffect(() => { setSelectedIds(new Set()) }, [classFilter])
 
   // Course types from classes
   const courseTypes = useMemo(() => {
@@ -299,18 +321,22 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
   }, [students, debouncedSearch, statusTab, classFilter, courseTypeFilter, enrollmentsByStudent, classMap])
 
   // Bulk select
-  const allSelected = filteredStudents.length > 0 && filteredStudents.every(s => selectedIds.has(s.id))
+  const selectableStudents = useMemo(
+    () => filteredStudents.filter(s => !(enrollMode && alreadyInClass.has(s.id))),
+    [filteredStudents, enrollMode, alreadyInClass]
+  )
+  const allSelected = selectableStudents.length > 0 && selectableStudents.every(s => selectedIds.has(s.id))
   const toggleAll = () => {
     if (allSelected) {
       setSelectedIds(prev => {
         const next = new Set(prev)
-        filteredStudents.forEach(s => next.delete(s.id))
+        selectableStudents.forEach(s => next.delete(s.id))
         return next
       })
     } else {
       setSelectedIds(prev => {
         const next = new Set(prev)
-        filteredStudents.forEach(s => next.add(s.id))
+        selectableStudents.forEach(s => next.add(s.id))
         return next
       })
     }
@@ -326,6 +352,21 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
   const handleBulkDelete = () => {
     if (selectedIds.size === 0) return
     setConfirmBulkDelete(true)
+  }
+
+  const selectedStudentObjs = useMemo(
+    () => students.filter(s => selectedIds.has(s.id)),
+    [students, selectedIds]
+  )
+
+  const handleBulkEnroll = () => {
+    if (selectedIds.size === 0) return
+    setBulkFeeOpen(true)
+  }
+
+  const handleEnrolled = () => {
+    setSelectedIds(new Set())
+    loadData()
   }
 
   const doBulkDelete = async () => {
@@ -467,6 +508,26 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
 
         {/* Action row */}
         <div className="flex gap-2 flex-wrap items-center">
+          {enrollMode && (
+            <div className="w-full flex items-center gap-2 px-3 py-2 bg-amber-50 border border-amber-200 rounded-xl">
+              <span className="text-xs text-amber-800 font-medium">
+                ⚡ Đang chọn để ghi danh vào <strong>{selectedClassName}</strong>
+              </span>
+              <div className="ml-auto flex items-center gap-2">
+                {selectedIds.size > 0 && (
+                  <Button size="sm" onClick={handleBulkEnroll}>
+                    Ghi danh {selectedIds.size} học sinh
+                  </Button>
+                )}
+                <button
+                  onClick={() => { setClassFilter(''); setSelectedIds(new Set()) }}
+                  className="text-xs text-amber-700 hover:text-amber-900 font-medium"
+                >
+                  Thoát
+                </button>
+              </div>
+            </div>
+          )}
           {/* Quick add — admin only */}
           {isAdmin && (
             <>
@@ -518,7 +579,7 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
             filename="danh-ba-hoc-vien"
             disabled={filteredStudents.length === 0}
           />
-          {isAdmin && selectedIds.size > 0 && (
+          {isAdmin && !enrollMode && selectedIds.size > 0 && (
             <Button variant="danger" size="sm" onClick={handleBulkDelete}>
               <Trash2 size={14} className="mr-1" />
               Xóa {selectedIds.size}
@@ -547,7 +608,7 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
               <table className="w-full text-left">
                 <thead className="bg-navy-50 border-b border-navy-100">
                   <tr>
-                    {isAdmin && (
+                    {(isAdmin || enrollMode) && (
                       <th className="px-4 py-3 w-10">
                         <input
                           type="checkbox"
@@ -566,18 +627,23 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
                   </tr>
                 </thead>
                 <tbody>
-                  {filteredStudents.map(student => (
-                    <StudentRow
-                      key={student.id}
-                      student={student}
-                      enrollments={enrollmentsByStudent[student.id] || []}
-                      classMap={classMap}
-                      isAdmin={isAdmin}
-                      selected={selectedIds.has(student.id)}
-                      onSelect={() => toggleOne(student.id)}
-                      onClick={() => setSelectedStudent(prev => prev?.id === student.id ? null : student)}
-                    />
-                  ))}
+                  {filteredStudents.map(student => {
+                    const inClass = enrollMode && alreadyInClass.has(student.id)
+                    return (
+                      <StudentRow
+                        key={student.id}
+                        student={student}
+                        enrollments={enrollmentsByStudent[student.id] || []}
+                        classMap={classMap}
+                        isAdmin={isAdmin}
+                        showCheckbox={isAdmin || enrollMode}
+                        disabledCheck={inClass}
+                        selected={selectedIds.has(student.id)}
+                        onSelect={() => !inClass && toggleOne(student.id)}
+                        onClick={() => setSelectedStudent(prev => prev?.id === student.id ? null : student)}
+                      />
+                    )
+                  })}
                 </tbody>
               </table>
             </div>
@@ -651,6 +717,15 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
         title="Xóa học sinh"
         message={`Xóa ${selectedIds.size} học sinh? Hành động này không thể hoàn tác.`}
         confirmLabel="Xóa"
+      />
+
+      <BulkFeeModal
+        open={bulkFeeOpen}
+        onClose={() => setBulkFeeOpen(false)}
+        classId={classFilter}
+        className={selectedClassName}
+        students={selectedStudentObjs}
+        onSaved={() => { setBulkFeeOpen(false); handleEnrolled() }}
       />
     </div>
   )
