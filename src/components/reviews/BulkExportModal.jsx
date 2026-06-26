@@ -9,9 +9,9 @@ import { generalCommentService } from '@/services/generalCommentService'
 
 const loadStudentData = async (student, cls, dateRange) => {
   const classId = cls?.id
-  const [reviews, attRecs, hwRecs, comment] = await Promise.all([
+  const [reviews, attRate, hwRecs, comment] = await Promise.all([
     reviewService.getByStudent(student.id, classId),
-    attendanceService.getByRange(student.id, classId, dateRange.fromDate, dateRange.toDate),
+    attendanceService.getRateByRange(student.id, classId, dateRange.fromDate, dateRange.toDate),
     homeworkService.getByRange(student.id, classId, dateRange.fromDate, dateRange.toDate),
     generalCommentService.get(student.id, classId),
   ])
@@ -19,11 +19,7 @@ const loadStudentData = async (student, cls, dateRange) => {
   const reviewsInRange = reviews.filter(r => r.date >= dateRange.fromDate && r.date <= dateRange.toDate)
   const latestReview = reviewsInRange[0] ?? null
 
-  let attendancePct = null
-  if (attRecs.length) {
-    const present = attRecs.filter(r => r.present !== false).length
-    attendancePct = Math.round((present / attRecs.length) * 1000) / 10
-  }
+  const attendancePct = attRate?.pct ?? null
 
   let homeworkPct = null
   if (hwRecs.length) {
