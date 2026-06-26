@@ -23,6 +23,7 @@ export const StudentSidebar = ({
   activeId,
   onSelect,
   onAddStudent,
+  onCreateStudent,
   isAdmin = false,
 }) => {
   const [search, setSearch] = useState('')
@@ -70,7 +71,7 @@ export const StudentSidebar = ({
             <Users size={14} className="text-navy-500" />
             Danh sách học viên
           </span>
-          {isAdmin && (
+          <div className="flex items-center gap-1.5">
             <button
               id="add-student-btn"
               onClick={onAddStudent}
@@ -79,7 +80,16 @@ export const StudentSidebar = ({
               <Plus size={12} />
               Thêm
             </button>
-          )}
+            {isAdmin && (
+              <button
+                id="create-student-btn"
+                onClick={onCreateStudent}
+                className="px-2.5 py-1.5 border border-navy-200 text-navy-600 text-xs font-medium rounded-lg hover:bg-navy-50 transition-colors"
+              >
+                Tạo mới
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Search */}
