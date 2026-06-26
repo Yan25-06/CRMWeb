@@ -5,6 +5,7 @@ import { Skeleton, Card, Button } from '@/components/ui'
 import { StudentSidebar } from '@/components/students/StudentSidebar'
 import { StudentDetailPanel } from '@/components/students/StudentDetailPanel'
 import { EnrollmentModal } from '@/components/students/EnrollmentModal'
+import { BulkEnrollPickerModal } from '@/components/students/BulkEnrollPickerModal'
 import { StudentEditModal } from '@/components/students/StudentEditModal'
 import { studentService } from '@/services/studentService'
 import { enrollmentService } from '@/services/enrollmentService'
@@ -17,7 +18,8 @@ export const StudentsTab = ({ classId, onEnrollmentChange, isAdmin = false }) =>
 
   const [mobileShowDetail, setMobileShowDetail] = useState(false)
 
-  const [addModalOpen, setAddModalOpen] = useState(false)
+  const [pickerOpen, setPickerOpen] = useState(false)
+  const [createModalOpen, setCreateModalOpen] = useState(false)
   const [editModalOpen, setEditModalOpen] = useState(false)
 
   const loadData = useCallback(async () => {
@@ -52,7 +54,8 @@ export const StudentsTab = ({ classId, onEnrollmentChange, isAdmin = false }) =>
     setMobileShowDetail(true)
   }
 
-  const handleAddStudent = () => setAddModalOpen(true)
+  const handleAddStudent = () => setPickerOpen(true)
+  const handleCreateStudent = () => setCreateModalOpen(true)
   const handleEditEnrollment = () => setEditModalOpen(true)
   const handleModalSaved = () => loadData()
 
@@ -67,12 +70,24 @@ export const StudentsTab = ({ classId, onEnrollmentChange, isAdmin = false }) =>
         <Card className="p-16 flex flex-col items-center justify-center text-center gap-3">
           <Users size={48} className="text-navy-200" />
           <p className="font-semibold text-navy-700">Lớp chưa có học viên nào</p>
-          {isAdmin && <p className="text-sm text-navy-400">Bấm nút bên dưới để thêm học viên đầu tiên</p>}
-          {isAdmin && <Button onClick={handleAddStudent} className="mt-2">+ Thêm học viên</Button>}
+          {isAdmin && <p className="text-sm text-navy-400">Bấm nút bên dưới để thêm học viên</p>}
+          {isAdmin && (
+            <div className="flex items-center gap-2 mt-2">
+              <Button onClick={handleAddStudent}>+ Thêm học viên</Button>
+              <Button variant="secondary" onClick={handleCreateStudent}>Tạo học sinh mới</Button>
+            </div>
+          )}
         </Card>
+        <BulkEnrollPickerModal
+          open={pickerOpen}
+          onClose={() => setPickerOpen(false)}
+          classId={classId}
+          currentEnrollments={enrollments}
+          onSaved={handleModalSaved}
+        />
         <EnrollmentModal
-          open={addModalOpen}
-          onClose={() => setAddModalOpen(false)}
+          open={createModalOpen}
+          onClose={() => setCreateModalOpen(false)}
           mode="add"
           classId={classId}
           onSaved={handleModalSaved}
@@ -113,6 +128,7 @@ export const StudentsTab = ({ classId, onEnrollmentChange, isAdmin = false }) =>
             activeId={selectedStudentId}
             onSelect={handleSelectStudent}
             onAddStudent={handleAddStudent}
+            onCreateStudent={handleCreateStudent}
             isAdmin={isAdmin}
           />
         </div>
@@ -148,6 +164,7 @@ export const StudentsTab = ({ classId, onEnrollmentChange, isAdmin = false }) =>
             activeId={selectedStudentId}
             onSelect={handleSelectStudent}
             onAddStudent={handleAddStudent}
+            onCreateStudent={handleCreateStudent}
             isAdmin={isAdmin}
           />
         </div>
@@ -178,10 +195,19 @@ export const StudentsTab = ({ classId, onEnrollmentChange, isAdmin = false }) =>
         </div>
       </div>
 
-      {/* ─── Add enrollment ─── */}
+      {/* ─── Bulk enroll picker ─── */}
+      <BulkEnrollPickerModal
+        open={pickerOpen}
+        onClose={() => setPickerOpen(false)}
+        classId={classId}
+        currentEnrollments={enrollments}
+        onSaved={handleModalSaved}
+      />
+
+      {/* ─── Create new student (admin) ─── */}
       <EnrollmentModal
-        open={addModalOpen}
-        onClose={() => setAddModalOpen(false)}
+        open={createModalOpen}
+        onClose={() => setCreateModalOpen(false)}
         mode="add"
         classId={classId}
         onSaved={handleModalSaved}
