@@ -20,19 +20,22 @@ export const AttendancePanel = ({ studentId, classId, dateRange }) => {
 
   const [sessions, setSessions] = useState([])
   const [records, setRecords] = useState([])
+  const [ratePct, setRatePct] = useState(null)
 
   useEffect(() => {
     let cancelled = false
     Promise.all([
       sessionService.getByClass(classId),
       attendanceService.getByRange(studentId, classId, fromDate, toDate),
+      attendanceService.getRateByRange(studentId, classId, fromDate, toDate),
     ])
-      .then(([allSessions, recs]) => {
+      .then(([allSessions, recs, rate]) => {
         if (cancelled) return
         setSessions(allSessions.filter(s => s.date >= fromDate && s.date <= toDate))
         setRecords(recs)
+        setRatePct(rate?.pct ?? null)
       })
-      .catch(() => { if (!cancelled) { setSessions([]); setRecords([]) } })
+      .catch(() => { if (!cancelled) { setSessions([]); setRecords([]); setRatePct(null) } })
     return () => { cancelled = true }
   }, [studentId, classId, fromDate, toDate])
 
@@ -49,7 +52,6 @@ export const AttendancePanel = ({ studentId, classId, dateRange }) => {
 
   const total   = items.length
   const present = items.filter(i => i.present).length
-  const pct     = total > 0 ? Math.round((present / total) * 1000) / 10 : null
 
   if (total === 0) {
     return (
@@ -66,10 +68,10 @@ export const AttendancePanel = ({ studentId, classId, dateRange }) => {
       <div className="px-4 py-3 border-b border-navy-50 flex items-center justify-between">
         <div>
           <p className="text-sm font-semibold text-navy-800">Điểm Danh</p>
-          <p className="text-xs text-navy-400">{present}/{total} buổi — <span className={pct >= 80 ? 'text-emerald-600 font-semibold' : pct >= 60 ? 'text-amber-600 font-semibold' : 'text-red-600 font-semibold'}>{pct}% chuyên cần</span></p>
+          <p className="text-xs text-navy-400">{present}/{total} buổi — <span className={ratePct >= 80 ? 'text-emerald-600 font-semibold' : ratePct >= 60 ? 'text-amber-600 font-semibold' : 'text-red-600 font-semibold'}>{ratePct}% chuyên cần</span></p>
         </div>
-        <span className={`text-sm font-bold px-3 py-1 rounded-full ${pct >= 80 ? 'bg-emerald-100 text-emerald-700' : pct >= 60 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
-          {pct}%
+        <span className={`text-sm font-bold px-3 py-1 rounded-full ${ratePct >= 80 ? 'bg-emerald-100 text-emerald-700' : ratePct >= 60 ? 'bg-amber-100 text-amber-700' : 'bg-red-100 text-red-700'}`}>
+          {ratePct}%
         </span>
       </div>
 
