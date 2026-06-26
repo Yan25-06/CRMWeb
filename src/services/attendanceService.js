@@ -129,4 +129,26 @@ export const attendanceService = {
     const absentCount = records.filter(r => sessionIds.has(r.sessionId) && r.present === false).length
     return Math.round(((pastSessions.length - absentCount) / pastSessions.length) * 100)
   },
+
+  async getRateByRange(studentId, classId, fromDate, toDate) {
+    const { data: sessions, error: sessErr } = await supabase
+      .from('sessions')
+      .select('id')
+      .eq('class_id', classId)
+      .gte('date', fromDate)
+      .lte('date', toDate)
+    if (sessErr) throw new Error(sessErr.message)
+    const total = (sessions ?? []).length
+    if (total === 0) return null
+    const sessionIds = sessions.map(s => s.id)
+    const { data, error } = await supabase
+      .from('attendance')
+      .select('present')
+      .eq('student_id', studentId)
+      .in('session_id', sessionIds)
+    if (error) throw new Error(error.message)
+    const absent = (data ?? []).filter(r => r.present === false).length
+    const present = total - absent
+    return { present, total, pct: Math.round((present / total) * 1000) / 10 }
+  },
 }
