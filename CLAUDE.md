@@ -45,7 +45,7 @@ Mỗi service là một object với method `getAll / getById / create / update 
 - **UI không gọi `supabase.*` trực tiếp** — luôn qua service (trừ auth trong `useAuth.jsx`).
 - **`classService` hỗ trợ admin**: `create()` và `update()` chấp nhận `data.teacherId` tường minh để admin gán/đổi giáo viên phụ trách.
 
-Services đã có: `studentService`, `classService` (+`teacherService`), `enrollmentService`, `sessionService`, `attendanceService`, `teacherAttendanceService`, `homeworkService`, `hwAssignmentService`, `submissionService`, `scheduleService`, `feeService`, `paymentService`, `reviewService`, `sessionReviewService`, `generalCommentService`, `mockTestService`, `mockTestResultService`, `settingsService`.
+Services đã có: `studentService`, `classService` (+`teacherService`), `enrollmentService`, `sessionService`, `attendanceService`, `teacherAttendanceService`, `homeworkService`, `hwAssignmentService`, `submissionService`, `scheduleService`, `feeService`, `paymentService`, `reviewService`, `sessionReviewService`, `generalCommentService`, `mockTestService`, `mockTestResultService`, `settingsService`, `classMaterialService`.
 
 ### Trạng thái migration theo trang
 - ✅ **Tất cả trang đã dùng services.** `src/store/db.js` và `src/store/mockTestExport.js` đã bị xóa (cutover hoàn tất, 2026-06-02).
@@ -87,9 +87,10 @@ Services đã có: `studentService`, `classService` (+`teacherService`), `enroll
 - **ScheduleCard (chấm công):** chip ở góc phải = trạng thái (mặc định "Chưa xác nhận" xám; bấm → "Đã dạy" xanh → "Vắng" đỏ + viền trái đỏ qua `att.bar` → bấm tiếp xóa record). Khi "Vắng" hiện **ô ghi chú inline** và **dropdown dạy thay**. Props `onToggleAttendance(item)` + `onAttendanceNote(item, note)`. Chỉ hiện chip khi `canCheckOwnAttendance`. Giờ hiển thị qua `fmtTime`.
 - **SubstituteAssignments** (`src/components/schedule/SubstituteAssignments.jsx`): section hiện phía trên WeeklyGrid (khi `subAssignments.length > 0`), liệt kê buổi GV hiện tại được giao dạy thay trong tuần. Card vàng (chưa xác nhận) / xanh (đã xác nhận). Nút "Xác nhận đã dạy" gọi `teacherAttendanceService.confirmSubstitute` → set `substitute_confirmed = true`.
 - **SchedulePage layout:** lưới `WeeklyGrid` chiếm **trọn bề ngang**; "Ca dạy hôm nay" là **thanh ngang gọn** phía trên lưới (pill: tên lớp + giờ `HH:MM` + phòng + nút "Điểm danh"). Không còn sidebar `DailyAgenda`. `DailyAgenda` giờ chỉ dùng ở Dashboard (đã bỏ phần chấm công, giữ "Điểm danh").
-- **Trang "Giảng Dạy" (SchedulePage) — 2 tab:**
+- **Trang "Giảng Dạy" (SchedulePage) — 3 tab:**
   - **Tab "Lịch Dạy"**: lưới `WeeklyGrid` + chấm công + dropdown dạy thay + `SubstituteAssignments` (nếu có buổi dạy thay chưa xác nhận).
   - **Tab "Bảng Lương"** (`PayrollTab.jsx`): bảng tính lương theo tháng. Admin xem tất cả giáo viên; giáo viên thường xem của mình. Có bộ chọn tháng/năm + export Excel (lazy-load `xlsx`). Cột: Lịch dạy, Đã dạy, Vắng, **Chưa XN**, Dạy thay, Lương.
+  - **Tab "Tài Liệu"** (`MaterialsTab.jsx`): admin gửi tài liệu giảng dạy (slide, handout, bài tập nghe/nói) dạng đường link gắn theo lớp; giáo viên xem list. Dropdown chọn lớp (giáo viên: lớp mình qua RLS; admin: tất cả). Nút Thêm/Sửa/Xóa chỉ admin (`isAdmin`). Loại tài liệu + badge style ở `src/components/schedule/materialType.js`. Modal thêm/sửa `MaterialModal.jsx` (validate link http/https).
 - **Mô hình lương giáo viên** (migration `20260627000001_add_teacher_session_rate.sql`):
   - `teachers.session_rate` (numeric, nullable): đơn giá mỗi buổi dạy — **chỉ admin set** (trigger DB bảo vệ cả `session_rate` lẫn `monthly_salary`, giáo viên thường không tự sửa được).
   - `monthly_salary` vẫn còn cột trong DB nhưng là orphan — app ngừng đọc/ghi, không migration drop.
@@ -215,5 +216,11 @@ Project quản lý thay đổi qua OpenSpec (`openspec/`). Có skill tích hợp
 - `classService.fromDB/toDB` map `scheduleDayList/startTime/endTime/room`; `toDB` tự suy ra `schedule_days`/`schedule_time` (chuỗi hiển thị, tương thích ngược) và **chỉ ghi block lịch khi `data.scheduleDayList !== undefined`** (để update riêng teacher không xoá lịch).
 - **Tự đồng bộ lịch dạy:** `scheduleService.syncForClass(classId, { dayList, startTime, endTime, room })` được gọi trong `classService.create/update` → upsert hàng `schedule` theo `(class_id, day_of_week)` cho thứ được chọn, xóa thứ bỏ chọn (giữ `note` từng ca). `dayList` rỗng → no-op. Lịch học của lớp là nguồn chân lý; lưới `schedule` là projection.
 - `ClassModal`: chọn thứ bằng nhóm nút T2…CN + 2 ô `type=time` + ô phòng (thay 2 ô chữ tự do cũ).
+
+## Model tài liệu giảng dạy (migration 20260627000002)
+- **Bảng `class_materials`**: `class_id` (FK classes), `title`, `url`, `type` (CHECK: slide/handout/listening/speaking/other), `created_by` (FK teachers), `created_at`.
+- RLS: admin full CRUD (`is_admin()`); giáo viên SELECT lớp mình phụ trách (`classes.teacher_id = auth.uid()`).
+- Service `classMaterialService` (`getByClass/create/update/remove`), `create` gắn `created_by` qua `getUid()`.
+- UI: tab "Tài Liệu" trong SchedulePage → `MaterialsTab.jsx` + `MaterialModal.jsx`; hằng số loại ở `materialType.js`.
 
 ---
