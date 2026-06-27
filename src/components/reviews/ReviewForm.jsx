@@ -1,7 +1,6 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { Modal, Button, Input } from '@/components/ui'
-import { QuickTagEditor } from './QuickTagEditor'
 import { DEFAULT_SKILL_CONFIG } from '@/services/classService'
 
 const EMPTY_FORM = {
@@ -196,18 +195,12 @@ export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, t
           </div>
         </div>
 
-        {/* Quick tags */}
-        <div>
-          <p className="text-sm font-medium text-navy-700 mb-1.5">Nhận Xét Nhanh</p>
-          <QuickTagEditor value={form.tags} onChange={tags => setForm(f => ({ ...f, tags }))} />
-        </div>
-
         {/* Remark */}
         <div className="flex flex-col gap-1">
           <label className="text-sm font-medium text-navy-700">Nhận Xét Thêm</label>
           <textarea
             className="input resize-none"
-            rows={3}
+            rows={10}
             placeholder="Ghi chú thêm về buổi học..."
             value={form.remark}
             onChange={e => setForm(f => ({ ...f, remark: e.target.value }))}
@@ -219,7 +212,7 @@ export const ReviewForm = ({ open, onClose, editingReview, studentId, classId, t
           <label className="text-sm font-medium text-navy-700">Lời Khuyên Cá Nhân</label>
           <textarea
             className="input resize-none"
-            rows={3}
+            rows={5}
             placeholder="Lời khuyên cho học viên và phụ huynh..."
             value={form.advice}
             onChange={e => setForm(f => ({ ...f, advice: e.target.value }))}
