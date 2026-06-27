@@ -13,6 +13,7 @@ import { enrollmentService } from '@/services/enrollmentService'
 import { usePermissions } from '@/hooks/usePermissions'
 import { PayrollTab } from '@/components/schedule/PayrollTab'
 import { SubstituteAssignments } from '@/components/schedule/SubstituteAssignments'
+import { MaterialsTab } from '@/components/schedule/MaterialsTab'
 
 // ─── Helpers ────────────────────────────────────────────────
 const getWeekStart = (date) => {
@@ -332,6 +333,17 @@ export const SchedulePage = ({ onNavigate }) => {
         >
           Bảng Lương
         </button>
+        <button
+          onClick={() => setActiveTab('materials')}
+          className={clsx(
+            'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px',
+            activeTab === 'materials'
+              ? 'border-navy-800 text-navy-900'
+              : 'border-transparent text-navy-400 hover:text-navy-700'
+          )}
+        >
+          Tài Liệu
+        </button>
       </div>
 
       {activeTab === 'schedule' && (
@@ -498,6 +510,13 @@ export const SchedulePage = ({ onNavigate }) => {
           schedule={schedule}
           teachers={teachers}
           isAdmin={canViewAllPayroll}
+        />
+      )}
+
+      {activeTab === 'materials' && (
+        <MaterialsTab
+          classes={visibleClasses}
+          isAdmin={isAdmin}
         />
       )}
 
