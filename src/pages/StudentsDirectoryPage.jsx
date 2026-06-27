@@ -439,8 +439,8 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
           ))}
         </div>
 
-        {/* Filter bar */}
-        <div className="flex flex-wrap gap-3 items-center">
+        {/* Filter + action bar */}
+        <div className="flex flex-wrap gap-2 items-center">
           {/* Search */}
           <div className="relative flex-1 min-w-48">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-navy-400" />
@@ -463,29 +463,25 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
           </select>
 
           {/* Course type pills */}
-          {courseTypes.length > 0 && (
-            <div className="flex gap-1 flex-wrap">
-              {courseTypes.map(type => (
-                <button
-                  key={type}
-                  onClick={() => setCourseTypeFilter(prev => prev === type ? '' : type)}
-                  className={clsx(
-                    'px-2.5 py-1 rounded-full text-xs font-medium border transition-all',
-                    courseTypeFilter === type
-                      ? 'bg-navy-800 text-white border-navy-800'
-                      : 'bg-white text-navy-500 border-navy-200 hover:border-navy-400 hover:text-navy-700'
-                  )}
-                >
-                  {type}
-                </button>
-              ))}
-            </div>
-          )}
+          {courseTypes.map(type => (
+            <button
+              key={type}
+              onClick={() => setCourseTypeFilter(prev => prev === type ? '' : type)}
+              className={clsx(
+                'px-2.5 py-1 rounded-full text-xs font-medium border transition-all whitespace-nowrap',
+                courseTypeFilter === type
+                  ? 'bg-navy-800 text-white border-navy-800'
+                  : 'bg-white text-navy-500 border-navy-200 hover:border-navy-400 hover:text-navy-700'
+              )}
+            >
+              {type}
+            </button>
+          ))}
         </div>
 
-        {/* Action row */}
-        <div className="flex gap-2 flex-wrap items-center">
-          {/* Quick add — admin only */}
+        {/* Action bar */}
+        <div className="flex gap-2 items-center">
+          {/* Admin tools */}
           {isAdmin && (
             <>
               <input
@@ -494,59 +490,63 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
                 onKeyDown={handleQuickAdd}
                 placeholder="Thêm nhanh (Tên + Enter)"
                 disabled={quickAddLoading}
-                className="input py-2 text-sm flex-1 min-w-48"
+                className="input py-2 text-sm w-52"
               />
               <Button variant="primary" size="sm" onClick={() => setAddModalOpen(true)}>
                 <Plus size={14} className="mr-1" />
-                Thêm học sinh
+                Thêm
               </Button>
               <Button variant="secondary" size="sm" onClick={() => setShowImportModal(true)}>
                 <Upload size={14} className="mr-1" />
-                Import Excel
+                Import
               </Button>
             </>
           )}
-          <ExportExcelButton
-            rows={filteredStudents.map(s => {
-              const enrs = enrollmentsByStudent[s.id] || []
-              const status = calcStatus(enrs)
-              const activeClasses = enrs
-                .filter(e => e.status === 'active')
-                .map(e => classMap[e.classId]?.name)
-                .filter(Boolean)
-                .join(', ')
-              const statusLabel = STATUS_BADGE[status]?.label ?? ''
-              return {
-                name: s.name,
-                grade: s.grade || '',
-                phone: s.phone || '',
-                email: s.email || '',
-                classes: activeClasses,
-                status: statusLabel,
-              }
-            })}
-            columns={[
-              { key: 'name',    label: 'Họ tên' },
-              { key: 'grade',   label: 'Khối' },
-              { key: 'phone',   label: 'SĐT' },
-              { key: 'email',   label: 'Email' },
-              { key: 'classes', label: 'Lớp' },
-              { key: 'status',  label: 'Trạng thái' },
-            ]}
-            filename="danh-ba-hoc-vien"
-            disabled={filteredStudents.length === 0}
-          />
-          {isAdmin && selectedIds.size > 0 && (
-            <Button size="sm" onClick={handleBulkEnroll}>
-              Ghi danh {selectedIds.size} học sinh
-            </Button>
-          )}
-          {isAdmin && selectedIds.size > 0 && (
-            <Button variant="danger" size="sm" onClick={handleBulkDelete}>
-              <Trash2 size={14} className="mr-1" />
-              Xóa {selectedIds.size}
-            </Button>
-          )}
+
+          {/* Right-side actions */}
+          <div className="ml-auto flex gap-2 items-center">
+            <ExportExcelButton
+              rows={filteredStudents.map(s => {
+                const enrs = enrollmentsByStudent[s.id] || []
+                const status = calcStatus(enrs)
+                const activeClasses = enrs
+                  .filter(e => e.status === 'active')
+                  .map(e => classMap[e.classId]?.name)
+                  .filter(Boolean)
+                  .join(', ')
+                const statusLabel = STATUS_BADGE[status]?.label ?? ''
+                return {
+                  name: s.name,
+                  grade: s.grade || '',
+                  phone: s.phone || '',
+                  email: s.email || '',
+                  classes: activeClasses,
+                  status: statusLabel,
+                }
+              })}
+              columns={[
+                { key: 'name',    label: 'Họ tên' },
+                { key: 'grade',   label: 'Khối' },
+                { key: 'phone',   label: 'SĐT' },
+                { key: 'email',   label: 'Email' },
+                { key: 'classes', label: 'Lớp' },
+                { key: 'status',  label: 'Trạng thái' },
+              ]}
+              filename="danh-ba-hoc-vien"
+              disabled={filteredStudents.length === 0}
+            />
+            {isAdmin && selectedIds.size > 0 && (
+              <Button size="sm" onClick={handleBulkEnroll}>
+                Ghi danh {selectedIds.size} học sinh
+              </Button>
+            )}
+            {isAdmin && selectedIds.size > 0 && (
+              <Button variant="danger" size="sm" onClick={handleBulkDelete}>
+                <Trash2 size={14} className="mr-1" />
+                Xóa {selectedIds.size}
+              </Button>
+            )}
+          </div>
         </div>
 
         {/* Table */}
