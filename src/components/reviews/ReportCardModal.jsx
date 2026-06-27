@@ -111,7 +111,7 @@ export const ReportCardContent = ({ student, cls, latestReview, settings = {}, d
           {latestReview.remark && (
             <div>
               <p className="text-xs font-bold text-navy-600 uppercase tracking-wide mb-1">Ghi Chú</p>
-              <p className="text-sm text-navy-700">{latestReview.remark}</p>
+              <p className="text-sm text-navy-700 whitespace-pre-wrap">{latestReview.remark}</p>
             </div>
           )}
 
@@ -119,7 +119,7 @@ export const ReportCardContent = ({ student, cls, latestReview, settings = {}, d
           {latestReview.advice && (
             <div className="bg-navy-50 border border-navy-200 rounded-xl px-4 py-3">
               <p className="text-xs font-bold text-navy-600 uppercase tracking-wide mb-1">💡 Lời Khuyên</p>
-              <p className="text-sm text-navy-700">{latestReview.advice}</p>
+              <p className="text-sm text-navy-700 whitespace-pre-wrap">{latestReview.advice}</p>
             </div>
           )}
 
@@ -127,7 +127,7 @@ export const ReportCardContent = ({ student, cls, latestReview, settings = {}, d
           {generalComment?.text && (
             <div className="border border-blue-200 rounded-xl px-4 py-3 bg-blue-50">
               <p className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-1">Nhận Xét Tổng Kết</p>
-              <p className="text-sm text-navy-700">{generalComment.text}</p>
+              <p className="text-sm text-navy-700 whitespace-pre-wrap">{generalComment.text}</p>
             </div>
           )}
 
