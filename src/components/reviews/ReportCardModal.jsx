@@ -179,7 +179,7 @@ export const ReportCardContent = ({ student, cls, latestReview, settings = {}, d
   )
 }
 
-export const ReportCardModal = ({ open, onClose, student, cls, latestReview, settings = {}, dateRange, attendancePct, homeworkPct, generalComment }) => {
+export const ReportCardModal = ({ open, onClose, student, cls, latestReview, settings = {}, dateRange, attendanceDetail, homeworkDetail, generalComment }) => {
   const cardRef  = useRef(null)
   const [loading, setLoading] = useState(null) // 'png' | 'pdf' | null
 
@@ -240,8 +240,8 @@ export const ReportCardModal = ({ open, onClose, student, cls, latestReview, set
               latestReview={latestReview}
               settings={settings}
               dateRange={dateRange}
-              attendancePct={attendancePct}
-              homeworkPct={homeworkPct}
+              attendanceDetail={attendanceDetail}
+              homeworkDetail={homeworkDetail}
               generalComment={generalComment}
             />
           </div>
