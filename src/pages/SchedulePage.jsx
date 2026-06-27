@@ -49,7 +49,7 @@ export const SchedulePage = ({ onNavigate }) => {
 
   // Week navigation state
   const [weekStart, setWeekStart] = useState(() => getWeekStart(new Date()))
-  const [activeTab, setActiveTab] = useState('schedule')   // 'schedule' | 'payroll'
+  const [activeTab, setActiveTab] = useState('schedule')   // 'schedule' | 'payroll' | 'materials'
 
   // Modal state
   const [modalOpen, setModalOpen]     = useState(false)
