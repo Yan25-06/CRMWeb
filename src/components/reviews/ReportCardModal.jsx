@@ -10,11 +10,28 @@ const fmtDate = (dateStr) => {
   return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`
 }
 
+// '2026-06-05' -> '5/6'
+const fmtDayShort = (dateStr) => {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  return `${d.getDate()}/${d.getMonth() + 1}`
+}
+
 /**
  * Reusable card body — rendered inside ReportCardModal (for preview/single export)
  * and inside BulkExportModal (for bulk PNG export).
  */
-export const ReportCardContent = ({ student, cls, latestReview, settings = {}, dateRange, attendancePct, homeworkPct, generalComment }) => {
+export const ReportCardContent = ({ student, cls, latestReview, settings = {}, dateRange, attendancePct, homeworkPct, attendanceDetail, homeworkDetail, generalComment }) => {
+  // Ưu tiên detail; fallback về pct cũ nếu caller chưa truyền detail.
+  const attPct = attendanceDetail?.pct ?? attendancePct
+  const attPresent = attendanceDetail?.present
+  const attTotal = attendanceDetail?.total
+  const attAbsentDates = attendanceDetail?.absentDates ?? []
+  const hwPct = homeworkDetail?.pct ?? homeworkPct
+  const hwDone = homeworkDetail?.done
+  const hwTotal = homeworkDetail?.total
+  const hwMissing = homeworkDetail?.missing ?? []
+
   const hasReview = !!latestReview
   const tagSummary = hasReview ? buildTagSummary(latestReview?.tags ?? []) : ''
 
@@ -45,15 +62,31 @@ export const ReportCardContent = ({ student, cls, latestReview, settings = {}, d
       {hasReview ? (
         <div className="px-6 py-4 flex flex-col gap-4">
           {/* Attendance + homework stats */}
-          {(attendancePct != null || homeworkPct != null) && (
+          {(attPct != null || hwPct != null) && (
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-navy-50 rounded-xl px-4 py-3 text-center">
-                <p className="text-xs text-navy-500 mb-1">Chuyên cần</p>
-                <p className="text-xl font-bold text-navy-800">{attendancePct != null ? `${attendancePct}%` : '—'}</p>
+              <div className="bg-navy-50 rounded-xl px-4 py-3">
+                <p className="text-xs text-navy-500 mb-1 text-center">Chuyên cần</p>
+                <p className="text-2xl font-bold text-navy-800 text-center">{attPct != null ? `${attPct}%` : '—'}</p>
+                {attTotal != null && (
+                  <p className="text-xs text-navy-500 text-center mt-0.5">{attPresent}/{attTotal} buổi</p>
+                )}
+                {attAbsentDates.length > 0 && (
+                  <p className="text-xs text-red-600 mt-1.5 leading-snug">
+                    Vắng: {attAbsentDates.map(fmtDayShort).join(', ')}
+                  </p>
+                )}
               </div>
-              <div className="bg-navy-50 rounded-xl px-4 py-3 text-center">
-                <p className="text-xs text-navy-500 mb-1">Bài tập</p>
-                <p className="text-xl font-bold text-navy-800">{homeworkPct != null ? `${homeworkPct}%` : '—'}</p>
+              <div className="bg-navy-50 rounded-xl px-4 py-3">
+                <p className="text-xs text-navy-500 mb-1 text-center">Bài tập</p>
+                <p className="text-2xl font-bold text-navy-800 text-center">{hwPct != null ? `${hwPct}%` : '—'}</p>
+                {hwTotal != null && (
+                  <p className="text-xs text-navy-500 text-center mt-0.5">{hwDone}/{hwTotal} buổi</p>
+                )}
+                {hwMissing.length > 0 && (
+                  <p className="text-xs text-amber-600 mt-1.5 leading-snug">
+                    Chưa hoàn thành: {hwMissing.map(m => m.sessionTopic ? `${fmtDayShort(m.date)} (${m.sessionTopic})` : fmtDayShort(m.date)).join(', ')}
+                  </p>
+                )}
               </div>
             </div>
           )}
