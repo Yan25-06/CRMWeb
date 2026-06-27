@@ -106,14 +106,15 @@ export const ReportCardContent = ({ student, cls, latestReview, settings = {}, d
                     if (score == null) return null
                     const maxScore = latestReview?.scoreMax?.[skill.name] ?? 9
                     const pct = Math.round((score / maxScore) * 100)
+                    const barColor = pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-navy-600' : 'bg-amber-500'
                     return (
-                      <div key={skill.name} className="flex flex-col gap-1">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs text-navy-600">{skill.name}</span>
-                          <span className="text-sm font-bold text-navy-800">{score}/{maxScore}</span>
+                      <div key={skill.name} className="flex flex-col gap-1.5">
+                        <div className="flex justify-between items-baseline">
+                          <span className="text-sm font-medium text-navy-700">{skill.name}</span>
+                          <span className="text-base font-bold text-navy-900">{score}<span className="text-xs font-normal text-navy-400">/{maxScore}</span></span>
                         </div>
-                        <div className="h-1.5 bg-navy-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-navy-600 rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%` }} />
+                        <div className="h-2.5 bg-navy-100 rounded-full overflow-hidden">
+                          <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${Math.min(pct, 100)}%` }} />
                         </div>
                       </div>
                     )
@@ -164,10 +165,21 @@ export const ReportCardContent = ({ student, cls, latestReview, settings = {}, d
             </div>
           )}
 
-          {/* Footer */}
-          <div className="border-t border-navy-100 pt-3 flex justify-between text-xs text-navy-400">
-            <span>Ngày lập: {new Date().toLocaleDateString('vi-VN')}</span>
-            <span>Giáo viên: {latestReview.teacherName || settings.teacherName || '—'}</span>
+          {/* Footer: ngày lập + 2 ô ký tên */}
+          <div className="border-t border-navy-100 pt-3 flex flex-col gap-4">
+            <p className="text-xs text-navy-400">Ngày lập: {new Date().toLocaleDateString('vi-VN')}</p>
+            <div className="grid grid-cols-2 gap-6 pt-2">
+              <div className="text-center">
+                <p className="text-xs font-semibold text-navy-600">Giáo viên</p>
+                <p className="text-xs text-navy-400 italic mt-0.5">{latestReview.teacherName || settings.teacherName || ''}</p>
+                <div className="border-t border-dashed border-navy-200 mt-8" />
+              </div>
+              <div className="text-center">
+                <p className="text-xs font-semibold text-navy-600">Phụ huynh</p>
+                <p className="text-xs text-navy-400 italic mt-0.5">(Ký, ghi rõ họ tên)</p>
+                <div className="border-t border-dashed border-navy-200 mt-8" />
+              </div>
+            </div>
           </div>
         </div>
       ) : (
