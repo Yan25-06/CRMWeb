@@ -129,7 +129,7 @@ export function AdminPanelPage() {
 
   const handleEditSalary = (t) => {
     setEditingSalaryId(t.id)
-    setSalaryDraft(t.monthlySalary != null ? String(t.monthlySalary) : '')
+    setSalaryDraft(t.sessionRate != null ? String(t.sessionRate) : '')
   }
 
   const handleCancelSalary = () => {
@@ -141,8 +141,8 @@ export function AdminPanelPage() {
     const value = salaryDraft === '' ? null : Number(salaryDraft)
     setSavingSalaryId(t.id)
     try {
-      await teacherService.update(t.id, { monthlySalary: value })
-      toast.success('Đã lưu lương tháng')
+      await teacherService.update(t.id, { sessionRate: value })
+      toast.success('Đã lưu đơn giá/buổi')
       setEditingSalaryId(null)
       setSalaryDraft('')
       loadTeachers()
@@ -290,13 +290,13 @@ export function AdminPanelPage() {
                       )}
                     </button>
 
-                    {/* Lương tháng */}
+                    {/* Đơn giá/buổi */}
                     <div className="px-4 pb-3">
                       {editingSalaryId === t.id ? (
                         <div className="flex items-end gap-2">
                           <div className="flex-1 min-w-0">
                             <CurrencyInput
-                              label="Lương tháng"
+                              label="Đơn giá/buổi"
                               value={salaryDraft}
                               onChange={val => setSalaryDraft(val)}
                               className="text-xs py-1"
@@ -320,9 +320,9 @@ export function AdminPanelPage() {
                       ) : (
                         <div className="flex items-center justify-between">
                           <div>
-                            <p className="text-xs text-navy-500 mb-0.5">Lương tháng</p>
+                            <p className="text-xs text-navy-500 mb-0.5">Đơn giá/buổi</p>
                             <p className="text-sm font-medium text-navy-800">
-                              {t.monthlySalary != null ? fmtVND(t.monthlySalary) : <span className="text-navy-400 font-normal">Chưa đặt</span>}
+                              {t.sessionRate != null ? fmtVND(t.sessionRate) : <span className="text-navy-400 font-normal">Chưa đặt</span>}
                             </p>
                           </div>
                           <button
