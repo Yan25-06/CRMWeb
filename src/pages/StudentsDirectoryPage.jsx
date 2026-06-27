@@ -211,7 +211,6 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
 
   const [statusTab, setStatusTab] = useState('all')
   const [classFilter, setClassFilter] = useState('')
-  const [courseTypeFilter, setCourseTypeFilter] = useState('')
   const [search, setSearch] = useState('')
   const debouncedSearch = useDebounce(search, 300)
 
@@ -260,12 +259,6 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
     return map
   }, [enrollments])
 
-  // Course types from classes
-  const courseTypes = useMemo(() => {
-    const types = [...new Set(classes.map(c => c.courseType).filter(Boolean))]
-    return types
-  }, [classes])
-
   // Filtered students
   const filteredStudents = useMemo(() => {
     let list = students
@@ -289,17 +282,8 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
       )
     }
 
-    if (courseTypeFilter) {
-      list = list.filter(s =>
-        (enrollmentsByStudent[s.id] || []).some(e => {
-          const cls = classMap[e.classId]
-          return cls?.courseType === courseTypeFilter
-        })
-      )
-    }
-
     return list
-  }, [students, debouncedSearch, statusTab, classFilter, courseTypeFilter, enrollmentsByStudent, classMap])
+  }, [students, debouncedSearch, statusTab, classFilter, enrollmentsByStudent])
 
   // Bulk select
   const allSelected = filteredStudents.length > 0 && filteredStudents.every(s => selectedIds.has(s.id))
@@ -439,10 +423,10 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
           ))}
         </div>
 
-        {/* Filter + action bar */}
-        <div className="flex flex-wrap gap-2 items-center">
-          {/* Search */}
-          <div className="relative flex-1 min-w-48">
+        {/* Filter bar */}
+        <div className="flex gap-2 items-center">
+          {/* Search — 2 phần */}
+          <div className="relative basis-2/3">
             <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-navy-400" />
             <input
               value={search}
@@ -452,31 +436,15 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
             />
           </div>
 
-          {/* Class filter */}
+          {/* Class filter — 1 phần */}
           <select
             value={classFilter}
             onChange={e => setClassFilter(e.target.value)}
-            className="select py-2 text-sm min-w-36"
+            className="select py-2 text-sm basis-1/3"
           >
             <option value="">Tất cả lớp</option>
             {classes.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
           </select>
-
-          {/* Course type pills */}
-          {courseTypes.map(type => (
-            <button
-              key={type}
-              onClick={() => setCourseTypeFilter(prev => prev === type ? '' : type)}
-              className={clsx(
-                'px-2.5 py-1 rounded-full text-xs font-medium border transition-all whitespace-nowrap',
-                courseTypeFilter === type
-                  ? 'bg-navy-800 text-white border-navy-800'
-                  : 'bg-white text-navy-500 border-navy-200 hover:border-navy-400 hover:text-navy-700'
-              )}
-            >
-              {type}
-            </button>
-          ))}
         </div>
 
         {/* Action bar */}
