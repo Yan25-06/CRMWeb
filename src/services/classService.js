@@ -69,7 +69,7 @@ export const teacherService = {
   async getAll() {
     const { data, error } = await supabase
       .from('teachers')
-      .select('id, name, email, is_admin, monthly_salary')
+      .select('id, name, email, is_admin, session_rate')
       .order('name')
     if (error) throw new Error(error.message)
     return (data ?? []).map(t => ({
@@ -77,14 +77,14 @@ export const teacherService = {
       name: t.name,
       email: t.email,
       is_admin: t.is_admin,
-      monthlySalary: t.monthly_salary ?? null,
+      sessionRate: t.session_rate ?? null,
     }))
   },
 
-  async update(id, { name, monthlySalary }) {
+  async update(id, { name, sessionRate }) {
     const payload = {}
     if (name !== undefined) payload.name = name
-    if (monthlySalary !== undefined) payload.monthly_salary = monthlySalary
+    if (sessionRate !== undefined) payload.session_rate = sessionRate
     const { error } = await supabase
       .from('teachers')
       .update(payload)
