@@ -78,6 +78,7 @@ DELETE FROM public.settings
 --                 → schedule, enrollments, hw_assignments → submissions
 --                 → reviews, session_reviews, general_comments
 --                 → mock_tests → mock_test_results
+--                 → class_materials (ON DELETE CASCADE)
 DELETE FROM public.classes
   WHERE teacher_id IN (SELECT t1 FROM _seed_teachers
                        UNION SELECT t2 FROM _seed_teachers
@@ -1059,6 +1060,41 @@ VALUES
    740, 'Tiến bộ tốt');
 
 -- ====================================================
+-- BƯỚC 17b: Tài liệu giảng dạy (class_materials)
+-- ====================================================
+-- UUID prefix: c0000000-0000-0000-0000-0000000000NN
+INSERT INTO public.class_materials
+  (id, class_id, title, url, type, created_by)
+VALUES
+  ('c0000000-0000-0000-0000-000000000001',
+   '02000000-0000-0000-0000-000000000001',
+   'Slide Unit 5 - Present Perfect',
+   'https://drive.google.com/file/d/mock-slide-u5',
+   'slide',
+   (SELECT t1 FROM _seed_teachers)),
+
+  ('c0000000-0000-0000-0000-000000000002',
+   '02000000-0000-0000-0000-000000000001',
+   'Handout Grammar Unit 5',
+   'https://docs.google.com/document/d/mock-handout-u5',
+   'handout',
+   (SELECT t1 FROM _seed_teachers)),
+
+  ('c0000000-0000-0000-0000-000000000003',
+   '02000000-0000-0000-0000-000000000002',
+   'Listening Practice IELTS 6.5',
+   'https://www.youtube.com/watch?v=mock-listening',
+   'listening',
+   (SELECT t1 FROM _seed_teachers)),
+
+  ('c0000000-0000-0000-0000-000000000004',
+   '02000000-0000-0000-0000-000000000002',
+   'Speaking Part 2 Cue Cards',
+   'https://drive.google.com/file/d/mock-speaking',
+   'speaking',
+   (SELECT t1 FROM _seed_teachers));
+
+-- ====================================================
 -- BƯỚC 18 : Verification — đếm row đã seed
 -- ====================================================
 SELECT 'settings'         AS bảng, count(*) AS rows FROM public.settings         WHERE teacher_id IN (SELECT t1 FROM _seed_teachers UNION SELECT t2 FROM _seed_teachers UNION SELECT ta FROM _seed_teachers)
@@ -1096,6 +1132,8 @@ UNION ALL
 SELECT 'mock_tests',             count(*) FROM public.mock_tests       WHERE class_id   IN (SELECT id FROM public.classes  WHERE teacher_id IN (SELECT t1 FROM _seed_teachers UNION SELECT t2 FROM _seed_teachers UNION SELECT ta FROM _seed_teachers))
 UNION ALL
 SELECT 'mock_test_results',      count(*) FROM public.mock_test_results WHERE student_id IN (SELECT id FROM public.students WHERE teacher_id IN (SELECT t1 FROM _seed_teachers UNION SELECT t2 FROM _seed_teachers UNION SELECT ta FROM _seed_teachers))
+UNION ALL
+SELECT 'class_materials',        count(*) FROM public.class_materials  WHERE class_id   IN (SELECT id FROM public.classes  WHERE teacher_id IN (SELECT t1 FROM _seed_teachers UNION SELECT t2 FROM _seed_teachers UNION SELECT ta FROM _seed_teachers))
 ORDER BY 1;
 
 -- Kết quả mong đợi (lần đầu và lần re-run phải như nhau — idempotent):
@@ -1115,5 +1153,6 @@ ORDER BY 1;
 --   reviews          8
 --   session_reviews  3
 --   general_comments 3
+--   class_materials  4
 --   mock_tests       4
 --   mock_test_results 8
