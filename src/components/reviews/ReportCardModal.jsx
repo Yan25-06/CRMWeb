@@ -10,11 +10,28 @@ const fmtDate = (dateStr) => {
   return `${d.getDate()}/${d.getMonth() + 1}/${d.getFullYear()}`
 }
 
+// '2026-06-05' -> '5/6'
+const fmtDayShort = (dateStr) => {
+  if (!dateStr) return ''
+  const d = new Date(dateStr)
+  return `${d.getDate()}/${d.getMonth() + 1}`
+}
+
 /**
  * Reusable card body — rendered inside ReportCardModal (for preview/single export)
  * and inside BulkExportModal (for bulk PNG export).
  */
-export const ReportCardContent = ({ student, cls, latestReview, settings = {}, dateRange, attendancePct, homeworkPct, generalComment }) => {
+export const ReportCardContent = ({ student, cls, latestReview, settings = {}, dateRange, attendancePct, homeworkPct, attendanceDetail, homeworkDetail, generalComment }) => {
+  // Ưu tiên detail; fallback về pct cũ nếu caller chưa truyền detail.
+  const attPct = attendanceDetail?.pct ?? attendancePct
+  const attPresent = attendanceDetail?.present
+  const attTotal = attendanceDetail?.total
+  const attAbsentDates = attendanceDetail?.absentDates ?? []
+  const hwPct = homeworkDetail?.pct ?? homeworkPct
+  const hwDone = homeworkDetail?.done
+  const hwTotal = homeworkDetail?.total
+  const hwMissing = homeworkDetail?.missing ?? []
+
   const hasReview = !!latestReview
   const tagSummary = hasReview ? buildTagSummary(latestReview?.tags ?? []) : ''
 
@@ -45,15 +62,31 @@ export const ReportCardContent = ({ student, cls, latestReview, settings = {}, d
       {hasReview ? (
         <div className="px-6 py-4 flex flex-col gap-4">
           {/* Attendance + homework stats */}
-          {(attendancePct != null || homeworkPct != null) && (
+          {(attPct != null || hwPct != null) && (
             <div className="grid grid-cols-2 gap-3">
-              <div className="bg-navy-50 rounded-xl px-4 py-3 text-center">
-                <p className="text-xs text-navy-500 mb-1">Chuyên cần</p>
-                <p className="text-xl font-bold text-navy-800">{attendancePct != null ? `${attendancePct}%` : '—'}</p>
+              <div className="bg-navy-50 rounded-xl px-4 py-3">
+                <p className="text-xs text-navy-500 mb-1 text-center">Chuyên cần</p>
+                <p className="text-2xl font-bold text-navy-800 text-center">{attPct != null ? `${attPct}%` : '—'}</p>
+                {attTotal != null && (
+                  <p className="text-xs text-navy-500 text-center mt-0.5">{attPresent}/{attTotal} buổi</p>
+                )}
+                {attAbsentDates.length > 0 && (
+                  <p className="text-xs text-red-600 mt-1.5 leading-snug">
+                    Vắng: {attAbsentDates.map(fmtDayShort).join(', ')}
+                  </p>
+                )}
               </div>
-              <div className="bg-navy-50 rounded-xl px-4 py-3 text-center">
-                <p className="text-xs text-navy-500 mb-1">Bài tập</p>
-                <p className="text-xl font-bold text-navy-800">{homeworkPct != null ? `${homeworkPct}%` : '—'}</p>
+              <div className="bg-navy-50 rounded-xl px-4 py-3">
+                <p className="text-xs text-navy-500 mb-1 text-center">Bài tập</p>
+                <p className="text-2xl font-bold text-navy-800 text-center">{hwPct != null ? `${hwPct}%` : '—'}</p>
+                {hwTotal != null && (
+                  <p className="text-xs text-navy-500 text-center mt-0.5">{hwDone}/{hwTotal} buổi</p>
+                )}
+                {hwMissing.length > 0 && (
+                  <p className="text-xs text-amber-600 mt-1.5 leading-snug">
+                    Chưa hoàn thành: {hwMissing.map(m => m.sessionTopic ? `${fmtDayShort(m.date)} (${m.sessionTopic})` : fmtDayShort(m.date)).join(', ')}
+                  </p>
+                )}
               </div>
             </div>
           )}
@@ -73,14 +106,15 @@ export const ReportCardContent = ({ student, cls, latestReview, settings = {}, d
                     if (score == null) return null
                     const maxScore = latestReview?.scoreMax?.[skill.name] ?? 9
                     const pct = Math.round((score / maxScore) * 100)
+                    const barColor = pct >= 80 ? 'bg-emerald-500' : pct >= 50 ? 'bg-navy-600' : 'bg-amber-500'
                     return (
-                      <div key={skill.name} className="flex flex-col gap-1">
-                        <div className="flex justify-between items-center">
-                          <span className="text-xs text-navy-600">{skill.name}</span>
-                          <span className="text-sm font-bold text-navy-800">{score}/{maxScore}</span>
+                      <div key={skill.name} className="flex flex-col gap-1.5">
+                        <div className="flex justify-between items-baseline">
+                          <span className="text-sm font-medium text-navy-700">{skill.name}</span>
+                          <span className="text-base font-bold text-navy-900">{score}<span className="text-xs font-normal text-navy-400">/{maxScore}</span></span>
                         </div>
-                        <div className="h-1.5 bg-navy-100 rounded-full overflow-hidden">
-                          <div className="h-full bg-navy-600 rounded-full transition-all" style={{ width: `${Math.min(pct, 100)}%` }} />
+                        <div className="h-2.5 bg-navy-100 rounded-full overflow-hidden">
+                          <div className={`h-full ${barColor} rounded-full transition-all`} style={{ width: `${Math.min(pct, 100)}%` }} />
                         </div>
                       </div>
                     )
@@ -111,7 +145,7 @@ export const ReportCardContent = ({ student, cls, latestReview, settings = {}, d
           {latestReview.remark && (
             <div>
               <p className="text-xs font-bold text-navy-600 uppercase tracking-wide mb-1">Ghi Chú</p>
-              <p className="text-sm text-navy-700">{latestReview.remark}</p>
+              <p className="text-sm text-navy-700 whitespace-pre-wrap">{latestReview.remark}</p>
             </div>
           )}
 
@@ -119,7 +153,7 @@ export const ReportCardContent = ({ student, cls, latestReview, settings = {}, d
           {latestReview.advice && (
             <div className="bg-navy-50 border border-navy-200 rounded-xl px-4 py-3">
               <p className="text-xs font-bold text-navy-600 uppercase tracking-wide mb-1">💡 Lời Khuyên</p>
-              <p className="text-sm text-navy-700">{latestReview.advice}</p>
+              <p className="text-sm text-navy-700 whitespace-pre-wrap">{latestReview.advice}</p>
             </div>
           )}
 
@@ -127,14 +161,25 @@ export const ReportCardContent = ({ student, cls, latestReview, settings = {}, d
           {generalComment?.text && (
             <div className="border border-blue-200 rounded-xl px-4 py-3 bg-blue-50">
               <p className="text-xs font-bold text-blue-700 uppercase tracking-wide mb-1">Nhận Xét Tổng Kết</p>
-              <p className="text-sm text-navy-700">{generalComment.text}</p>
+              <p className="text-sm text-navy-700 whitespace-pre-wrap">{generalComment.text}</p>
             </div>
           )}
 
-          {/* Footer */}
-          <div className="border-t border-navy-100 pt-3 flex justify-between text-xs text-navy-400">
-            <span>Ngày lập: {new Date().toLocaleDateString('vi-VN')}</span>
-            <span>Giáo viên: {latestReview.teacherName || settings.teacherName || '—'}</span>
+          {/* Footer: ngày lập + 2 ô ký tên */}
+          <div className="border-t border-navy-100 pt-3 flex flex-col gap-4">
+            <p className="text-xs text-navy-400">Ngày lập: {new Date().toLocaleDateString('vi-VN')}</p>
+            <div className="grid grid-cols-2 gap-6 pt-2">
+              <div className="text-center">
+                <p className="text-xs font-semibold text-navy-600">Giáo viên</p>
+                <p className="text-xs text-navy-400 italic mt-0.5">{latestReview.teacherName || settings.teacherName || ''}</p>
+                <div className="border-t border-dashed border-navy-200 mt-8" />
+              </div>
+              <div className="text-center">
+                <p className="text-xs font-semibold text-navy-600">Phụ huynh</p>
+                <p className="text-xs text-navy-400 italic mt-0.5">(Ký, ghi rõ họ tên)</p>
+                <div className="border-t border-dashed border-navy-200 mt-8" />
+              </div>
+            </div>
           </div>
         </div>
       ) : (
@@ -146,7 +191,7 @@ export const ReportCardContent = ({ student, cls, latestReview, settings = {}, d
   )
 }
 
-export const ReportCardModal = ({ open, onClose, student, cls, latestReview, settings = {}, dateRange, attendancePct, homeworkPct, generalComment }) => {
+export const ReportCardModal = ({ open, onClose, student, cls, latestReview, settings = {}, dateRange, attendanceDetail, homeworkDetail, generalComment }) => {
   const cardRef  = useRef(null)
   const [loading, setLoading] = useState(null) // 'png' | 'pdf' | null
 
@@ -207,8 +252,8 @@ export const ReportCardModal = ({ open, onClose, student, cls, latestReview, set
               latestReview={latestReview}
               settings={settings}
               dateRange={dateRange}
-              attendancePct={attendancePct}
-              homeworkPct={homeworkPct}
+              attendanceDetail={attendanceDetail}
+              homeworkDetail={homeworkDetail}
               generalComment={generalComment}
             />
           </div>

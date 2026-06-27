@@ -133,7 +133,7 @@ export const attendanceService = {
   async getRateByRange(studentId, classId, fromDate, toDate) {
     const { data: sessions, error: sessErr } = await supabase
       .from('sessions')
-      .select('id')
+      .select('id, date')
       .eq('class_id', classId)
       .gte('date', fromDate)
       .lte('date', toDate)
@@ -141,14 +141,20 @@ export const attendanceService = {
     const total = (sessions ?? []).length
     if (total === 0) return null
     const sessionIds = sessions.map(s => s.id)
+    const dateById = new Map(sessions.map(s => [s.id, s.date]))
     const { data, error } = await supabase
       .from('attendance')
-      .select('present')
+      .select('session_id, present')
       .eq('student_id', studentId)
       .in('session_id', sessionIds)
     if (error) throw new Error(error.message)
-    const absent = (data ?? []).filter(r => r.present === false).length
+    const absentRows = (data ?? []).filter(r => r.present === false)
+    const absentDates = absentRows
+      .map(r => dateById.get(r.session_id))
+      .filter(Boolean)
+      .sort((a, b) => a.localeCompare(b))
+    const absent = absentRows.length
     const present = total - absent
-    return { present, total, pct: Math.round((present / total) * 1000) / 10 }
+    return { present, total, pct: Math.round((present / total) * 1000) / 10, absentDates }
   },
 }

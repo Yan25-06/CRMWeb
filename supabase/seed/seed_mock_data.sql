@@ -92,18 +92,18 @@ DELETE FROM public.students
                        UNION SELECT ta FROM _seed_teachers);
 
 -- ====================================================
--- BƯỚC 1b : Lương giáo viên (monthly_salary mock)
+-- BƯỚC 1b : Lương giáo viên (session_rate mock)
 -- ====================================================
 UPDATE public.teachers
-  SET monthly_salary = 10000000
+  SET session_rate = 250000
   WHERE id = (SELECT t1 FROM _seed_teachers);
 
 UPDATE public.teachers
-  SET monthly_salary = 12000000
+  SET session_rate = 300000
   WHERE id = (SELECT t2 FROM _seed_teachers);
 
 UPDATE public.teachers
-  SET monthly_salary = 15000000
+  SET session_rate = 375000
   WHERE id = (SELECT ta FROM _seed_teachers);
 
 -- ====================================================

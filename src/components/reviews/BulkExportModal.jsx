@@ -19,19 +19,31 @@ const loadStudentData = async (student, cls, dateRange) => {
   const reviewsInRange = reviews.filter(r => r.date >= dateRange.fromDate && r.date <= dateRange.toDate)
   const latestReview = reviewsInRange[0] ?? null
 
-  const attendancePct = attRate?.pct ?? null
+  const attendanceDetail = attRate
+    ? { pct: attRate.pct, present: attRate.present, total: attRate.total, absentDates: attRate.absentDates ?? [] }
+    : null
 
-  let homeworkPct = null
+  let homeworkDetail = null
   if (hwRecs.length) {
     let done = 0, inProg = 0
+    const missing = []
     hwRecs.forEach(r => {
       if (r.progress === 'done' || r.progress === 100) done++
-      else if (r.progress === 'in_progress' || r.progress === 50) inProg++
+      else {
+        if (r.progress === 'in_progress' || r.progress === 50) inProg++
+        missing.push({ date: r.date, sessionTopic: r.sessionTopic })
+      }
     })
-    homeworkPct = Math.round((done * 100 + inProg * 50) / hwRecs.length)
+    missing.sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+    homeworkDetail = {
+      pct: Math.round((done * 100 + inProg * 50) / hwRecs.length),
+      done,
+      total: hwRecs.length,
+      missing,
+    }
   }
 
-  return { student, latestReview, attendancePct, homeworkPct, generalComment: comment }
+  return { student, latestReview, attendanceDetail, homeworkDetail, generalComment: comment }
 }
 
 /**
@@ -149,8 +161,8 @@ export const BulkExportModal = ({ open, onClose, students = [], cls, settings = 
               latestReview={currentData.latestReview}
               settings={settings}
               dateRange={dateRange}
-              attendancePct={currentData.attendancePct}
-              homeworkPct={currentData.homeworkPct}
+              attendanceDetail={currentData.attendanceDetail}
+              homeworkDetail={currentData.homeworkDetail}
               generalComment={currentData.generalComment}
             />
           </div>

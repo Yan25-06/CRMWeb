@@ -255,27 +255,39 @@ export const ReviewsPage = ({ settings = {} }) => {
 
   const latestReview = enrichedReviews[0] ?? null
 
-  const [attendancePct, setAttendancePct] = useState(null)
-  const [homeworkPct,   setHomeworkPct]   = useState(null)
+  const [attendanceDetail, setAttendanceDetail] = useState(null)
+  const [homeworkDetail,   setHomeworkDetail]   = useState(null)
 
   useEffect(() => {
-    if (!selectedStudentId || !selectedClassId) { setAttendancePct(null); setHomeworkPct(null); return }
+    if (!selectedStudentId || !selectedClassId) { setAttendanceDetail(null); setHomeworkDetail(null); return }
     Promise.all([
       attendanceService.getRateByRange(selectedStudentId, selectedClassId, dateRange.fromDate, dateRange.toDate),
       homeworkService.getByRange(selectedStudentId, selectedClassId, dateRange.fromDate, dateRange.toDate),
     ]).then(([attRate, hwRecs]) => {
-      setAttendancePct(attRate?.pct ?? null)
+      setAttendanceDetail(attRate
+        ? { pct: attRate.pct, present: attRate.present, total: attRate.total, absentDates: attRate.absentDates ?? [] }
+        : null)
       if (hwRecs.length) {
         let done = 0, inProg = 0
+        const missing = []
         hwRecs.forEach(r => {
           if (r.progress === 'done' || r.progress === 100) done++
-          else if (r.progress === 'in_progress' || r.progress === 50) inProg++
+          else {
+            if (r.progress === 'in_progress' || r.progress === 50) inProg++
+            missing.push({ date: r.date, sessionTopic: r.sessionTopic })
+          }
         })
-        setHomeworkPct(Math.round((done * 100 + inProg * 50) / hwRecs.length))
+        missing.sort((a, b) => (a.date || '').localeCompare(b.date || ''))
+        setHomeworkDetail({
+          pct: Math.round((done * 100 + inProg * 50) / hwRecs.length),
+          done,
+          total: hwRecs.length,
+          missing,
+        })
       } else {
-        setHomeworkPct(null)
+        setHomeworkDetail(null)
       }
-    }).catch(() => { setAttendancePct(null); setHomeworkPct(null) })
+    }).catch(() => { setAttendanceDetail(null); setHomeworkDetail(null) })
   }, [selectedStudentId, selectedClassId, dateRange.fromDate, dateRange.toDate])
 
   const handleSaveReview = async (data) => {
@@ -529,8 +541,8 @@ export const ReviewsPage = ({ settings = {} }) => {
         latestReview={latestReview}
         settings={{ ...settings, teacherName: teacher?.name }}
         dateRange={dateRange}
-        attendancePct={attendancePct}
-        homeworkPct={homeworkPct}
+        attendanceDetail={attendanceDetail}
+        homeworkDetail={homeworkDetail}
         generalComment={generalComment}
       />
 
