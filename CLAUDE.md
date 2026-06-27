@@ -90,14 +90,14 @@ Services đã có: `studentService`, `classService` (+`teacherService`), `enroll
 - **Trang "Giảng Dạy" (SchedulePage) — 2 tab:**
   - **Tab "Lịch Dạy"**: lưới `WeeklyGrid` + chấm công + dropdown dạy thay + `SubstituteAssignments` (nếu có buổi dạy thay chưa xác nhận).
   - **Tab "Bảng Lương"** (`PayrollTab.jsx`): bảng tính lương theo tháng. Admin xem tất cả giáo viên; giáo viên thường xem của mình. Có bộ chọn tháng/năm + export Excel (lazy-load `xlsx`). Cột: Lịch dạy, Đã dạy, Vắng, **Chưa XN**, Dạy thay, Lương.
-- **Mô hình lương giáo viên** (migration `20260622000001_add_teacher_salary_and_substitute.sql`):
-  - `teachers.monthly_salary` (numeric, nullable): lương tháng cố định — **chỉ admin set** (trigger DB bảo vệ, giáo viên thường không tự sửa được).
-  - Đơn giá buổi = `monthly_salary / số buổi theo lịch trong tháng` (dùng hàm `countWeekdayOccurrences` từ `src/utils/payroll.js`).
-  - Lương thực nhận = `đơn giá × (số buổi đã dạy + số buổi dạy thay đã xác nhận)`. `taught = count(status='present')` (opt-in, không tính scheduled-absent). `subs = count(substitute_confirmed=true)`. `pending = scheduled - taught - absent` (cột "Chưa XN" ở PayrollTab).
-  - Logic thuần (không side-effect) tập trung tại `src/utils/payroll.js` (`countWeekdayOccurrences`, `buildPayrollRows`); UI tại `src/components/schedule/PayrollTab.jsx`.
+- **Mô hình lương giáo viên** (migration `20260627000001_add_teacher_session_rate.sql`):
+  - `teachers.session_rate` (numeric, nullable): đơn giá mỗi buổi dạy — **chỉ admin set** (trigger DB bảo vệ cả `session_rate` lẫn `monthly_salary`, giáo viên thường không tự sửa được).
+  - `monthly_salary` vẫn còn cột trong DB nhưng là orphan — app ngừng đọc/ghi, không migration drop.
+  - Lương thực nhận = `session_rate × (số buổi đã dạy + số buổi dạy thay đã xác nhận)`. `taught = count(status='present')` (opt-in, không tính scheduled-absent). `subs = count(substitute_confirmed=true)`. `pending = scheduled - taught - absent` (cột "Chưa XN" ở PayrollTab, chỉ để tham khảo — không dùng để chia lương).
+  - Logic thuần (không side-effect) tập trung tại `src/utils/payroll.js` (`buildPayrollRows`); UI tại `src/components/schedule/PayrollTab.jsx`.
 - **Dạy thay** (`substitute_teacher_id`): cột `teacher_attendance.substitute_teacher_id` (uuid FK → `teachers.id`). Khi giáo viên vắng, admin chọn người dạy thay qua dropdown trên ScheduleCard → công buổi đó tính cho người dạy thay (theo đơn giá của chính họ); người vắng mất công buổi đó. Policy SELECT `teacher_attendance` mở rộng thêm điều kiện `substitute_teacher_id = auth.uid()` để giáo viên dạy thay đọc được record của mình. `substitute_confirmed` (boolean): GV dạy thay tự xác nhận đã dạy qua `SubstituteAssignments.jsx`; lương dạy thay **chỉ tính khi `substitute_confirmed = true`**. Migration `20260625000001`.
 - **Service & hook cập nhật:**
-  - `teacherService.update` nhận `{ name, monthlySalary }`; `getAll` trả thêm field `monthlySalary`.
+  - `teacherService.update` nhận `{ name, sessionRate }`; `getAll` trả thêm field `sessionRate`.
   - `teacherAttendanceService` thêm mapping `substituteTeacherId`, `substituteConfirmed` trong `fromDB/toDB` + method `getByMonth(year, month)`, `getSubstituteAssignments(dateFrom, dateTo)`, `confirmSubstitute(scheduleId, date)`.
   - `usePermissions` thêm cờ `canCheckOwnAttendance: true` (mọi GV), `canViewAllPayroll: isAdmin`. Đã bỏ cờ `canCheckTeacherAttendance` cũ.
   - `fmtDayList(days)` trong `src/utils/helpers.js`: mảng thứ JS → chuỗi "T2, T4, T6".
