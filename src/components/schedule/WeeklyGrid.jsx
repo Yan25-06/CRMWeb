@@ -39,7 +39,14 @@ export const WeeklyGrid = ({ scheduleItems = [], classes = [], studentCounts = n
     <>
       {/* Desktop: 7-column grid */}
       <div className="hidden md:grid grid-cols-7 gap-2">
-        {DAY_ORDER.map((day) => (
+        {DAY_ORDER.map((day) => {
+          const date = dateForDay(weekStart, day)
+          const items = byDay[day].filter(item => {
+            if (!date) return true
+            const cls = getClass(item.classId)
+            return !cls?.startDate || date >= cls.startDate
+          })
+          return (
           <div key={day} className="flex flex-col gap-2 min-w-0">
             {/* Column header */}
             <div className="flex items-center justify-between px-1">
@@ -63,14 +70,12 @@ export const WeeklyGrid = ({ scheduleItems = [], classes = [], studentCounts = n
 
             {/* Cards */}
             <div className="flex flex-col gap-1.5">
-              {byDay[day].length === 0 ? (
+              {items.length === 0 ? (
                 <div className="h-16 rounded-xl border-2 border-dashed border-navy-100 flex items-center justify-center">
                   <span className="text-navy-200 text-xs">Trống</span>
                 </div>
               ) : (
-                byDay[day].map(item => {
-                  const date = dateForDay(weekStart, day)
-                  return (
+                items.map(item => (
                     <ScheduleCard
                       key={item.id}
                       item={item}
@@ -85,18 +90,24 @@ export const WeeklyGrid = ({ scheduleItems = [], classes = [], studentCounts = n
                       teachers={teachers}
                       onSetSubstitute={(it, teacherId) => onSetSubstitute?.(it, date, teacherId)}
                     />
-                  )
-                })
+                ))
               )}
             </div>
           </div>
-        ))}
+          )
+        })}
       </div>
 
       {/* Mobile: stacked daily list */}
       <div className="md:hidden flex flex-col gap-4">
         {DAY_ORDER.map((day) => {
-          if (byDay[day].length === 0) return null
+          const date = dateForDay(weekStart, day)
+          const items = byDay[day].filter(item => {
+            if (!date) return true
+            const cls = getClass(item.classId)
+            return !cls?.startDate || date >= cls.startDate
+          })
+          if (items.length === 0) return null
           return (
             <div key={day} className="flex flex-col gap-2">
               <div className="flex items-center gap-2">
@@ -111,9 +122,7 @@ export const WeeklyGrid = ({ scheduleItems = [], classes = [], studentCounts = n
                 )}
               </div>
               <div className="flex flex-col gap-2 pl-2">
-                {byDay[day].map(item => {
-                  const date = dateForDay(weekStart, day)
-                  return (
+                {items.map(item => (
                     <ScheduleCard
                       key={item.id}
                       item={item}
@@ -128,8 +137,7 @@ export const WeeklyGrid = ({ scheduleItems = [], classes = [], studentCounts = n
                       teachers={teachers}
                       onSetSubstitute={(it, teacherId) => onSetSubstitute?.(it, date, teacherId)}
                     />
-                  )
-                })}
+                ))}
               </div>
             </div>
           )

@@ -211,8 +211,8 @@ export function AdminPanelPage() {
         />
       </div>
 
-      {/* Two-column layout: Teachers | Classes */}
-      <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 items-start">
+      {/* Two-column layout: Teachers (2/3) | Classes (1/3) */}
+      <div className="grid grid-cols-1 lg:grid-cols-[2fr_1fr] gap-6 items-start">
 
         {/* Left: Teachers */}
         <div className="space-y-3">
@@ -245,6 +245,7 @@ export function AdminPanelPage() {
                 </span>
               </button>
 
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
               {teachers.map(t => {
                 const count = classCountByTeacher[t.id] || 0
                 const isSelected = selectedTeacherId === t.id
@@ -405,6 +406,7 @@ export function AdminPanelPage() {
                   </div>
                 )
               })}
+              </div>
             </>
           )}
         </div>
