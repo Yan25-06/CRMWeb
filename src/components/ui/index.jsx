@@ -80,6 +80,13 @@ export const Modal = ({ open, onClose, title, children, footer }) => {
   const titleId = useId()
   const mounted = useMountTransition(open, 240)
 
+  // Đóng băng nội dung được render lần cuối khi open=true, để trong ~240ms
+  // cửa sổ thoát (open=false nhưng mounted=true) modal không hiển thị
+  // children/title/footer mới bị caller null hóa cùng lúc với việc đóng.
+  const lastContentRef = useRef({ children, title, footer })
+  if (open) lastContentRef.current = { children, title, footer }
+  const content = open ? { children, title, footer } : lastContentRef.current
+
   useEffect(() => {
     if (!open) return
 
@@ -127,13 +134,13 @@ export const Modal = ({ open, onClose, title, children, footer }) => {
         aria-labelledby={titleId}
       >
         <div className="modal-header flex items-center justify-between">
-          <h2 id={titleId} className="text-base font-semibold text-navy-900">{title}</h2>
+          <h2 id={titleId} className="text-base font-semibold text-navy-900">{content.title}</h2>
           <button onClick={onClose} aria-label="Đóng" className="btn-ghost btn-sm rounded-lg p-1.5">
             <X size={16} />
           </button>
         </div>
-        <div className="modal-body">{children}</div>
-        {footer && <div className="modal-footer">{footer}</div>}
+        <div className="modal-body">{content.children}</div>
+        {content.footer && <div className="modal-footer">{content.footer}</div>}
       </div>
     </div>
   )

@@ -120,7 +120,7 @@
   }
   /* Phản hồi khi nhấn cho control không dùng .btn (chip lọc, tab, mục nav). */
   .pressable {
-    @apply transition-transform duration-fast active:scale-[0.97];
+    @apply transition-[color,background-color,border-color,transform] duration-fast active:scale-[0.97];
   }
   .card-flat {
     @apply bg-white rounded-2xl border border-navy-100;

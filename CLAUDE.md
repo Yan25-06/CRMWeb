@@ -148,8 +148,10 @@ src/
 - **Nhãn form:** kiểu chuẩn là `text-sm font-medium text-navy-700` (KHÔNG uppercase — khó đọc tiếng Việt có dấu). `Input`/`Select` đã theo kiểu này; form viết tay cũng vậy. `uppercase tracking-wide` chỉ dùng cho tiêu đề mục / header bảng, không cho nhãn field.
 - **A11y:** `Modal` đóng bằng Esc, khóa scroll nền, focus-trap, có `role="dialog"`/`aria-modal`. `Toast` hỗ trợ nhiều thông báo xếp chồng, có `role="alert"` + `aria-live`; gọi qua API `toast.success/error/info`.
 - **Chuyển động:** ba mức thời lượng, không hơn — `duration-fast` (120ms) cho màu/nền/viền,
-  `duration-base` (180ms) cho dịch chuyển/bóng, `duration-slow` (240ms) cho chuyển cảnh
-  trang/modal. Đường cong: `ease-out-soft` khi vào, `ease-in-soft` khi ra. Mức tinh tế —
+  `duration-base` (180ms) cho dịch chuyển/bóng, `duration-slow` (240ms) chỉ dùng cho **animation thoát** của
+  Modal (`animate-slide-down-out`/`animate-fade-out`) — chuyển tab/trang và animation **vào** của Modal vẫn
+  dùng animation có sẵn từ trước `animate-fade-in`(300ms)/`animate-slide-up`(350ms), chưa nằm trong phạm vi
+  chuẩn hóa này. Đường cong: `ease-out-soft` khi vào, `ease-in-soft` khi ra. Mức tinh tế —
   dịch chuyển tối đa 4px; đây là app nhập liệu dùng hàng ngày, chuyển động rõ rệt thành ma
   sát lặp lại.
 - **`prefers-reduced-motion` là bắt buộc.** `index.css` có khối tắt animation toàn cục. Mọi

@@ -341,7 +341,7 @@ export const SchedulePage = ({ onNavigate }) => {
         </button>
       </div>
 
-      <div key={activeTab} className="animate-fade-in">
+      <div key={activeTab} className="flex flex-col gap-6 animate-fade-in">
       {activeTab === 'schedule' && (
         <>
           {/* ── Week navigation + Teacher filter ─────────── */}
