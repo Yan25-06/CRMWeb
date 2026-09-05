@@ -214,11 +214,11 @@
   /* ─── Modal ─── */
   .modal-overlay {
     @apply fixed inset-0 bg-navy-950/40 backdrop-blur-sm z-50
-           flex items-center justify-center p-4 animate-fade-in;
+           flex items-center justify-center p-4;
   }
   .modal-box {
     @apply bg-white rounded-3xl shadow-navy-xl w-full max-w-lg
-           animate-slide-up overflow-hidden
+           overflow-hidden
            flex flex-col max-h-[90vh];
   }
   .modal-header {

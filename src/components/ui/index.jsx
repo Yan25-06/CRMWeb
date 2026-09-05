@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useId } from 'react'
 export { CurrencyInput } from './CurrencyInput'
 import { clsx } from 'clsx'
 import { X, CheckCircle, AlertCircle, Info } from 'lucide-react'
+import { useMountTransition } from '@/hooks/useMountTransition'
 
 // ─── Button ──────────────────────────────────────────────
 export const Button = ({
@@ -77,6 +78,7 @@ export const Select = ({ label, error, className, children, ...props }) => (
 export const Modal = ({ open, onClose, title, children, footer }) => {
   const boxRef = useRef(null)
   const titleId = useId()
+  const mounted = useMountTransition(open, 240)
 
   useEffect(() => {
     if (!open) return
@@ -110,11 +112,14 @@ export const Modal = ({ open, onClose, title, children, footer }) => {
     }
   }, [open, onClose])
 
-  if (!open) return null
+  if (!mounted) return null
   return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose?.()}>
+    <div
+      className={clsx('modal-overlay', open ? 'animate-fade-in' : 'animate-fade-out')}
+      onClick={e => e.target === e.currentTarget && onClose?.()}
+    >
       <div
-        className="modal-box"
+        className={clsx('modal-box', open ? 'animate-slide-up' : 'animate-slide-down-out')}
         ref={boxRef}
         tabIndex={-1}
         role="dialog"
