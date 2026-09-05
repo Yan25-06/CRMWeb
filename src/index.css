@@ -61,6 +61,16 @@
     border-radius: 4px;
   }
 
+  /* Tôn trọng prefers-reduced-motion: một số người bật thiết lập này vì chuyển động
+     gây chóng mặt hoặc buồn nôn thật sự. Tắt cả animation lặp vô hạn (shimmer). */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
   /* Selection */
   ::selection {
     background: var(--navy-100);
