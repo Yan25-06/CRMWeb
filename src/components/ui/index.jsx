@@ -43,7 +43,11 @@ export const Badge = ({ children, variant = 'navy', className }) => {
 export const Card = ({ children, className, onClick, navy }) => (
   <div
     onClick={onClick}
-    className={clsx(navy ? 'card-navy' : 'card', onClick && 'cursor-pointer', className)}
+    className={clsx(
+      navy ? 'card-navy' : (onClick ? 'card-interactive' : 'card'),
+      onClick && 'cursor-pointer',
+      className
+    )}
   >
     {children}
   </div>
@@ -148,8 +152,11 @@ export const ConfirmModal = ({ open, onClose, onConfirm, title = 'Xác nhận', 
 )
 
 // ─── Stat Card ───────────────────────────────────────────
-export const StatCard = ({ label, value, sub, icon, accent, className }) => (
-  <div className={clsx('stat-card', className)}>
+export const StatCard = ({ label, value, sub, icon, accent, className, onClick }) => (
+  <div
+    onClick={onClick}
+    className={clsx('stat-card', onClick && 'card-interactive cursor-pointer', className)}
+  >
     <div className="flex items-start justify-between">
       <span className="stat-label">{label}</span>
       {icon && (

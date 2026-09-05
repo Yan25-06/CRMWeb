@@ -109,9 +109,18 @@
   }
 
   /* ─── Cards ─── */
+  /* .card tĩnh — không hover. Chỉ thẻ thật sự bấm được mới dùng .card-interactive,
+     nếu không hiệu ứng nhấc lên là một lời hứa sai (false affordance). */
   .card {
-    @apply bg-white rounded-2xl border border-navy-100 shadow-navy-sm
-           transition-shadow duration-200 hover:shadow-navy;
+    @apply bg-white rounded-2xl border border-navy-100 shadow-navy-sm;
+  }
+  .card-interactive {
+    @apply card transition-all duration-base ease-out-soft
+           hover:shadow-navy hover:-translate-y-0.5;
+  }
+  /* Phản hồi khi nhấn cho control không dùng .btn (chip lọc, tab, mục nav). */
+  .pressable {
+    @apply transition-transform duration-fast active:scale-[0.97];
   }
   .card-flat {
     @apply bg-white rounded-2xl border border-navy-100;

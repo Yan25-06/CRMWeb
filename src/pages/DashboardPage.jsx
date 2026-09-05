@@ -124,46 +124,42 @@ export const DashboardPage = ({ year, month, onNavigate, onAttendance }) => {
 
       {/* ── Stats grid ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="cursor-pointer" onClick={() => onNavigate('students')}>
-          <StatCard
-            label="Học Sinh"
-            value={students.length}
-            sub={`${classes.length} lớp`}
-            icon={<Users size={16} />}
-            accent="navy"
-            className="h-full"
-          />
-        </div>
-        <div className="cursor-pointer" onClick={() => onNavigate('classes')}>
-          <StatCard
-            label="Lớp học"
-            value={classes.length}
-            sub="đang hoạt động"
-            icon={<BookOpen size={16} />}
-            accent="navy"
-            className="h-full"
-          />
-        </div>
-        <div className="cursor-pointer" onClick={() => onNavigate('fees')}>
-          <StatCard
-            label={`Thu ${monthName}`}
-            value={fmt(monthlyRevenue)}
-            sub="tổng học phí tháng"
-            icon={<DollarSign size={16} />}
-            accent="warning"
-            className="h-full"
-          />
-        </div>
-        <div className="cursor-pointer" onClick={() => onNavigate('fees')}>
-          <StatCard
-            label="Chưa đóng phí"
-            value={debtCount}
-            sub="học sinh tháng này"
-            icon={<AlertCircle size={16} />}
-            accent={debtCount > 0 ? 'danger' : 'success'}
-            className="h-full"
-          />
-        </div>
+        <StatCard
+          label="Học Sinh"
+          value={students.length}
+          sub={`${classes.length} lớp`}
+          icon={<Users size={16} />}
+          accent="navy"
+          className="h-full"
+          onClick={() => onNavigate('students')}
+        />
+        <StatCard
+          label="Lớp học"
+          value={classes.length}
+          sub="đang hoạt động"
+          icon={<BookOpen size={16} />}
+          accent="navy"
+          className="h-full"
+          onClick={() => onNavigate('classes')}
+        />
+        <StatCard
+          label={`Thu ${monthName}`}
+          value={fmt(monthlyRevenue)}
+          sub="tổng học phí tháng"
+          icon={<DollarSign size={16} />}
+          accent="warning"
+          className="h-full"
+          onClick={() => onNavigate('fees')}
+        />
+        <StatCard
+          label="Chưa đóng phí"
+          value={debtCount}
+          sub="học sinh tháng này"
+          icon={<AlertCircle size={16} />}
+          accent={debtCount > 0 ? 'danger' : 'success'}
+          className="h-full"
+          onClick={() => onNavigate('fees')}
+        />
       </div>
 
       {/* ── Lịch hôm nay ── */}

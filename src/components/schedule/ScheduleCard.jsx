@@ -122,8 +122,8 @@ export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, can
   return (
     <div
       className={clsx(
-        'group relative rounded-xl border p-2.5 cursor-pointer transition-all duration-150',
-        'hover:shadow-md hover:-translate-y-0.5',
+        'group relative rounded-xl border p-2.5 cursor-pointer',
+        'transition-all duration-base ease-out-soft hover:shadow-navy hover:-translate-y-0.5',
         color.bg, color.border,
         isAbsent && clsx('border-l-4', att.bar),
         dropdownOpen && 'z-10'
