@@ -147,6 +147,22 @@ src/
 - **Control khác loại phải trông khác nhau.** Dropdown không được cùng hình pill với dãy tab lọc — cho nhãn riêng và vạch ngăn (xem `FeesPage.jsx`).
 - **Nhãn form:** kiểu chuẩn là `text-sm font-medium text-navy-700` (KHÔNG uppercase — khó đọc tiếng Việt có dấu). `Input`/`Select` đã theo kiểu này; form viết tay cũng vậy. `uppercase tracking-wide` chỉ dùng cho tiêu đề mục / header bảng, không cho nhãn field.
 - **A11y:** `Modal` đóng bằng Esc, khóa scroll nền, focus-trap, có `role="dialog"`/`aria-modal`. `Toast` hỗ trợ nhiều thông báo xếp chồng, có `role="alert"` + `aria-live`; gọi qua API `toast.success/error/info`.
+- **Chuyển động:** ba mức thời lượng, không hơn — `duration-fast` (120ms) cho màu/nền/viền,
+  `duration-base` (180ms) cho dịch chuyển/bóng, `duration-slow` (240ms) cho chuyển cảnh
+  trang/modal. Đường cong: `ease-out-soft` khi vào, `ease-in-soft` khi ra. Mức tinh tế —
+  dịch chuyển tối đa 4px; đây là app nhập liệu dùng hàng ngày, chuyển động rõ rệt thành ma
+  sát lặp lại.
+- **`prefers-reduced-motion` là bắt buộc.** `index.css` có khối tắt animation toàn cục. Mọi
+  độ trễ tính bằng JS (`setTimeout` chờ exit animation) cũng phải tự đọc
+  `matchMedia('(prefers-reduced-motion: reduce)')` và bỏ độ trễ — CSS không rút ngắn
+  `setTimeout` hộ. Xem `src/hooks/useMountTransition.js`.
+- **Chỉ thẻ bấm được mới nhấc lên.** `.card` tĩnh; `.card-interactive` mang hover và chỉ được
+  gắn khi có `onClick` (xem `Card` và `StatCard` trong `components/ui/index.jsx`). Thẻ nhấc
+  lên mà bấm không có gì là một lời hứa sai.
+- **Control không dùng `.btn` thì gắn `.pressable`** để có phản hồi khi nhấn — chip lọc, tab,
+  mục nav, chip chấm công.
+- Dưới `prefers-reduced-motion`, shimmer của `.skeleton` bị tắt (animation lặp vô hạn) nhưng
+  nền gradient tĩnh vẫn đủ để nhận ra đang tải — đã kiểm chứng 2026-09-05.
 
 ### Phân quyền UI (BẮT BUỘC)
 - **Check quyền của người dùng hiện tại qua `usePermissions()`** (`src/hooks/usePermissions.js`) — **KHÔNG đọc `teacher.is_admin` trực tiếp trong component**. Hook là nguồn chân lý gating UI ở client, trả về cờ ngữ nghĩa theo năng lực: `isAdmin`, `canViewFees`, `canAccessAdmin`, `canManageCenterSettings`, `canManageStudents`, `canCreateMockTest`, `canManageClasses`, `canFilterByTeacher`, `canCheckOwnAttendance` (= `true` cho mọi GV), `canViewAllPayroll` (= `isAdmin`), `canMarkAbsent` (= `isAdmin`) — chỉ admin đánh vắng + chọn người dạy thay. Đổi rule chỉ sửa một dòng trong hook.
