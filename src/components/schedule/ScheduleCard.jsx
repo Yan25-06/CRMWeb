@@ -175,7 +175,7 @@ export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, can
       {canCheckAttendance && (
         <button
           className={clsx(
-            'mt-2 w-full inline-flex items-center justify-center gap-1 px-1 py-1 rounded-lg text-[11px] font-semibold border transition-colors',
+            'mt-2 w-full inline-flex items-center justify-center gap-1 px-1 py-1 rounded-lg text-[11px] font-semibold border transition-colors pressable',
             att.bg, att.text, att.border, 'hover:opacity-80'
           )}
           title={canMarkAbsent ? 'Bấm để đổi: Chưa xác nhận → Đã dạy → Vắng' : 'Bấm để đổi: Chưa xác nhận → Đã dạy'}

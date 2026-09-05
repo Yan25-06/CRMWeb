@@ -309,7 +309,7 @@ export const SchedulePage = ({ onNavigate }) => {
         <button
           onClick={() => setActiveTab('schedule')}
           className={clsx(
-            'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px',
+            'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px pressable',
             activeTab === 'schedule'
               ? 'border-navy-800 text-navy-900'
               : 'border-transparent text-navy-400 hover:text-navy-700'
@@ -320,7 +320,7 @@ export const SchedulePage = ({ onNavigate }) => {
         <button
           onClick={() => setActiveTab('payroll')}
           className={clsx(
-            'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px',
+            'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px pressable',
             activeTab === 'payroll'
               ? 'border-navy-800 text-navy-900'
               : 'border-transparent text-navy-400 hover:text-navy-700'
@@ -331,7 +331,7 @@ export const SchedulePage = ({ onNavigate }) => {
         <button
           onClick={() => setActiveTab('materials')}
           className={clsx(
-            'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px',
+            'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px pressable',
             activeTab === 'materials'
               ? 'border-navy-800 text-navy-900'
               : 'border-transparent text-navy-400 hover:text-navy-700'
