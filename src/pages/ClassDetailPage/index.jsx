@@ -145,7 +145,7 @@ export const ClassDetailPage = ({ classId, onBack, initialTab = 'students', isAd
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 pt-5">
+      <div key={activeTab} className="flex-1 pt-5 animate-fade-in">
         {activeTab === 'students' && (
           <StudentsTab classId={classId} isAdmin={isAdmin} onEnrollmentChange={loadHeader} />
         )}

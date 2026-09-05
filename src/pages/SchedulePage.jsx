@@ -341,6 +341,7 @@ export const SchedulePage = ({ onNavigate }) => {
         </button>
       </div>
 
+      <div key={activeTab} className="animate-fade-in">
       {activeTab === 'schedule' && (
         <>
           {/* ── Week navigation + Teacher filter ─────────── */}
@@ -510,6 +511,7 @@ export const SchedulePage = ({ onNavigate }) => {
       {activeTab === 'materials' && (
         <MaterialsTab isAdmin={isAdmin} />
       )}
+      </div>
 
       {/* ── Modal ──────────────────────────────────────── */}
       <ScheduleModal

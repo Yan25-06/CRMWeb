@@ -219,7 +219,7 @@ export default function App() {
         </div>
 
         {/* Page content */}
-        <div className="flex-1 p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8">
+        <div key={currentPage} className="flex-1 p-4 sm:p-6 lg:p-8 pb-24 lg:pb-8 animate-fade-in">
           {renderPage()}
         </div>
       </main>
