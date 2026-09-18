@@ -143,7 +143,7 @@ export const FeesPage = ({ year, month }) => {
                 key={tab.id}
                 onClick={() => setPayStatusFilter(tab.id)}
                 className={clsx(
-                  'px-3 py-1.5 rounded-xl text-sm font-medium transition-all',
+                  'px-3 py-1.5 rounded-xl text-sm font-medium transition-all pressable',
                   payStatusFilter === tab.id
                     ? 'bg-navy-800 text-white'
                     : 'bg-white text-navy-500 border border-navy-100 hover:text-navy-800 hover:border-navy-300'
