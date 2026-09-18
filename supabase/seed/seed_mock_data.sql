@@ -176,10 +176,12 @@ VALUES
 -- c03: TOEIC (teacher 2) — skill_config custom Listening/Reading
 -- c04: Giao tiếp (admin) — skill_config custom 3 kỹ năng
 -- (maxScore không còn lưu trong skill_config; lưu trong mock_tests.sections)
+-- monthly_fee: mức phí cố định của lớp (nguồn duy nhất từ migration
+-- 20260918000001) — khớp mức phổ biến nhất từng đặt ở enrollment của lớp đó.
 INSERT INTO public.classes
   (id, teacher_id, name, level, course_type, max_students,
    schedule_days, schedule_time, schedule_day_list, start_time, end_time, room,
-   start_date, skill_config)
+   start_date, skill_config, monthly_fee)
 VALUES
   ('02000000-0000-0000-0000-000000000001',
    (SELECT t1 FROM _seed_teachers),
@@ -190,7 +192,8 @@ VALUES
    '[{"name":"Listening","order":0},
      {"name":"Reading","order":1},
      {"name":"Writing","order":2},
-     {"name":"Speaking","order":3}]'::jsonb),
+     {"name":"Speaking","order":3}]'::jsonb,
+   2500000),
 
   ('02000000-0000-0000-0000-000000000002',
    (SELECT t1 FROM _seed_teachers),
@@ -201,7 +204,8 @@ VALUES
    '[{"name":"Listening","order":0},
      {"name":"Reading","order":1},
      {"name":"Writing","order":2},
-     {"name":"Speaking","order":3}]'::jsonb),
+     {"name":"Speaking","order":3}]'::jsonb,
+   3000000),
 
   ('02000000-0000-0000-0000-000000000003',
    (SELECT t2 FROM _seed_teachers),
@@ -210,7 +214,8 @@ VALUES
    '[3]'::jsonb, '18:00', '20:00', 'Phòng 103',
    current_date - 45,
    '[{"name":"Listening","order":0},
-     {"name":"Reading","order":1}]'::jsonb),
+     {"name":"Reading","order":1}]'::jsonb,
+   1800000),
 
   ('02000000-0000-0000-0000-000000000004',
    (SELECT ta  FROM _seed_teachers),
@@ -220,92 +225,98 @@ VALUES
    current_date - 30,
    '[{"name":"Phát âm","order":0},
      {"name":"Từ vựng","order":1},
-     {"name":"Ngữ pháp","order":2}]'::jsonb);
+     {"name":"Ngữ pháp","order":2}]'::jsonb,
+   1500000);
 
 -- ====================================================
 -- BƯỚC 4b : Schedule (lịch dạy suy ra từ lịch học lớp)
 -- ====================================================
-INSERT INTO public.schedule (class_id, day_of_week, start_time, end_time, room)
+-- teacher_id NULL = GV phụ trách lớp (classes.teacher_id) dạy ca đó.
+-- Ca T5 của c01 (IELTS Cơ Bản, phụ trách t1) gán cho t2 để minh hoạ tính
+-- năng chia buổi cho nhiều giáo viên (migration 20260918000002).
+INSERT INTO public.schedule (class_id, day_of_week, start_time, end_time, room, teacher_id)
 VALUES
-  ('02000000-0000-0000-0000-000000000001', 1, '08:00', '10:00', 'Phòng 101'),
-  ('02000000-0000-0000-0000-000000000001', 4, '08:00', '10:00', 'Phòng 101'),
-  ('02000000-0000-0000-0000-000000000002', 2, '14:00', '16:00', 'Phòng 102'),
-  ('02000000-0000-0000-0000-000000000003', 3, '18:00', '20:00', 'Phòng 103'),
-  ('02000000-0000-0000-0000-000000000004', 6, '09:00', '11:00', 'Phòng 104');
+  ('02000000-0000-0000-0000-000000000001', 1, '08:00', '10:00', 'Phòng 101', NULL),
+  ('02000000-0000-0000-0000-000000000001', 4, '08:00', '10:00', 'Phòng 101', (SELECT t2 FROM _seed_teachers)),
+  ('02000000-0000-0000-0000-000000000002', 2, '14:00', '16:00', 'Phòng 102', NULL),
+  ('02000000-0000-0000-0000-000000000003', 3, '18:00', '20:00', 'Phòng 103', NULL),
+  ('02000000-0000-0000-0000-000000000004', 6, '09:00', '11:00', 'Phòng 104', NULL);
 
 -- ====================================================
--- BƯỚC 5  : Enrollments (đủ status + fee_type)
+-- BƯỚC 5  : Enrollments (đủ status)
 -- ====================================================
 -- active, paused (có paused_at), dropped (có dropped_at)
--- fee_type monthly (có monthly_fee) và course (có course_fee)
+-- Học phí không còn đặt theo enrollment — mức phí cố định nằm ở
+-- classes.monthly_fee (xem BƯỚC 4); enrollments.fee_type/monthly_fee/
+-- course_fee đã orphan (migration 20260918000001).
 INSERT INTO public.enrollments
-  (id, student_id, class_id, status, fee_type, monthly_fee, course_fee,
+  (id, student_id, class_id, status,
    goal, note, enrolled_at, paused_at, dropped_at)
 VALUES
-  -- c01 (IELTS Cơ Bản) — monthly
+  -- c01 (IELTS Cơ Bản)
   ('03000000-0000-0000-0000-000000000001',
    '01000000-0000-0000-0000-000000000001',  -- s01 An
    '02000000-0000-0000-0000-000000000001',  -- c01
-   'active', 'monthly', 2500000, NULL,
+   'active',
    'Đạt IELTS 6.5', NULL,
    now() - interval '90 days', NULL, NULL),
 
   ('03000000-0000-0000-0000-000000000002',
    '01000000-0000-0000-0000-000000000002',  -- s02 Bình
    '02000000-0000-0000-0000-000000000001',  -- c01
-   'paused', 'monthly', 2500000, NULL,
+   'paused',
    NULL, 'Tạm nghỉ do bận thi cuối kỳ',
    now() - interval '90 days', now() - interval '30 days', NULL),
 
   ('03000000-0000-0000-0000-000000000003',
    '01000000-0000-0000-0000-000000000003',  -- s03 Cường
    '02000000-0000-0000-0000-000000000001',  -- c01
-   'active', 'monthly', 2500000, NULL,
+   'active',
    'Cải thiện kỹ năng Listening', NULL,
    now() - interval '85 days', NULL, NULL),
 
-  -- c02 (IELTS Nâng Cao) — monthly
+  -- c02 (IELTS Nâng Cao)
   ('03000000-0000-0000-0000-000000000004',
    '01000000-0000-0000-0000-000000000003',  -- s03 Cường học 2 lớp
    '02000000-0000-0000-0000-000000000002',  -- c02
-   'active', 'monthly', 3000000, NULL,
+   'active',
    'Nâng band lên 7.0', NULL,
    now() - interval '60 days', NULL, NULL),
 
-  -- c03 (TOEIC) — mixed fee_type
+  -- c03 (TOEIC)
   ('03000000-0000-0000-0000-000000000005',
    '01000000-0000-0000-0000-000000000004',  -- s04 Dung
    '02000000-0000-0000-0000-000000000003',  -- c03
-   'active', 'monthly', 1800000, NULL,
+   'active',
    'Đạt TOEIC 750+', NULL,
    now() - interval '45 days', NULL, NULL),
 
   ('03000000-0000-0000-0000-000000000006',
    '01000000-0000-0000-0000-000000000005',  -- s05 Hải
    '02000000-0000-0000-0000-000000000003',  -- c03
-   'dropped', 'course', NULL, 9000000,
+   'dropped',
    NULL, 'Nghỉ giữa chừng',
    now() - interval '40 days', NULL, now() - interval '15 days'),
 
   ('03000000-0000-0000-0000-000000000007',
    '01000000-0000-0000-0000-000000000006',  -- s06 Lan
    '02000000-0000-0000-0000-000000000003',  -- c03
-   'active', 'course', NULL, 9000000,
+   'active',
    'Đạt TOEIC 700', NULL,
    now() - interval '45 days', NULL, NULL),
 
-  -- c04 (Giao tiếp) — monthly
+  -- c04 (Giao tiếp)
   ('03000000-0000-0000-0000-000000000008',
    '01000000-0000-0000-0000-000000000007',  -- s07 Mai
    '02000000-0000-0000-0000-000000000004',  -- c04
-   'active', 'monthly', 1500000, NULL,
+   'active',
    'Giao tiếp tự tin hơn', NULL,
    now() - interval '30 days', NULL, NULL),
 
   ('03000000-0000-0000-0000-000000000009',
    '01000000-0000-0000-0000-000000000008',  -- s08 Ngọc
    '02000000-0000-0000-0000-000000000004',  -- c04
-   'active', 'monthly', 1500000, NULL,
+   'active',
    NULL, NULL,
    now() - interval '30 days', NULL, NULL);
 
@@ -716,14 +727,13 @@ VALUES
    false, NULL, NULL, NULL);
 
 -- ====================================================
--- BƯỚC 12 : Fees (trải ≥2 tháng, mix paid T/F, có surcharge)
+-- BƯỚC 12 : Fees (trải ≥2 tháng, mix paid T/F)
 -- ====================================================
--- Dùng extract(year/month from ...) để tháng luôn khớp current_date
--- class_id gắn theo enrollment tương ứng (fees nay khóa theo từng lớp —
--- s03 Cường học 2 lớp c01+c02 nên chỉ gán phụ phí cho c01, c02 dùng học phí
--- gốc không phụ phí, minh hoạ đúng tính năng tách học phí theo lớp).
+-- Dùng extract(year/month from ...) để tháng luôn khớp current_date.
+-- Trạng thái đóng phí nay là cờ nhị phân fees.paid (migration
+-- 20260918000001) — không còn surcharge/đóng một phần.
 INSERT INTO public.fees
-  (id, student_id, class_id, year, month, surcharge, paid, note)
+  (id, student_id, class_id, year, month, paid, note)
 VALUES
   -- s01 An (lớp c01): tháng hiện tại chưa đóng, tháng trước đã đóng
   ('0a000000-0000-0000-0000-000000000001',
@@ -731,27 +741,27 @@ VALUES
    '02000000-0000-0000-0000-000000000001',
    EXTRACT(YEAR  FROM current_date)::smallint,
    EXTRACT(MONTH FROM current_date)::smallint,
-   0, false, NULL),
+   false, NULL),
   ('0a000000-0000-0000-0000-000000000002',
    '01000000-0000-0000-0000-000000000001',
    '02000000-0000-0000-0000-000000000001',
    EXTRACT(YEAR  FROM current_date - interval '1 month')::smallint,
    EXTRACT(MONTH FROM current_date - interval '1 month')::smallint,
-   0, true, NULL),
+   true, NULL),
 
-  -- s03 Cường (lớp c01): tháng này chưa đóng (có phụ phí), tháng trước đã đóng
+  -- s03 Cường (lớp c01): tháng này chưa đóng, tháng trước đã đóng
   ('0a000000-0000-0000-0000-000000000003',
    '01000000-0000-0000-0000-000000000003',
    '02000000-0000-0000-0000-000000000001',
    EXTRACT(YEAR  FROM current_date)::smallint,
    EXTRACT(MONTH FROM current_date)::smallint,
-   100000, false, 'Phụ phí học liệu'),
+   false, NULL),
   ('0a000000-0000-0000-0000-000000000004',
    '01000000-0000-0000-0000-000000000003',
    '02000000-0000-0000-0000-000000000001',
    EXTRACT(YEAR  FROM current_date - interval '1 month')::smallint,
    EXTRACT(MONTH FROM current_date - interval '1 month')::smallint,
-   0, true, NULL),
+   true, NULL),
 
   -- s04 Dung (lớp c03): tháng này chưa đóng, tháng trước đã đóng
   ('0a000000-0000-0000-0000-000000000005',
@@ -759,73 +769,27 @@ VALUES
    '02000000-0000-0000-0000-000000000003',
    EXTRACT(YEAR  FROM current_date)::smallint,
    EXTRACT(MONTH FROM current_date)::smallint,
-   0, false, NULL),
+   false, NULL),
   ('0a000000-0000-0000-0000-000000000006',
    '01000000-0000-0000-0000-000000000004',
    '02000000-0000-0000-0000-000000000003',
    EXTRACT(YEAR  FROM current_date - interval '1 month')::smallint,
    EXTRACT(MONTH FROM current_date - interval '1 month')::smallint,
-   0, true, NULL),
+   true, NULL),
 
-  -- s07 Mai (lớp c04): tháng này chưa đóng (có phụ phí), tháng trước đã đóng
+  -- s07 Mai (lớp c04): tháng này chưa đóng, tháng trước đã đóng
   ('0a000000-0000-0000-0000-000000000007',
    '01000000-0000-0000-0000-000000000007',
    '02000000-0000-0000-0000-000000000004',
    EXTRACT(YEAR  FROM current_date)::smallint,
    EXTRACT(MONTH FROM current_date)::smallint,
-   50000, false, 'Phụ phí photocopy'),
+   false, NULL),
   ('0a000000-0000-0000-0000-000000000008',
    '01000000-0000-0000-0000-000000000007',
    '02000000-0000-0000-0000-000000000004',
    EXTRACT(YEAR  FROM current_date - interval '1 month')::smallint,
    EXTRACT(MONTH FROM current_date - interval '1 month')::smallint,
-   0, true, NULL);
-
--- ====================================================
--- BƯỚC 13 : Payments (cash + transfer, nhiều period)
--- ====================================================
-INSERT INTO public.payments
-  (id, student_id, class_id, amount, paid_at, method, period, note)
-VALUES
-  ('0b000000-0000-0000-0000-000000000001',
-   '01000000-0000-0000-0000-000000000001',
-   '02000000-0000-0000-0000-000000000001',
-   2500000,
-   current_date - 30, 'cash',
-   'Tháng ' || to_char(current_date - interval '1 month', 'MM/YYYY'),
-   NULL),
-
-  ('0b000000-0000-0000-0000-000000000002',
-   '01000000-0000-0000-0000-000000000003',
-   '02000000-0000-0000-0000-000000000001',
-   2500000,
-   current_date - 28, 'transfer',
-   'Tháng ' || to_char(current_date - interval '1 month', 'MM/YYYY'),
-   'Chuyển khoản Vietcombank'),
-
-  ('0b000000-0000-0000-0000-000000000003',
-   '01000000-0000-0000-0000-000000000004',
-   '02000000-0000-0000-0000-000000000003',
-   1800000,
-   current_date - 27, 'cash',
-   'Tháng ' || to_char(current_date - interval '1 month', 'MM/YYYY'),
-   NULL),
-
-  ('0b000000-0000-0000-0000-000000000004',
-   '01000000-0000-0000-0000-000000000007',
-   '02000000-0000-0000-0000-000000000004',
-   1500000,
-   current_date - 25, 'transfer',
-   'Tháng ' || to_char(current_date - interval '1 month', 'MM/YYYY'),
-   NULL),
-
-  ('0b000000-0000-0000-0000-000000000005',
-   '01000000-0000-0000-0000-000000000006',
-   '02000000-0000-0000-0000-000000000003',
-   9000000,
-   current_date - 45, 'cash',
-   'Học phí cả khóa',
-   'Đóng một lần đầu khóa');
+   true, NULL);
 
 -- ====================================================
 -- BƯỚC 14 : Reviews (scores jsonb khớp skill_config lớp)
@@ -1165,8 +1129,6 @@ SELECT 'submissions',            count(*) FROM public.submissions      WHERE stu
 UNION ALL
 SELECT 'fees',                   count(*) FROM public.fees             WHERE student_id IN (SELECT id FROM public.students WHERE teacher_id IN (SELECT t1 FROM _seed_teachers UNION SELECT t2 FROM _seed_teachers UNION SELECT ta FROM _seed_teachers))
 UNION ALL
-SELECT 'payments',               count(*) FROM public.payments         WHERE student_id IN (SELECT id FROM public.students WHERE teacher_id IN (SELECT t1 FROM _seed_teachers UNION SELECT t2 FROM _seed_teachers UNION SELECT ta FROM _seed_teachers))
-UNION ALL
 SELECT 'reviews',                count(*) FROM public.reviews          WHERE student_id IN (SELECT id FROM public.students WHERE teacher_id IN (SELECT t1 FROM _seed_teachers UNION SELECT t2 FROM _seed_teachers UNION SELECT ta FROM _seed_teachers))
 UNION ALL
 SELECT 'session_reviews',        count(*) FROM public.session_reviews  WHERE student_id IN (SELECT id FROM public.students WHERE teacher_id IN (SELECT t1 FROM _seed_teachers UNION SELECT t2 FROM _seed_teachers UNION SELECT ta FROM _seed_teachers))
@@ -1193,7 +1155,6 @@ ORDER BY 1;
 --   hw_assignments   5
 --   submissions      10
 --   fees             8
---   payments         5
 --   reviews          8
 --   session_reviews  3
 --   general_comments 3
