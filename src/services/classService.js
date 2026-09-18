@@ -22,6 +22,7 @@ const fromDB = (row) => row ? {
   startTime: row.start_time,
   endTime: row.end_time,
   room: row.room,
+  monthlyFee: row.monthly_fee ?? null,
   createdAt: row.created_at,
   teacherId: row.teacher_id,
   teacherName: row.teachers?.name || row.teachers?.email || null,
@@ -61,6 +62,11 @@ const toDB = (data) => {
     obj.room = data.room ?? null
     obj.schedule_days = deriveScheduleDays(data.scheduleDayList)
     obj.schedule_time = deriveScheduleTime(data.startTime, data.endTime)
+  }
+  if (data.monthlyFee !== undefined) {
+    obj.monthly_fee = data.monthlyFee === '' || data.monthlyFee === null
+      ? null
+      : Number(data.monthlyFee) || 0
   }
   return obj
 }

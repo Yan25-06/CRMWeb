@@ -2,6 +2,7 @@ import { MoreVertical, Calendar, Clock, GraduationCap, Users, Edit2, Trash2, Use
 import { Card } from '@/components/ui'
 import { useState, useRef, useEffect } from 'react'
 import { clsx } from 'clsx'
+import { fmtVND } from '@/utils/helpers'
 
 export const ClassCard = ({ cls, studentCount, onEdit, onDelete, showTeacher = false }) => {
   const [menuOpen, setMenuOpen] = useState(false)
@@ -81,6 +82,11 @@ export const ClassCard = ({ cls, studentCount, onEdit, onDelete, showTeacher = f
             <div className="flex items-center gap-2 text-sm text-navy-600">
               <Clock size={14} className="text-navy-400" />
               <span>{cls.scheduleTime}</span>
+            </div>
+          )}
+          {cls.monthlyFee > 0 && (
+            <div className="text-xs text-navy-500">
+              Học phí {fmtVND(cls.monthlyFee)}/tháng
             </div>
           )}
           {showTeacher && cls.teacherName && (

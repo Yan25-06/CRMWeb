@@ -3,6 +3,7 @@ import { Modal, Input, Button, toast } from '@/components/ui'
 import { MockTestSectionBuilder } from '@/components/mock-test/MockTestSectionBuilder'
 import { DEFAULT_SKILL_CONFIG } from '@/services/classService'
 import { COURSE_TYPES } from '@/utils/courseTypes'
+import { fmtVND } from '@/utils/helpers'
 
 const DAY_OPTIONS = [
   { value: 1, label: 'T2' },
@@ -30,6 +31,7 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
     startTime: '',
     endTime: '',
     room: '',
+    monthlyFee: '',
     startDate: '',
     teacherId: '',
   })
@@ -48,6 +50,7 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
           startTime: classItem.startTime || '',
           endTime: classItem.endTime || '',
           room: classItem.room || '',
+          monthlyFee: classItem.monthlyFee != null ? String(classItem.monthlyFee) : '',
           startDate: classItem.startDate || '',
           teacherId: classItem.teacherId || '',
         })
@@ -62,6 +65,7 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
           startTime: '',
           endTime: '',
           room: '',
+          monthlyFee: '',
           startDate: '',
           teacherId: '',
         })
@@ -74,7 +78,7 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
   const handleChange = (e) => {
     const { name, value } = e.target
     let parsed = value
-    if (name === 'maxStudents') {
+    if (name === 'maxStudents' || name === 'monthlyFee') {
       const digits = value.replace(/\D/g, '')
       parsed = Number(digits) || 0
     }
@@ -245,6 +249,23 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
           onChange={handleChange}
           placeholder="VD: Phòng 102"
         />
+
+        {isAdmin && (
+          <div className="flex flex-col gap-1">
+            <Input
+              label="Học phí mỗi tháng (VNĐ)"
+              name="monthlyFee"
+              type="text"
+              inputMode="numeric"
+              value={formData.monthlyFee || ''}
+              onChange={handleChange}
+              placeholder="VD: 1200000"
+            />
+            {Number(formData.monthlyFee) > 0 && (
+              <p className="text-xs text-navy-500">{fmtVND(Number(formData.monthlyFee))} / tháng</p>
+            )}
+          </div>
+        )}
 
         <Input
           label="Ngày khai giảng"
