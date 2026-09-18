@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Card, Button, Empty, toast, Skeleton, ConfirmModal } from '@/components/ui'
 import { Plus, BookOpen } from 'lucide-react'
 import { classService, teacherService } from '@/services/classService'
+import { scheduleService } from '@/services/scheduleService'
 import { enrollmentService } from '@/services/enrollmentService'
 import { ClassModal } from '@/components/classes/ClassModal'
 import { ClassCard } from '@/components/classes/ClassCard'
@@ -13,6 +14,7 @@ export const ClassesOverviewPage = ({ onSelectClass }) => {
   const [classes, setClasses] = useState([])
   const [enrollments, setEnrollments] = useState([])
   const [teachers, setTeachers] = useState([])
+  const [scheduleItems, setScheduleItems] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
   const [classModalOpen, setClassModalOpen] = useState(false)
@@ -24,11 +26,15 @@ export const ClassesOverviewPage = ({ onSelectClass }) => {
     setError(null)
     try {
       const promises = [classService.getAll(), enrollmentService.getAll()]
-      if (isAdmin) promises.push(teacherService.getAll())
-      const [cls, enr, tchs] = await Promise.all(promises)
+      if (isAdmin) {
+        promises.push(teacherService.getAll())
+        promises.push(scheduleService.getAll())
+      }
+      const [cls, enr, tchs, sched] = await Promise.all(promises)
       setClasses(cls)
       setEnrollments(enr)
       if (tchs) setTeachers(tchs)
+      if (sched) setScheduleItems(sched)
     } catch (err) {
       setError(err.message)
     } finally {
@@ -118,7 +124,7 @@ export const ClassesOverviewPage = ({ onSelectClass }) => {
   if (error) {
     return (
       <div className="flex flex-col gap-4 animate-fade-in">
-        <h1 className="text-2xl font-display font-bold text-navy-900">Lớp Học</h1>
+        <h1 className="text-2xl font-display font-bold text-navy-900">Lớp học</h1>
         <Card className="p-8 text-center">
           <p className="text-red-600 font-medium">Lỗi tải dữ liệu</p>
           <p className="text-sm text-navy-400 mt-1">{error}</p>
@@ -132,7 +138,7 @@ export const ClassesOverviewPage = ({ onSelectClass }) => {
     <div className="flex flex-col gap-6 animate-fade-in">
       <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
         <div>
-          <h1 className="text-2xl font-display font-bold text-navy-900">Lớp Học</h1>
+          <h1 className="text-2xl font-display font-bold text-navy-900">Lớp học</h1>
           <p className="text-sm text-navy-400 mt-0.5">Quản lý danh sách lớp học</p>
         </div>
 
@@ -153,7 +159,7 @@ export const ClassesOverviewPage = ({ onSelectClass }) => {
                 <ClassCard
                   cls={cls}
                   studentCount={studentCount}
-                  onEdit={() => openClassModal(cls)}
+                  onEdit={isAdmin ? () => openClassModal(cls) : undefined}
                   onDelete={isAdmin ? () => handleDeleteClass(cls.id) : undefined}
                   showTeacher={isAdmin}
                 />
@@ -185,6 +191,7 @@ export const ClassesOverviewPage = ({ onSelectClass }) => {
         onSave={handleSaveClass}
         isAdmin={isAdmin}
         teachers={teachers}
+        scheduleItems={scheduleItems}
       />
 
       <ConfirmModal

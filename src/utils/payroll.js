@@ -19,14 +19,14 @@ export function countWeekdayOccurrences(year, month, dayOfWeek) {
 
 // teachers: [{ id, name, email, sessionRate }]
 // classes:  [{ id, teacherId }]
-// schedule: [{ id, classId, dayOfWeek }]
+// schedule: [{ id, classId, dayOfWeek, teacherId }]  (teacherId null = GV phụ trách lớp)
 // attendance: [{ scheduleId, teacherId, status, substituteTeacherId }] (đã lọc theo tháng)
 // Trả: [{ teacherId, name, scheduled, absent, taught, subs, rate, actualPay }]
 export function buildPayrollRows({ year, month, teachers, classes, schedule, attendance }) {
   const classTeacher = new Map(classes.map(c => [c.id, c.teacherId]))
-  // scheduleId -> teacherId phụ trách (qua lớp)
+  // scheduleId -> teacherId dạy ca đó. schedule.teacherId rỗng = GV phụ trách lớp.
   const scheduleTeacher = new Map(
-    schedule.map(s => [s.id, classTeacher.get(s.classId) ?? null])
+    schedule.map(s => [s.id, s.teacherId ?? classTeacher.get(s.classId) ?? null])
   )
 
   // scheduled theo giáo viên = tổng số lần xuất hiện trong tháng của các ca thuộc lớp họ dạy

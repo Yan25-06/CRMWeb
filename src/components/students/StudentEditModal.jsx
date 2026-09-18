@@ -21,9 +21,6 @@ export const StudentEditModal = ({ open, onClose, student, enrollment, onSaved }
 
   // Enrollment (chỉ dùng khi enrollment được truyền vào)
   const [status, setStatus]         = useState('active')
-  const [feeType, setFeeType]       = useState('monthly')
-  const [monthlyFee, setMonthlyFee] = useState('')
-  const [courseFee, setCourseFee]   = useState('')
   const [goal, setGoal]             = useState('')
   const [note, setNote]             = useState('')
   const [confirmDrop, setConfirmDrop] = useState(false)
@@ -40,9 +37,6 @@ export const StudentEditModal = ({ open, onClose, student, enrollment, onSaved }
 
     if (enrollment) {
       setStatus(enrollment.status || 'active')
-      setFeeType(enrollment.feeType || 'monthly')
-      setMonthlyFee(enrollment.monthlyFee != null ? String(enrollment.monthlyFee) : '')
-      setCourseFee(enrollment.courseFee != null ? String(enrollment.courseFee) : '')
       setGoal(enrollment.goal || '')
       setNote(enrollment.note || '')
       setConfirmDrop(false)
@@ -67,9 +61,6 @@ export const StudentEditModal = ({ open, onClose, student, enrollment, onSaved }
         const updated = {
           ...enrollment,
           status,
-          feeType,
-          monthlyFee: feeType === 'monthly' ? (Number(monthlyFee) || 0) : null,
-          courseFee:  feeType === 'course'  ? (Number(courseFee)  || 0) : null,
           goal,
           note,
         }
@@ -191,56 +182,6 @@ export const StudentEditModal = ({ open, onClose, student, enrollment, onSaved }
                       <option key={o.value} value={o.value}>{o.label}</option>
                     ))}
                   </select>
-                </div>
-
-                {/* Học phí */}
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium text-navy-700">Loại học phí</label>
-                  <div className="flex gap-1 p-1 bg-navy-50 rounded-xl">
-                    <button
-                      type="button"
-                      onClick={() => setFeeType('monthly')}
-                      className={clsx(
-                        'flex-1 py-1.5 text-xs font-medium rounded-lg transition-all',
-                        feeType === 'monthly' ? 'bg-white shadow-sm text-navy-800' : 'text-navy-500 hover:text-navy-700'
-                      )}
-                    >Theo tháng</button>
-                    <button
-                      type="button"
-                      onClick={() => setFeeType('course')}
-                      className={clsx(
-                        'flex-1 py-1.5 text-xs font-medium rounded-lg transition-all',
-                        feeType === 'course' ? 'bg-white shadow-sm text-navy-800' : 'text-navy-500 hover:text-navy-700'
-                      )}
-                    >Theo khóa</button>
-                  </div>
-                  {feeType === 'monthly' ? (
-                    <div className="flex flex-col gap-1">
-                      <label className="text-sm font-medium text-navy-700">Học phí tháng (VNĐ)</label>
-                      <input
-                        type="number"
-                        value={monthlyFee}
-                        onChange={e => setMonthlyFee(e.target.value)}
-                        placeholder="VD: 800000"
-                        min="0"
-                        step="10000"
-                        className="input text-sm"
-                      />
-                    </div>
-                  ) : (
-                    <div className="flex flex-col gap-1">
-                      <label className="text-sm font-medium text-navy-700">Học phí cả khóa (VNĐ)</label>
-                      <input
-                        type="number"
-                        value={courseFee}
-                        onChange={e => setCourseFee(e.target.value)}
-                        placeholder="VD: 3000000"
-                        min="0"
-                        step="100000"
-                        className="input text-sm"
-                      />
-                    </div>
-                  )}
                 </div>
 
                 {/* Mục tiêu */}

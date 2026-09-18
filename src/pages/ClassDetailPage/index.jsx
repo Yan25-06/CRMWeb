@@ -1,18 +1,20 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import { ChevronLeft, Users } from 'lucide-react'
 import { clsx } from 'clsx'
 import { Skeleton } from '@/components/ui'
-import { classService } from '@/services/classService'
+import { classService, teacherService } from '@/services/classService'
 import { enrollmentService } from '@/services/enrollmentService'
+import { scheduleService } from '@/services/scheduleService'
+import { fmtDayList } from '@/utils/helpers'
 import { StudentsTab } from './tabs/StudentsTab'
 import { AttendanceTab } from './tabs/AttendanceTab'
 import { HomeworkTab } from './tabs/HomeworkTab'
 import { MockTestTab } from './tabs/MockTestTab'
 
 const TABS = [
-  { id: 'students',    label: 'Học Viên',  disabled: false },
-  { id: 'attendance',  label: 'Điểm Danh', disabled: false },
-  { id: 'assignments', label: 'Bài Tập',   disabled: false },
+  { id: 'students',    label: 'Học viên',  disabled: false },
+  { id: 'attendance',  label: 'Điểm danh', disabled: false },
+  { id: 'assignments', label: 'Bài tập',   disabled: false },
   { id: 'mocktest',    label: 'Mock Test',  disabled: false },
 ]
 
@@ -21,21 +23,46 @@ export const ClassDetailPage = ({ classId, onBack, initialTab = 'students', isAd
   const [currentClass, setCurrentClass] = useState(null)
   const [studentCount, setStudentCount] = useState(0)
   const [loading, setLoading] = useState(true)
+  const [classSchedule, setClassSchedule] = useState([])
+  const [teachers, setTeachers] = useState([])
 
   const loadHeader = async () => {
     try {
-      const [cls, enrollments] = await Promise.all([
+      const requests = [
         classService.getById(classId),
         enrollmentService.getByClass(classId),
-      ])
+        scheduleService.getAll(),
+      ]
+      // Policy SELECT của bảng teachers chỉ cho GV thường thấy chính họ,
+      // nên chỉ admin mới load được danh sách tên đầy đủ.
+      if (isAdmin) requests.push(teacherService.getAll())
+      const [cls, enrollments, allSchedule, allTeachers] = await Promise.all(requests)
       setCurrentClass(cls)
       setStudentCount(enrollments.filter(e => e.status === 'active').length)
+      setClassSchedule(allSchedule.filter(s => s.classId === classId))
+      if (allTeachers) setTeachers(allTeachers)
     } catch {
       setCurrentClass(null)
     } finally {
       setLoading(false)
     }
   }
+
+  const classTeacherLines = useMemo(() => {
+    const byTeacher = new Map()
+    for (const s of classSchedule) {
+      const tid = s.teacherId ?? currentClass?.teacherId
+      if (!tid) continue
+      if (!byTeacher.has(tid)) byTeacher.set(tid, { teacherId: tid, name: null, days: [] })
+      byTeacher.get(tid).days.push(s.dayOfWeek)
+    }
+    for (const entry of byTeacher.values()) {
+      entry.name = teachers.find(t => t.id === entry.teacherId)?.name
+        || (entry.teacherId === currentClass?.teacherId ? currentClass?.teacherName : null)
+        || 'Giáo viên'
+    }
+    return [...byTeacher.values()]
+  }, [classSchedule, currentClass, teachers])
 
   useEffect(() => {
     setLoading(true)
@@ -106,6 +133,15 @@ export const ClassDetailPage = ({ classId, onBack, initialTab = 'students', isAd
           <p className="text-xs text-navy-400">
             {currentClass.scheduleDays} · {currentClass.scheduleTime}
           </p>
+          {classTeacherLines.length > 1 && (
+            <div className="text-sm text-navy-500">
+              {classTeacherLines.map(line => (
+                <div key={line.teacherId}>
+                  {line.name} · {fmtDayList(line.days)}
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         <div className="flex items-center gap-1.5 px-3 py-1.5 bg-navy-50 rounded-xl border border-navy-100">
           <Users size={14} className="text-navy-500" />
@@ -122,7 +158,7 @@ export const ClassDetailPage = ({ classId, onBack, initialTab = 'students', isAd
               disabled={tab.disabled}
               onClick={() => !tab.disabled && setActiveTab(tab.id)}
               className={clsx(
-                'pb-3 px-3 text-sm font-medium transition-colors relative whitespace-nowrap',
+                'pb-3 px-3 text-sm font-medium transition-colors relative whitespace-nowrap pressable',
                 tab.disabled
                   ? 'text-navy-300 cursor-not-allowed'
                   : activeTab === tab.id
@@ -145,7 +181,7 @@ export const ClassDetailPage = ({ classId, onBack, initialTab = 'students', isAd
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 pt-5">
+      <div key={activeTab} className="flex-1 pt-5 animate-fade-in">
         {activeTab === 'students' && (
           <StudentsTab classId={classId} isAdmin={isAdmin} onEnrollmentChange={loadHeader} />
         )}

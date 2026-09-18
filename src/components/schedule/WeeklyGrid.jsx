@@ -25,7 +25,7 @@ const dateForDay = (weekStart, dayOfWeek) => {
  * @param {Function} onEdit     - callback(item) when a card is clicked
  * @param {Function} onAddDay   - callback(dayOfWeek) when "+" in column header clicked
  */
-export const WeeklyGrid = ({ scheduleItems = [], classes = [], studentCounts = new Map(), showTeacher = false, onEdit, onAddDay, weekStart = null, canCheckAttendance = false, canMarkAbsent = false, attendanceMap = new Map(), onToggleAttendance, onAttendanceNote, teachers = [], onSetSubstitute, subAssignments = [] }) => {
+export const WeeklyGrid = ({ scheduleItems = [], classes = [], studentCounts = new Map(), showTeacher = false, onEdit, onAddDay, weekStart = null, canCheckAttendance = false, canMarkAbsent = false, attendanceMap = new Map(), onToggleAttendance, onAttendanceNote, teachers = [], onSetSubstitute, subAssignments = [], slotTeacherNames = new Map() }) => {
   const byDay = {}
   for (const day of DAY_ORDER) {
     byDay[day] = scheduleItems
@@ -68,13 +68,15 @@ export const WeeklyGrid = ({ scheduleItems = [], classes = [], studentCounts = n
                   <span className="ml-1 inline-block w-1.5 h-1.5 bg-navy-600 rounded-full align-middle" />
                 )}
               </span>
-              <button
-                onClick={() => onAddDay?.(day)}
-                className="text-navy-300 hover:text-navy-600 text-xs w-5 h-5 flex items-center justify-center rounded hover:bg-navy-50 transition-colors"
-                title={`Thêm ca ${DAY_NAMES[day]}`}
-              >
-                +
-              </button>
+              {onAddDay && (
+                <button
+                  onClick={() => onAddDay(day)}
+                  className="text-navy-300 hover:text-navy-600 text-xs w-5 h-5 flex items-center justify-center rounded hover:bg-navy-50 transition-colors"
+                  title={`Thêm ca ${DAY_NAMES[day]}`}
+                >
+                  +
+                </button>
+              )}
             </div>
 
             {/* Cards */}
@@ -100,6 +102,7 @@ export const WeeklyGrid = ({ scheduleItems = [], classes = [], studentCounts = n
                       onAttendanceNote={(it, note) => onAttendanceNote?.(it, date, note)}
                       teachers={teachers}
                       onSetSubstitute={(it, teacherId) => onSetSubstitute?.(it, date, teacherId)}
+                      slotTeacherName={slotTeacherNames.get(item.id) ?? null}
                     />
                   ))}
                   {subsByDay[day].map(a => (
@@ -152,6 +155,7 @@ export const WeeklyGrid = ({ scheduleItems = [], classes = [], studentCounts = n
                       onAttendanceNote={(it, note) => onAttendanceNote?.(it, date, note)}
                       teachers={teachers}
                       onSetSubstitute={(it, teacherId) => onSetSubstitute?.(it, date, teacherId)}
+                      slotTeacherName={slotTeacherNames.get(item.id) ?? null}
                     />
                 ))}
                 {subsByDay[day].map(a => (

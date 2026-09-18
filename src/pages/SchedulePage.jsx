@@ -127,17 +127,26 @@ export const SchedulePage = ({ onNavigate }) => {
   useEffect(() => { loadSubAssignments() }, [loadSubAssignments])
 
   // Admin filter: narrow classes and schedule by selected teacher
+  // Lớp "của" một GV = lớp họ phụ trách HOẶC lớp họ có ít nhất một ca.
   const visibleClasses = useMemo(() => {
     if (!isAdmin || !selectedTeacherId) return classes
-    return classes.filter(c => c.teacherId === selectedTeacherId)
-  }, [classes, isAdmin, selectedTeacherId])
+    const classIdsFromSlots = new Set(
+      schedule.filter(s => s.teacherId === selectedTeacherId).map(s => s.classId)
+    )
+    return classes.filter(c => c.teacherId === selectedTeacherId || classIdsFromSlots.has(c.id))
+  }, [classes, schedule, isAdmin, selectedTeacherId])
 
   const visibleClassIds = useMemo(() => new Set(visibleClasses.map(c => c.id)), [visibleClasses])
 
+  // Chỉ hiện những ca mà GV đang lọc thực sự dạy.
   const visibleSchedule = useMemo(() => {
     if (!isAdmin || !selectedTeacherId) return schedule
-    return schedule.filter(s => visibleClassIds.has(s.classId))
-  }, [schedule, isAdmin, selectedTeacherId, visibleClassIds])
+    return schedule.filter(s => {
+      if (!visibleClassIds.has(s.classId)) return false
+      const cls = classes.find(c => c.id === s.classId)
+      return (s.teacherId ?? cls?.teacherId) === selectedTeacherId
+    })
+  }, [schedule, classes, isAdmin, selectedTeacherId, visibleClassIds])
 
   // Build student count map (classId → active student count)
   const studentCounts = useMemo(() => {
@@ -155,6 +164,28 @@ export const SchedulePage = ({ onNavigate }) => {
     for (const r of attendance) map.set(`${r.scheduleId}_${r.date}`, r)
     return map
   }, [attendance])
+
+  // Tên GV của từng ca — chỉ hiện khi lớp có từ 2 GV trở lên (tránh nhiễu).
+  const slotTeacherNames = useMemo(() => {
+    const byId = new Map(teachers.map(t => [t.id, t.name || t.email]))
+    const teachersPerClass = new Map()
+    for (const s of schedule) {
+      const cls = classes.find(c => c.id === s.classId)
+      const tid = s.teacherId ?? cls?.teacherId
+      if (!tid) continue
+      if (!teachersPerClass.has(s.classId)) teachersPerClass.set(s.classId, new Set())
+      teachersPerClass.get(s.classId).add(tid)
+    }
+    const map = new Map()
+    for (const s of schedule) {
+      if ((teachersPerClass.get(s.classId)?.size ?? 0) < 2) continue
+      const cls = classes.find(c => c.id === s.classId)
+      const tid = s.teacherId ?? cls?.teacherId
+      const name = byId.get(tid) ?? (tid === cls?.teacherId ? cls?.teacherName : null) ?? 'Giáo viên'
+      map.set(s.id, name)
+    }
+    return map
+  }, [schedule, classes, teachers])
 
   // Today's items
   const todayDow = new Date().getDay()
@@ -204,15 +235,17 @@ export const SchedulePage = ({ onNavigate }) => {
   // Chấm công: GV chỉ pending↔present; admin pending→present→absent→pending.
   const handleToggleAttendance = useCallback(async (item, date) => {
     const cls = classes.find(c => c.id === item.classId)
-    if (!cls?.teacherId) { toast.error('Không tìm thấy lớp/giáo viên'); return }
+    // Công buổi thuộc về GV của CA đó; ca chưa gán riêng thì thuộc GV phụ trách lớp.
+    const slotTeacherId = item.teacherId ?? cls?.teacherId
+    if (!slotTeacherId) { toast.error('Không tìm thấy lớp/giáo viên'); return }
     const record = attendanceMap.get(`${item.id}_${date}`)
     const cur = record?.status === 'present' ? 'present' : record?.status === 'absent' ? 'absent' : 'pending'
     try {
       if (cur === 'pending') {
-        await teacherAttendanceService.upsert({ scheduleId: item.id, date, teacherId: cls.teacherId, status: 'present', note: record?.note ?? null })
+        await teacherAttendanceService.upsert({ scheduleId: item.id, date, teacherId: slotTeacherId, status: 'present', note: record?.note ?? null })
       } else if (cur === 'present') {
         if (canMarkAbsent) {
-          await teacherAttendanceService.upsert({ scheduleId: item.id, date, teacherId: cls.teacherId, status: 'absent', note: record?.note ?? null, substituteTeacherId: record?.substituteTeacherId ?? null })
+          await teacherAttendanceService.upsert({ scheduleId: item.id, date, teacherId: slotTeacherId, status: 'absent', note: record?.note ?? null, substituteTeacherId: record?.substituteTeacherId ?? null })
         } else {
           // GV thường: present → pending (xóa record), KHÔNG sang absent
           await teacherAttendanceService.remove(item.id, date)
@@ -230,13 +263,15 @@ export const SchedulePage = ({ onNavigate }) => {
 
   const handleSetAttendanceNote = useCallback(async (item, date, note) => {
     const cls = classes.find(c => c.id === item.classId)
-    if (!cls?.teacherId) return
+    // Công buổi thuộc về GV của CA đó; ca chưa gán riêng thì thuộc GV phụ trách lớp.
+    const slotTeacherId = item.teacherId ?? cls?.teacherId
+    if (!slotTeacherId) return
     const record = attendanceMap.get(`${item.id}_${date}`)
     try {
       await teacherAttendanceService.upsert({
         scheduleId: item.id,
         date,
-        teacherId: cls.teacherId,
+        teacherId: slotTeacherId,
         status: record?.status ?? 'absent',
         note,
         substituteConfirmed: record?.substituteConfirmed ?? false,
@@ -250,13 +285,15 @@ export const SchedulePage = ({ onNavigate }) => {
   // Chọn / bỏ người dạy thay cho một buổi vắng.
   const handleSetSubstitute = useCallback(async (item, date, substituteTeacherId) => {
     const cls = classes.find(c => c.id === item.classId)
-    if (!cls?.teacherId) return
+    // Công buổi thuộc về GV của CA đó; ca chưa gán riêng thì thuộc GV phụ trách lớp.
+    const slotTeacherId = item.teacherId ?? cls?.teacherId
+    if (!slotTeacherId) return
     const record = attendanceMap.get(`${item.id}_${date}`)
     try {
       await teacherAttendanceService.upsert({
         scheduleId: item.id,
         date,
-        teacherId: cls.teacherId,
+        teacherId: slotTeacherId,
         status: record?.status ?? 'absent',
         note: record?.note ?? null,
         substituteTeacherId,
@@ -288,10 +325,10 @@ export const SchedulePage = ({ onNavigate }) => {
       {/* ── Page Header ─────────────────────────────── */}
       <div className="flex items-start justify-between gap-4 flex-wrap">
         <div>
-          <h1 className="text-2xl font-display font-bold text-navy-900">Giảng Dạy</h1>
+          <h1 className="text-2xl font-display font-bold text-navy-900">Giảng dạy</h1>
           <p className="text-sm text-navy-400 mt-0.5">Thời khóa biểu, chấm công và lương giáo viên</p>
         </div>
-        {activeTab === 'schedule' && (
+        {activeTab === 'schedule' && isAdmin && (
           <Button
             variant="primary"
             size="md"
@@ -299,7 +336,7 @@ export const SchedulePage = ({ onNavigate }) => {
             className="flex items-center gap-2 shrink-0"
           >
             <Plus size={16} />
-            Xếp Lịch
+            Xếp lịch
           </Button>
         )}
       </div>
@@ -309,38 +346,39 @@ export const SchedulePage = ({ onNavigate }) => {
         <button
           onClick={() => setActiveTab('schedule')}
           className={clsx(
-            'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px',
+            'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px pressable',
             activeTab === 'schedule'
               ? 'border-navy-800 text-navy-900'
               : 'border-transparent text-navy-400 hover:text-navy-700'
           )}
         >
-          Lịch Dạy
+          Lịch dạy
         </button>
         <button
           onClick={() => setActiveTab('payroll')}
           className={clsx(
-            'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px',
+            'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px pressable',
             activeTab === 'payroll'
               ? 'border-navy-800 text-navy-900'
               : 'border-transparent text-navy-400 hover:text-navy-700'
           )}
         >
-          Bảng Lương
+          Bảng lương
         </button>
         <button
           onClick={() => setActiveTab('materials')}
           className={clsx(
-            'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px',
+            'px-4 py-2 text-sm font-medium transition-colors border-b-2 -mb-px pressable',
             activeTab === 'materials'
               ? 'border-navy-800 text-navy-900'
               : 'border-transparent text-navy-400 hover:text-navy-700'
           )}
         >
-          Tài Liệu
+          Tài liệu
         </button>
       </div>
 
+      <div key={activeTab} className="flex flex-col gap-6 animate-fade-in">
       {activeTab === 'schedule' && (
         <>
           {/* ── Week navigation + Teacher filter ─────────── */}
@@ -405,8 +443,15 @@ export const SchedulePage = ({ onNavigate }) => {
                 const color = getCourseColor(cls?.courseType)
                 return (
                   <div key={item.id} className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-navy-50 text-xs">
-                    <span className={clsx('w-2 h-2 rounded-full shrink-0', color.dot)} />
                     <span className="font-medium text-navy-800">{cls?.name ?? '—'}</span>
+                    {cls?.courseType && (
+                      <span className={clsx(
+                        'shrink-0 px-1.5 rounded-md border text-[10px] font-semibold uppercase tracking-wide',
+                        color.bg, color.text, color.border
+                      )}>
+                        {cls.courseType}
+                      </span>
+                    )}
                     <span className="text-navy-400">{fmtTime(item.startTime)}–{fmtTime(item.endTime)}</span>
                     {item.room && <span className="text-navy-400">· {item.room}</span>}
                     <button
@@ -456,12 +501,18 @@ export const SchedulePage = ({ onNavigate }) => {
                   <Empty
                     icon={<Calendar size={40} />}
                     title={selectedTeacherId ? 'Giáo viên này chưa có lịch dạy' : 'Chưa có lịch dạy nào'}
-                    desc={selectedTeacherId ? 'Thử chọn giáo viên khác hoặc bấm "+ Xếp Lịch".' : "Bấm '+ Xếp Lịch' để thêm ca dạy đầu tiên vào thời khóa biểu."}
+                    desc={
+                      isAdmin
+                        ? (selectedTeacherId ? 'Thử chọn giáo viên khác hoặc bấm "+ Xếp lịch".' : "Bấm '+ Xếp lịch' để thêm ca dạy đầu tiên vào thời khóa biểu.")
+                        : 'Liên hệ quản trị viên để được xếp lịch dạy.'
+                    }
                     action={
-                      <Button variant="primary" size="sm" onClick={() => openAdd(null)} className="flex items-center gap-1.5">
-                        <Plus size={14} />
-                        Xếp Lịch Đầu Tiên
-                      </Button>
+                      isAdmin && (
+                        <Button variant="primary" size="sm" onClick={() => openAdd(null)} className="flex items-center gap-1.5">
+                          <Plus size={14} />
+                          Xếp lịch đầu tiên
+                        </Button>
+                      )
                     }
                   />
                 </div>
@@ -472,8 +523,8 @@ export const SchedulePage = ({ onNavigate }) => {
                     classes={visibleClasses}
                     studentCounts={studentCounts}
                     showTeacher={showTeacher}
-                    onEdit={openEdit}
-                    onAddDay={openAdd}
+                    onEdit={isAdmin ? openEdit : undefined}
+                    onAddDay={isAdmin ? openAdd : undefined}
                     weekStart={weekStart}
                     canCheckAttendance={canCheckOwnAttendance}
                     canMarkAbsent={canMarkAbsent}
@@ -483,6 +534,7 @@ export const SchedulePage = ({ onNavigate }) => {
                     teachers={teachers}
                     onSetSubstitute={handleSetSubstitute}
                     subAssignments={subAssignments}
+                    slotTeacherNames={slotTeacherNames}
                   />
                 </div>
               )}
@@ -503,6 +555,7 @@ export const SchedulePage = ({ onNavigate }) => {
       {activeTab === 'materials' && (
         <MaterialsTab isAdmin={isAdmin} />
       )}
+      </div>
 
       {/* ── Modal ──────────────────────────────────────── */}
       <ScheduleModal

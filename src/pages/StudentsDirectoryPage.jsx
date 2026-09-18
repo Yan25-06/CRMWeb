@@ -10,7 +10,7 @@ import { BulkEnrollModal } from '@/components/students/BulkEnrollModal'
 import { StudentEditModal } from '@/components/students/StudentEditModal'
 import { ImportStudentsModal } from '@/components/students/ImportStudentsModal'
 import { ExportExcelButton } from '@/components/reports/ExportExcelButton'
-import { getInitials, fmtVND } from '@/utils/helpers'
+import { getInitials } from '@/utils/helpers'
 import { useDebounce } from '@/utils/useDebounce'
 
 const STATUS_TABS = [
@@ -169,18 +169,11 @@ const StudentDetailSidebar = ({ student, enrollments, classMap, onClose, onEdit,
                 const cls = classMap[enr.classId]
                 if (!cls) return null
                 const enrBadge = STATUS_BADGE[enr.status] || STATUS_BADGE.dropped
-                const fee = enr.feeType === 'monthly' ? enr.monthlyFee : enr.courseFee
                 return (
                   <Card key={enr.id} className="p-3 flex flex-col gap-2">
                     <div className="flex items-center justify-between">
                       <span className="font-medium text-navy-900 text-sm">{cls.name}</span>
                       <Badge variant={enrBadge.variant} className="text-xs">{enrBadge.label}</Badge>
-                    </div>
-                    <div className="flex justify-between text-xs text-navy-500">
-                      <span>{enr.feeType === 'monthly' ? 'Học phí tháng' : 'Học phí khóa'}</span>
-                      <span className="font-medium text-navy-700">
-                        {fee != null ? fmtVND(fee) : <span className="text-navy-300 italic">Chưa đặt</span>}
-                      </span>
                     </div>
                     {enr.goal && <p className="text-xs text-navy-500">Mục tiêu: {enr.goal}</p>}
                     {enr.note && <p className="text-xs text-navy-400 italic">{enr.note}</p>}
@@ -401,7 +394,7 @@ export const StudentsDirectoryPage = ({ onNavigateToClass, isAdmin = false }) =>
       <div className={clsx('flex flex-col gap-4 flex-1 min-w-0', selectedStudent && 'hidden lg:flex')}>
         {/* Header */}
         <div>
-          <h1 className="text-2xl font-bold text-navy-900">Danh Bạ Học Viên</h1>
+          <h1 className="text-2xl font-bold text-navy-900">Danh bạ học viên</h1>
           <p className="text-sm text-navy-500 mt-1">Toàn bộ học sinh — lọc, tìm kiếm và quản lý tập trung</p>
         </div>
 

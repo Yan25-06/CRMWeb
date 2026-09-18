@@ -3,6 +3,7 @@ import { Modal, Input, Button, toast } from '@/components/ui'
 import { MockTestSectionBuilder } from '@/components/mock-test/MockTestSectionBuilder'
 import { DEFAULT_SKILL_CONFIG } from '@/services/classService'
 import { COURSE_TYPES } from '@/utils/courseTypes'
+import { fmtVND } from '@/utils/helpers'
 
 const DAY_OPTIONS = [
   { value: 1, label: 'T2' },
@@ -20,7 +21,7 @@ const toSections = (skillConfig) =>
 const toSkillConfig = (sections) =>
   sections.map((s, i) => ({ name: s.name, order: i }))
 
-export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = false, teachers = [] }) => {
+export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = false, teachers = [], scheduleItems = [] }) => {
   const [formData, setFormData] = useState({
     name: '',
     level: '',
@@ -30,11 +31,13 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
     startTime: '',
     endTime: '',
     room: '',
+    monthlyFee: '',
     startDate: '',
     teacherId: '',
   })
   const [skillSections, setSkillSections] = useState(() => toSections(DEFAULT_SKILL_CONFIG))
   const [errors, setErrors] = useState({})
+  const [teacherByDay, setTeacherByDay] = useState({})
 
   useEffect(() => {
     if (open) {
@@ -48,10 +51,16 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
           startTime: classItem.startTime || '',
           endTime: classItem.endTime || '',
           room: classItem.room || '',
+          monthlyFee: classItem.monthlyFee != null ? String(classItem.monthlyFee) : '',
           startDate: classItem.startDate || '',
           teacherId: classItem.teacherId || '',
         })
         setSkillSections(toSections(classItem.skillConfig ?? DEFAULT_SKILL_CONFIG))
+        const byDay = {}
+        for (const s of scheduleItems) {
+          if (s.classId === classItem.id) byDay[s.dayOfWeek] = s.teacherId || ''
+        }
+        setTeacherByDay(byDay)
       } else {
         setFormData({
           name: '',
@@ -62,10 +71,12 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
           startTime: '',
           endTime: '',
           room: '',
+          monthlyFee: '',
           startDate: '',
           teacherId: '',
         })
         setSkillSections(toSections(DEFAULT_SKILL_CONFIG))
+        setTeacherByDay({})
       }
       setErrors({})
     }
@@ -74,7 +85,7 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
   const handleChange = (e) => {
     const { name, value } = e.target
     let parsed = value
-    if (name === 'maxStudents') {
+    if (name === 'maxStudents' || name === 'monthlyFee') {
       const digits = value.replace(/\D/g, '')
       parsed = Number(digits) || 0
     }
@@ -89,6 +100,11 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
         ? prev.scheduleDayList.filter(x => x !== d)
         : [...prev.scheduleDayList, d],
     }))
+    setTeacherByDay(prev => {
+      const next = { ...prev }
+      if (d in next) delete next[d]
+      return next
+    })
   }
 
   const handleSubmit = (e) => {
@@ -110,7 +126,26 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
       return
     }
 
-    onSave({ ...formData, maxStudents: Number(formData.maxStudents) || 0, skillConfig: toSkillConfig(skillSections) })
+    // Bỏ một thứ sẽ xóa ca đó. GV chỉ dạy đúng ca bị xóa sẽ mất quyền vào lớp.
+    const keptDays = new Set(formData.scheduleDayList)
+    const orphaned = scheduleItems
+      .filter(s => classItem && s.classId === classItem.id && s.teacherId && !keptDays.has(s.dayOfWeek))
+      .filter(s => s.teacherId !== (classItem?.teacherId ?? formData.teacherId))
+      .filter(s => !formData.scheduleDayList.some(d => (teacherByDay[d] || '') === s.teacherId))
+
+    if (orphaned.length > 0) {
+      const names = [...new Set(orphaned.map(s =>
+        teachers.find(t => t.id === s.teacherId)?.name || 'Giáo viên'
+      ))].join(', ')
+      if (!window.confirm(`Bỏ buổi này sẽ khiến ${names} không còn truy cập được lớp. Tiếp tục?`)) return
+    }
+
+    onSave({
+      ...formData,
+      maxStudents: Number(formData.maxStudents) || 0,
+      skillConfig: toSkillConfig(skillSections),
+      teacherByDay,
+    })
     toast.success(classItem ? 'Đã cập nhật lớp học!' : 'Đã thêm lớp học!')
     onClose()
   }
@@ -219,6 +254,34 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
           </div>
         </div>
 
+        {isAdmin && formData.scheduleDayList.length > 0 && (
+          <div className="flex flex-col gap-2">
+            <label className="text-sm font-medium text-navy-700">Giáo viên theo buổi</label>
+            {[...formData.scheduleDayList]
+              .sort((a, b) => (a === 0 ? 7 : a) - (b === 0 ? 7 : b))
+              .map(day => (
+                <div key={day} className="flex items-center gap-2">
+                  <span className="w-10 shrink-0 text-sm font-medium text-navy-700">
+                    {DAY_OPTIONS.find(d => d.value === day)?.label}
+                  </span>
+                  <select
+                    value={teacherByDay[day] ?? ''}
+                    onChange={e => setTeacherByDay(prev => ({ ...prev, [day]: e.target.value }))}
+                    className="select flex-1"
+                  >
+                    <option value="">Giáo viên phụ trách</option>
+                    {teachers.map(t => (
+                      <option key={t.id} value={t.id}>{t.name || t.email}</option>
+                    ))}
+                  </select>
+                </div>
+              ))}
+            <p className="text-xs text-navy-500">
+              Để trống nghĩa là giáo viên phụ trách lớp dạy buổi đó.
+            </p>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-4">
           <Input
             label="Giờ bắt đầu"
@@ -246,6 +309,23 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
           placeholder="VD: Phòng 102"
         />
 
+        {isAdmin && (
+          <div className="flex flex-col gap-1">
+            <Input
+              label="Học phí mỗi tháng (VNĐ)"
+              name="monthlyFee"
+              type="text"
+              inputMode="numeric"
+              value={formData.monthlyFee || ''}
+              onChange={handleChange}
+              placeholder="VD: 1200000"
+            />
+            {Number(formData.monthlyFee) > 0 && (
+              <p className="text-xs text-navy-500">{fmtVND(Number(formData.monthlyFee))} / tháng</p>
+            )}
+          </div>
+        )}
+
         <Input
           label="Ngày khai giảng"
           name="startDate"
@@ -257,7 +337,7 @@ export const ClassModal = ({ open, onClose, classItem = null, onSave, isAdmin = 
         {/* Skill config builder */}
         <div className="flex flex-col gap-2">
           <div className="flex justify-between items-center">
-            <label className="text-sm font-medium text-navy-700">Cấu Hình Kỹ Năng</label>
+            <label className="text-sm font-medium text-navy-700">Cấu hình kỹ năng</label>
             <span className="text-xs text-navy-400">Dùng cho đánh giá & mock test</span>
           </div>
           <MockTestSectionBuilder sections={skillSections} onChange={setSkillSections} showMaxScore={false} />
