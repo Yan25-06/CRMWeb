@@ -43,4 +43,31 @@ test('countFeeStudents: danh sách rỗng', () => {
   assert.deepEqual(countFeeStudents([]), { total: 0, paid: 0, debt: 0 })
 })
 
+// monthlyFee <= 0 ("free" — chưa có học phí cấu hình, ô hiển thị "—" ở FeesTable)
+// không được tính là "chưa đóng": không thể "chưa đóng" một khoản phí không tồn tại.
+const rowsWithFree = [
+  ...rows,
+  { studentId: 's4', classId: 'c3', name: 'Dũng', className: 'IELTS 1', monthlyFee: 0, paid: false },
+]
+
+test('countFeeStudents: lớp không có học phí (monthlyFee 0) không tính vào nợ', () => {
+  assert.deepEqual(countFeeStudents(rowsWithFree), { total: 3, paid: 1, debt: 2 })
+})
+
+test('countFeeStudents: học sinh chỉ có lớp free không tính vào total', () => {
+  const onlyFree = [{ studentId: 's5', classId: 'c4', name: 'Em', className: 'TOEIC 1', monthlyFee: 0, paid: false }]
+  assert.deepEqual(countFeeStudents(onlyFree), { total: 0, paid: 0, debt: 0 })
+})
+
+test('filterFeeRows: dòng monthlyFee 0 không xuất hiện ở tab "Chưa đóng"', () => {
+  const out = filterFeeRows(rowsWithFree, { className: 'all', status: 'debt' })
+  assert.deepEqual(out.map(r => r.studentId), ['s1', 's3'])
+})
+
+test('filterFeeRows: dòng monthlyFee 0 không xuất hiện ở tab "Đã đóng"', () => {
+  const freePaid = { studentId: 's6', classId: 'c5', name: 'Phong', className: 'TOEIC 1', monthlyFee: 0, paid: true }
+  const out = filterFeeRows([...rowsWithFree, freePaid], { className: 'all', status: 'paid' })
+  assert.equal(out.some(r => r.studentId === 's6'), false)
+})
+
 console.log(`\n${passed} test đã pass.`)

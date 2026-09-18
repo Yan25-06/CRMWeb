@@ -9,6 +9,7 @@ import { classService } from '@/services/classService'
 import { scheduleService } from '@/services/scheduleService'
 import { enrollmentService } from '@/services/enrollmentService'
 import { feeService } from '@/services/feeService'
+import { countFeeStudents } from '@/utils/fees'
 import { DailyAgenda } from '@/components/schedule/DailyAgenda'
 
 export const DashboardPage = ({ year, month, onNavigate, onAttendance }) => {
@@ -41,10 +42,7 @@ export const DashboardPage = ({ year, month, onNavigate, onAttendance }) => {
       feeService.buildFeesRows(year, month),
     ])
       .then(([feeRows]) => {
-        const unpaidStudentIds = new Set(
-          feeRows.filter(r => !r.paid).map(r => r.studentId)
-        )
-        setDebtCount(unpaidStudentIds.size)
+        setDebtCount(countFeeStudents(feeRows).debt)
       })
       .catch(() => { setDebtCount(0) })
   }, [year, month])
@@ -72,8 +70,8 @@ export const DashboardPage = ({ year, month, onNavigate, onAttendance }) => {
           <Skeleton className="h-8 w-36" />
           <Skeleton className="h-4 w-64" />
         </div>
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {[1,2,3,4].map(i => <Skeleton key={i} className="h-24 rounded-2xl" />)}
+        <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
+          {[1,2,3].map(i => <Skeleton key={i} className="h-24 rounded-2xl" />)}
         </div>
         <Skeleton className="h-40 rounded-2xl" />
         <div className="grid lg:grid-cols-2 gap-6">
@@ -113,7 +111,7 @@ export const DashboardPage = ({ year, month, onNavigate, onAttendance }) => {
       </div>
 
       {/* ── Stats grid ── */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-4">
         <StatCard
           label="Học Sinh"
           value={students.length}

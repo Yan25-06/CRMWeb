@@ -5,6 +5,7 @@ import { teacherService, classService } from '@/services/classService'
 import { scheduleService } from '@/services/scheduleService'
 import { studentService } from '@/services/studentService'
 import { feeService } from '@/services/feeService'
+import { countFeeStudents } from '@/utils/fees'
 import { ClassModal } from '@/components/classes/ClassModal'
 import { Button, Card, Modal, StatCard, toast, ConfirmModal, CurrencyInput } from '@/components/ui'
 import { Plus, Users, GraduationCap, UserCog, AlertCircle, ChevronRight, ShieldCheck, ShieldOff, Pencil, X, ChevronDown, ChevronUp } from 'lucide-react'
@@ -48,9 +49,7 @@ export function AdminPanelPage() {
         teacherService.getAll(),
         feeService.buildFeesRows(now.getFullYear(), now.getMonth() + 1),
       ])
-      const unpaidCount = new Set(
-        feeRows.filter(r => !r.paid).map(r => r.studentId)
-      ).size
+      const unpaidCount = countFeeStudents(feeRows).debt
       setStats({
         totalStudents: students.length,
         activeClasses: classList.length,

@@ -16,7 +16,7 @@ import { mockTestResultService } from '@/services/mockTestResultService'
 import { feeService }            from '@/services/feeService'
 import { homeworkService }       from '@/services/homeworkService'
 import { fmtDate } from '@/utils/helpers'
-import { countFeeStudents } from '@/utils/fees'
+import { countFeeStudents, filterFeeRows } from '@/utils/fees'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend, Filler)
 
@@ -374,8 +374,7 @@ const FeesReportCard = ({ classId }) => {
   const handleBarClick = (_, elements) => {
     if (!elements.length) return
     const idx = elements[0].index
-    const rows = (monthRows[idx] ?? [])
-      .filter(r => !r.paid)
+    const rows = filterFeeRows(monthRows[idx] ?? [], { status: 'debt' })
       .map(r => ({ name: r.name, className: r.className, status: 'Chưa đóng' }))
     setDrillRows(rows)
     setDrillMonth(months[idx])
