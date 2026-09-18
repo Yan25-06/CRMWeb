@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { Modal, Button, toast } from '@/components/ui'
 import { getInitials } from '@/utils/helpers'
 import { enrollMany } from '@/utils/enrollMany'
-import { BulkFeeFields } from './BulkFeeFields'
 
 // Modal ghi danh nhiều học sinh vào 1 lớp (StudentsDirectoryPage).
 // Props:
@@ -12,9 +11,6 @@ import { BulkFeeFields } from './BulkFeeFields'
 //   onSaved: () => void
 export const BulkEnrollModal = ({ open, onClose, students = [], classes = [], onSaved }) => {
   const [classId, setClassId] = useState('')
-  const [feeType, setFeeType] = useState('monthly')
-  const [monthlyFee, setMonthlyFee] = useState('')
-  const [courseFee, setCourseFee] = useState('')
   const [goal, setGoal] = useState('')
   const [note, setNote] = useState('')
   const [saving, setSaving] = useState(false)
@@ -22,9 +18,6 @@ export const BulkEnrollModal = ({ open, onClose, students = [], classes = [], on
   useEffect(() => {
     if (open) {
       setClassId('')
-      setFeeType('monthly')
-      setMonthlyFee('')
-      setCourseFee('')
       setGoal('')
       setNote('')
       setSaving(false)
@@ -40,7 +33,7 @@ export const BulkEnrollModal = ({ open, onClose, students = [], classes = [], on
       const { ok, failed } = await enrollMany(
         students.map(s => s.id),
         classId,
-        { feeType, monthlyFee, courseFee, goal, note }
+        { goal, note }
       )
       if (ok > 0) toast.success(`Đã ghi danh ${ok} học sinh vào ${selectedClass?.name}`)
       if (failed.length > 0) toast.error(`${failed.length} học sinh ghi danh thất bại`)
@@ -104,15 +97,6 @@ export const BulkEnrollModal = ({ open, onClose, students = [], classes = [], on
 
         <div className="border-t border-navy-100 pt-3 flex flex-col gap-3">
           <p className="text-xs font-semibold text-navy-600 uppercase tracking-wide">Thông tin ghi danh</p>
-
-          <BulkFeeFields
-            feeType={feeType}
-            setFeeType={setFeeType}
-            monthlyFee={monthlyFee}
-            setMonthlyFee={setMonthlyFee}
-            courseFee={courseFee}
-            setCourseFee={setCourseFee}
-          />
 
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-navy-700">Mục tiêu</label>

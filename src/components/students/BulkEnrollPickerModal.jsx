@@ -5,7 +5,6 @@ import { Modal, Button, toast } from '@/components/ui'
 import { getInitials } from '@/utils/helpers'
 import { studentService } from '@/services/studentService'
 import { enrollMany } from '@/utils/enrollMany'
-import { BulkFeeFields } from './BulkFeeFields'
 
 // Modal chọn nhiều học sinh để ghi danh vào 1 lớp (ClassDetailPage).
 // Props:
@@ -17,9 +16,6 @@ export const BulkEnrollPickerModal = ({ open, onClose, classId, currentEnrollmen
   const [allStudents, setAllStudents] = useState([])
   const [search, setSearch] = useState('')
   const [selectedIds, setSelectedIds] = useState(new Set())
-  const [feeType, setFeeType] = useState('monthly')
-  const [monthlyFee, setMonthlyFee] = useState('')
-  const [courseFee, setCourseFee] = useState('')
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
 
@@ -27,9 +23,6 @@ export const BulkEnrollPickerModal = ({ open, onClose, classId, currentEnrollmen
     if (!open) return
     setSearch('')
     setSelectedIds(new Set())
-    setFeeType('monthly')
-    setMonthlyFee('')
-    setCourseFee('')
     setSaving(false)
     setLoading(true)
     studentService.getAll()
@@ -66,7 +59,7 @@ export const BulkEnrollPickerModal = ({ open, onClose, classId, currentEnrollmen
       const { ok, failed } = await enrollMany(
         [...selectedIds],
         classId,
-        { feeType, monthlyFee, courseFee }
+        {}
       )
       if (ok > 0) toast.success(`Đã thêm ${ok} học viên vào lớp`)
       if (failed.length > 0) toast.error(`${failed.length} học sinh thất bại`)
@@ -150,16 +143,6 @@ export const BulkEnrollPickerModal = ({ open, onClose, classId, currentEnrollmen
         {selectedIds.size > 0 && (
           <p className="text-xs font-semibold text-navy-700">Đã chọn {selectedIds.size} học sinh</p>
         )}
-
-        {/* Fee form */}
-        <BulkFeeFields
-          feeType={feeType}
-          setFeeType={setFeeType}
-          monthlyFee={monthlyFee}
-          setMonthlyFee={setMonthlyFee}
-          courseFee={courseFee}
-          setCourseFee={setCourseFee}
-        />
       </div>
     </Modal>
   )

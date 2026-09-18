@@ -51,8 +51,6 @@ export const ImportStudentsModal = ({ open, onClose, onImportDone, classes = [] 
 
   // Enrollment options
   const [selectedClassId, setSelectedClassId] = useState('')
-  const [feeType, setFeeType] = useState('monthly')
-  const [feeAmount, setFeeAmount] = useState('')
 
   const reset = () => {
     setRows([])
@@ -122,9 +120,6 @@ export const ImportStudentsModal = ({ open, onClose, onImportDone, classes = [] 
               studentId: created.id,
               classId: selectedClassId,
               status: 'active',
-              feeType,
-              monthlyFee: feeType === 'monthly' ? (Number(feeAmount) || 0) : null,
-              courseFee: feeType === 'course' ? (Number(feeAmount) || 0) : null,
               enrolledAt: new Date().toISOString(),
             })
             enrolled++
@@ -214,43 +209,6 @@ export const ImportStudentsModal = ({ open, onClose, onImportDone, classes = [] 
                   <option key={c.id} value={c.id}>{c.name}</option>
                 ))}
               </select>
-
-              {selectedClassId && (
-                <div className="flex flex-col gap-2">
-                  <p className="text-sm font-medium text-navy-700">Học phí mặc định</p>
-                  <div className="flex gap-1 p-1 bg-white rounded-xl">
-                    <button
-                      type="button"
-                      onClick={() => setFeeType('monthly')}
-                      className={clsx(
-                        'flex-1 py-1.5 text-xs font-medium rounded-lg transition-all',
-                        feeType === 'monthly' ? 'bg-navy-800 text-white' : 'text-navy-500 hover:text-navy-700'
-                      )}
-                    >
-                      Theo tháng
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setFeeType('course')}
-                      className={clsx(
-                        'flex-1 py-1.5 text-xs font-medium rounded-lg transition-all',
-                        feeType === 'course' ? 'bg-navy-800 text-white' : 'text-navy-500 hover:text-navy-700'
-                      )}
-                    >
-                      Theo khóa
-                    </button>
-                  </div>
-                  <input
-                    type="number"
-                    value={feeAmount}
-                    onChange={e => setFeeAmount(e.target.value)}
-                    placeholder={feeType === 'monthly' ? 'Học phí tháng (VNĐ)' : 'Học phí cả khóa (VNĐ)'}
-                    min="0"
-                    step="10000"
-                    className="input text-sm"
-                  />
-                </div>
-              )}
             </div>
 
             {/* File input */}
