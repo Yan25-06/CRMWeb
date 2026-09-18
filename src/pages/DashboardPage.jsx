@@ -1,26 +1,21 @@
 import { useState, useEffect, useMemo } from 'react'
 import {
-  Users, Calendar, DollarSign,
+  Users, Calendar,
   BookOpen, AlertCircle,
 } from 'lucide-react'
 import { StatCard, Card, Badge, Skeleton } from '@/components/ui'
 import { studentService } from '@/services/studentService'
 import { classService } from '@/services/classService'
-import { paymentService } from '@/services/paymentService'
 import { scheduleService } from '@/services/scheduleService'
 import { enrollmentService } from '@/services/enrollmentService'
 import { feeService } from '@/services/feeService'
 import { DailyAgenda } from '@/components/schedule/DailyAgenda'
-
-const fmt = (n) =>
-  new Intl.NumberFormat('vi-VN').format(n) + 'đ'
 
 export const DashboardPage = ({ year, month, onNavigate, onAttendance }) => {
   const [students, setStudents]             = useState([])
   const [classes,  setClasses]              = useState([])
   const [schedule, setSchedule]             = useState([])
   const [enrollments, setEnrollments]       = useState([])
-  const [monthlyRevenue, setMonthlyRevenue] = useState(0)
   const [debtCount, setDebtCount]           = useState(0)
   const [loading, setLoading]               = useState(true)
 
@@ -42,19 +37,16 @@ export const DashboardPage = ({ year, month, onNavigate, onAttendance }) => {
   }, [])
 
   useEffect(() => {
-    const period = `${year}-${String(month).padStart(2, '0')}`
     Promise.all([
-      paymentService.getByPeriod(period),
       feeService.buildFeesRows(year, month),
     ])
-      .then(([payments, feeRows]) => {
-        setMonthlyRevenue(payments.reduce((s, p) => s + (p.amount ?? 0), 0))
+      .then(([feeRows]) => {
         const unpaidStudentIds = new Set(
-          feeRows.filter(r => r.paid < r.expected).map(r => r.studentId)
+          feeRows.filter(r => !r.paid).map(r => r.studentId)
         )
         setDebtCount(unpaidStudentIds.size)
       })
-      .catch(() => { setMonthlyRevenue(0); setDebtCount(0) })
+      .catch(() => { setDebtCount(0) })
   }, [year, month])
 
   const todayDow = new Date().getDay()
@@ -72,8 +64,6 @@ export const DashboardPage = ({ year, month, onNavigate, onAttendance }) => {
     }
     return map
   }, [classes, enrollments])
-
-  const monthName = new Date(year, month - 1).toLocaleString('vi-VN', { month: 'long' })
 
   if (loading) {
     return (
@@ -141,15 +131,6 @@ export const DashboardPage = ({ year, month, onNavigate, onAttendance }) => {
           accent="navy"
           className="h-full"
           onClick={() => onNavigate('classes')}
-        />
-        <StatCard
-          label={`Thu ${monthName}`}
-          value={fmt(monthlyRevenue)}
-          sub="tổng học phí tháng"
-          icon={<DollarSign size={16} />}
-          accent="warning"
-          className="h-full"
-          onClick={() => onNavigate('fees')}
         />
         <StatCard
           label="Chưa đóng phí"
