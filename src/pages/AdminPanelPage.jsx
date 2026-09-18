@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { usePermissions } from '@/hooks/usePermissions'
 import { teacherService, classService } from '@/services/classService'
+import { scheduleService } from '@/services/scheduleService'
 import { studentService } from '@/services/studentService'
 import { feeService } from '@/services/feeService'
 import { ClassModal } from '@/components/classes/ClassModal'
@@ -15,6 +16,7 @@ export function AdminPanelPage() {
   const { canAccessAdmin } = usePermissions()
   const [teachers, setTeachers] = useState([])
   const [classes, setClasses] = useState([])
+  const [scheduleItems, setScheduleItems] = useState([])
   const [loadingTeachers, setLoadingTeachers] = useState(true)
   const [loadingClasses, setLoadingClasses] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -34,6 +36,7 @@ export function AdminPanelPage() {
     loadTeachers()
     loadClasses()
     loadStats()
+    loadSchedule()
   }, [])
 
   const loadStats = async () => {
@@ -83,12 +86,22 @@ export function AdminPanelPage() {
     }
   }
 
+  const loadSchedule = async () => {
+    try {
+      const data = await scheduleService.getAll()
+      setScheduleItems(data)
+    } catch (err) {
+      toast.error('Lỗi tải lịch dạy: ' + err.message)
+    }
+  }
+
   const handleCreateClass = async (formData) => {
     try {
       await classService.create(formData)
       setShowCreateModal(false)
       loadClasses()
       loadStats()
+      loadSchedule()
     } catch (err) {
       toast.error('Lỗi tạo lớp: ' + err.message)
     }
@@ -491,6 +504,7 @@ export function AdminPanelPage() {
         onSave={handleCreateClass}
         isAdmin={true}
         teachers={teachers}
+        scheduleItems={scheduleItems}
       />
 
       <ConfirmModal

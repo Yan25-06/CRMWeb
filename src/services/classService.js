@@ -141,6 +141,7 @@ export const classService = {
         startTime: data.startTime,
         endTime: data.endTime,
         room: data.room,
+        teacherByDay: data.teacherByDay,
       })
     }
     return fromDB(row)
@@ -158,6 +159,7 @@ export const classService = {
         startTime: data.startTime,
         endTime: data.endTime,
         room: data.room,
+        teacherByDay: data.teacherByDay,
       })
     }
   },
