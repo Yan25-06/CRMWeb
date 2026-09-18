@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useId } from 'react'
 export { CurrencyInput } from './CurrencyInput'
 import { clsx } from 'clsx'
 import { X, CheckCircle, AlertCircle, Info } from 'lucide-react'
+import { useMountTransition } from '@/hooks/useMountTransition'
 
 // ─── Button ──────────────────────────────────────────────
 export const Button = ({
@@ -43,7 +44,11 @@ export const Badge = ({ children, variant = 'navy', className }) => {
 export const Card = ({ children, className, onClick, navy }) => (
   <div
     onClick={onClick}
-    className={clsx(navy ? 'card-navy' : 'card', onClick && 'cursor-pointer', className)}
+    className={clsx(
+      navy ? 'card-navy' : (onClick ? 'card-interactive' : 'card'),
+      onClick && 'cursor-pointer',
+      className
+    )}
   >
     {children}
   </div>
@@ -73,6 +78,14 @@ export const Select = ({ label, error, className, children, ...props }) => (
 export const Modal = ({ open, onClose, title, children, footer }) => {
   const boxRef = useRef(null)
   const titleId = useId()
+  const mounted = useMountTransition(open, 240)
+
+  // Đóng băng nội dung được render lần cuối khi open=true, để trong ~240ms
+  // cửa sổ thoát (open=false nhưng mounted=true) modal không hiển thị
+  // children/title/footer mới bị caller null hóa cùng lúc với việc đóng.
+  const lastContentRef = useRef({ children, title, footer })
+  if (open) lastContentRef.current = { children, title, footer }
+  const content = open ? { children, title, footer } : lastContentRef.current
 
   useEffect(() => {
     if (!open) return
@@ -106,11 +119,14 @@ export const Modal = ({ open, onClose, title, children, footer }) => {
     }
   }, [open, onClose])
 
-  if (!open) return null
+  if (!mounted) return null
   return (
-    <div className="modal-overlay" onClick={e => e.target === e.currentTarget && onClose?.()}>
+    <div
+      className={clsx('modal-overlay', open ? 'animate-fade-in' : 'animate-fade-out')}
+      onClick={e => e.target === e.currentTarget && onClose?.()}
+    >
       <div
-        className="modal-box"
+        className={clsx('modal-box', open ? 'animate-slide-up' : 'animate-slide-down-out')}
         ref={boxRef}
         tabIndex={-1}
         role="dialog"
@@ -118,13 +134,13 @@ export const Modal = ({ open, onClose, title, children, footer }) => {
         aria-labelledby={titleId}
       >
         <div className="modal-header flex items-center justify-between">
-          <h2 id={titleId} className="text-base font-semibold text-navy-900">{title}</h2>
+          <h2 id={titleId} className="text-base font-semibold text-navy-900">{content.title}</h2>
           <button onClick={onClose} aria-label="Đóng" className="btn-ghost btn-sm rounded-lg p-1.5">
             <X size={16} />
           </button>
         </div>
-        <div className="modal-body">{children}</div>
-        {footer && <div className="modal-footer">{footer}</div>}
+        <div className="modal-body">{content.children}</div>
+        {content.footer && <div className="modal-footer">{content.footer}</div>}
       </div>
     </div>
   )
@@ -148,8 +164,11 @@ export const ConfirmModal = ({ open, onClose, onConfirm, title = 'Xác nhận', 
 )
 
 // ─── Stat Card ───────────────────────────────────────────
-export const StatCard = ({ label, value, sub, icon, accent, className }) => (
-  <div className={clsx('stat-card', className)}>
+export const StatCard = ({ label, value, sub, icon, accent, className, onClick }) => (
+  <div
+    onClick={onClick}
+    className={clsx('stat-card', onClick && 'card-interactive cursor-pointer', className)}
+  >
     <div className="flex items-start justify-between">
       <span className="stat-label">{label}</span>
       {icon && (

@@ -75,7 +75,7 @@ export const StudentSidebar = ({
           <button
             id="add-student-btn"
             onClick={onAddStudent}
-            className="flex-1 flex items-center justify-center gap-1 px-2.5 py-1.5 bg-navy-800 text-white text-xs font-medium rounded-lg hover:bg-navy-700 transition-colors whitespace-nowrap"
+            className="flex-1 flex items-center justify-center gap-1 px-2.5 py-1.5 bg-navy-800 text-white text-xs font-medium rounded-lg hover:bg-navy-700 transition-colors whitespace-nowrap pressable"
           >
             <Plus size={12} className="shrink-0" />
             Thêm
@@ -84,7 +84,7 @@ export const StudentSidebar = ({
             <button
               id="create-student-btn"
               onClick={onCreateStudent}
-              className="flex-1 px-2.5 py-1.5 border border-navy-200 text-navy-600 text-xs font-medium rounded-lg hover:bg-navy-50 transition-colors whitespace-nowrap"
+              className="flex-1 px-2.5 py-1.5 border border-navy-200 text-navy-600 text-xs font-medium rounded-lg hover:bg-navy-50 transition-colors whitespace-nowrap pressable"
             >
               Tạo mới
             </button>
@@ -114,7 +114,7 @@ export const StudentSidebar = ({
               key={tab.id}
               onClick={() => setFilterStatus(tab.id)}
               className={clsx(
-                'py-1 text-xs font-medium rounded-lg transition-all whitespace-nowrap',
+                'py-1 text-xs font-medium rounded-lg transition-all whitespace-nowrap pressable',
                 filterStatus === tab.id
                   ? 'bg-navy-800 text-white'
                   : 'text-navy-500 hover:text-navy-700 hover:bg-navy-50'

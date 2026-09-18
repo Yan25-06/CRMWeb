@@ -122,8 +122,8 @@ export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, can
   return (
     <div
       className={clsx(
-        'group relative rounded-xl border p-2.5 cursor-pointer transition-all duration-150',
-        'hover:shadow-md hover:-translate-y-0.5',
+        'group relative rounded-xl border p-2.5 cursor-pointer',
+        'transition-all duration-base ease-out-soft hover:shadow-navy hover:-translate-y-0.5',
         color.bg, color.border,
         isAbsent && clsx('border-l-4', att.bar),
         dropdownOpen && 'z-10'
@@ -175,7 +175,7 @@ export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, can
       {canCheckAttendance && (
         <button
           className={clsx(
-            'mt-2 w-full inline-flex items-center justify-center gap-1 px-1 py-1 rounded-lg text-[11px] font-semibold border transition-colors',
+            'mt-2 w-full inline-flex items-center justify-center gap-1 px-1 py-1 rounded-lg text-[11px] font-semibold border transition-colors pressable',
             att.bg, att.text, att.border, 'hover:opacity-80'
           )}
           title={canMarkAbsent ? 'Bấm để đổi: Chưa xác nhận → Đã dạy → Vắng' : 'Bấm để đổi: Chưa xác nhận → Đã dạy'}

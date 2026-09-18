@@ -61,6 +61,16 @@
     border-radius: 4px;
   }
 
+  /* Tôn trọng prefers-reduced-motion: một số người bật thiết lập này vì chuyển động
+     gây chóng mặt hoặc buồn nôn thật sự. Tắt cả animation lặp vô hạn (shimmer). */
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+
   /* Selection */
   ::selection {
     background: var(--navy-100);
@@ -99,9 +109,18 @@
   }
 
   /* ─── Cards ─── */
+  /* .card tĩnh — không hover. Chỉ thẻ thật sự bấm được mới dùng .card-interactive,
+     nếu không hiệu ứng nhấc lên là một lời hứa sai (false affordance). */
   .card {
-    @apply bg-white rounded-2xl border border-navy-100 shadow-navy-sm
-           transition-shadow duration-200 hover:shadow-navy;
+    @apply bg-white rounded-2xl border border-navy-100 shadow-navy-sm;
+  }
+  .card-interactive {
+    @apply card transition-all duration-base ease-out-soft
+           hover:shadow-navy hover:-translate-y-0.5;
+  }
+  /* Phản hồi khi nhấn cho control không dùng .btn (chip lọc, tab, mục nav). */
+  .pressable {
+    @apply transition-[color,background-color,border-color,transform] duration-fast active:scale-[0.97];
   }
   .card-flat {
     @apply bg-white rounded-2xl border border-navy-100;
@@ -195,11 +214,11 @@
   /* ─── Modal ─── */
   .modal-overlay {
     @apply fixed inset-0 bg-navy-950/40 backdrop-blur-sm z-50
-           flex items-center justify-center p-4 animate-fade-in;
+           flex items-center justify-center p-4;
   }
   .modal-box {
     @apply bg-white rounded-3xl shadow-navy-xl w-full max-w-lg
-           animate-slide-up overflow-hidden
+           overflow-hidden
            flex flex-col max-h-[90vh];
   }
   .modal-header {

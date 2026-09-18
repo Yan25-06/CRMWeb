@@ -51,7 +51,7 @@ export const Navbar = ({ activePage, onNavigate, centerName }) => {
               key={id}
               onClick={() => onNavigate(id)}
               className={clsx(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 w-full text-left',
+                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 w-full text-left pressable',
                 activePage === id
                   ? 'bg-white/15 text-white'
                   : 'text-navy-300 hover:bg-white/8 hover:text-white'
@@ -65,7 +65,7 @@ export const Navbar = ({ activePage, onNavigate, centerName }) => {
             <button
               onClick={() => onNavigate('admin')}
               className={clsx(
-                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 w-full text-left border-t border-navy-700 mt-1 pt-4',
+                'flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 w-full text-left border-t border-navy-700 mt-1 pt-4 pressable',
                 activePage === 'admin'
                   ? 'bg-white/15 text-white'
                   : 'text-navy-300 hover:bg-white/8 hover:text-white'
@@ -167,7 +167,7 @@ export const Navbar = ({ activePage, onNavigate, centerName }) => {
             key={id}
             onClick={() => onNavigate(id)}
             className={clsx(
-              'flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors',
+              'flex-1 flex flex-col items-center gap-0.5 py-2 text-[10px] font-medium transition-colors pressable',
               activePage === id ? 'text-navy-800' : 'text-navy-400'
             )}
           >

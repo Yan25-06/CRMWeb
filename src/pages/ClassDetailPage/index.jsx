@@ -122,7 +122,7 @@ export const ClassDetailPage = ({ classId, onBack, initialTab = 'students', isAd
               disabled={tab.disabled}
               onClick={() => !tab.disabled && setActiveTab(tab.id)}
               className={clsx(
-                'pb-3 px-3 text-sm font-medium transition-colors relative whitespace-nowrap',
+                'pb-3 px-3 text-sm font-medium transition-colors relative whitespace-nowrap pressable',
                 tab.disabled
                   ? 'text-navy-300 cursor-not-allowed'
                   : activeTab === tab.id
@@ -145,7 +145,7 @@ export const ClassDetailPage = ({ classId, onBack, initialTab = 'students', isAd
       </div>
 
       {/* Tab content */}
-      <div className="flex-1 pt-5">
+      <div key={activeTab} className="flex-1 pt-5 animate-fade-in">
         {activeTab === 'students' && (
           <StudentsTab classId={classId} isAdmin={isAdmin} onEnrollmentChange={loadHeader} />
         )}
