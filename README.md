@@ -19,12 +19,12 @@ Password: 123456
 ## What it does
 
 - **Attendance** — track per-session attendance across multiple classes
-- **Tuition fees** — monthly or course-based billing, payment tracking, surcharge handling
+- **Tuition fees** — fixed monthly fee set per class; a single paid/unpaid tick per student per class per month (no per-payment amounts or history)
 - **Homework** — assign and track submission status per session
 - **Mock tests** — record IELTS/TOEIC scores by skill, visualize progress over time
 - **Student reviews** — skill radar charts, PDF report cards, bulk export as ZIP
 - **Schedule** — weekly grid + daily agenda view; teacher attendance check-in with 3-state opt-in model (unconfirmed / present / absent) per slot; teachers self-confirm their own classes
-- **Lịch dạy tự động** — đặt lịch học của lớp (chọn thứ + giờ) → các ca tự xuất hiện và đồng bộ trên trang Lịch Dạy
+- **Lịch dạy tự động** — đặt lịch học của lớp (chọn thứ + giờ) → các ca tự xuất hiện và đồng bộ trên trang Lịch Dạy. Một lớp có thể chia buổi cho nhiều giáo viên (VD T2 cô A, T5 cô B) — mỗi ca gán riêng một giáo viên, để trống thì GV phụ trách lớp dạy
 - **Chấm công giáo viên opt-in** — 3 trạng thái: Chưa xác nhận / Đã dạy / Vắng. Giáo viên tự chấm buổi lớp mình; admin chấm tất cả và gán dạy thay. Dạy thay tự xác nhận qua mục "Buổi được giao dạy thay".
 - **Giáo trình & tài liệu giảng dạy** — giáo trình dùng chung theo loại khóa (IELTS/TOEIC/TOEIC SW/Khác), phân cấp Tháng → Buổi → Tài liệu; admin biên soạn, mọi giáo viên xem read-only qua dropdown chọn loại khóa (không giới hạn theo lớp mình dạy).
 - **Reports** — attendance, fees, homework, and mock test charts with Excel/PDF export

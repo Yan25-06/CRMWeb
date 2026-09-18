@@ -13,9 +13,10 @@ import { sessionService }        from '@/services/sessionService'
 import { attendanceService }     from '@/services/attendanceService'
 import { mockTestService }       from '@/services/mockTestService'
 import { mockTestResultService } from '@/services/mockTestResultService'
-import { paymentService }        from '@/services/paymentService'
+import { feeService }            from '@/services/feeService'
 import { homeworkService }       from '@/services/homeworkService'
-import { fmtVND, fmtDate } from '@/utils/helpers'
+import { fmtDate } from '@/utils/helpers'
+import { countFeeStudents, filterFeeRows } from '@/utils/fees'
 
 ChartJS.register(CategoryScale, LinearScale, BarElement, LineElement, PointElement, Title, Tooltip, Legend, Filler)
 
@@ -319,14 +320,14 @@ const MockTestCard = ({ classId }) => {
 
 // ─── Fees card ────────────────────────────────────────────
 const FeesReportCard = ({ classId }) => {
-  const [fromMonth,  setFromMonth]  = useState(sixMonthsAgo())
-  const [toMonth,    setToMonth]    = useState(currentMonth())
-  const [loading,    setLoading]    = useState(false)
-  const [chartData,  setChartData]  = useState(null)
-  const [tableRows,  setTableRows]  = useState([])
-  const [hasData,    setHasData]    = useState(false)
-  const [months,     setMonths]     = useState([])
-  const [allPayments, setAllPayments] = useState([])
+  const [fromMonth, setFromMonth] = useState(sixMonthsAgo())
+  const [toMonth,   setToMonth]   = useState(currentMonth())
+  const [loading,   setLoading]   = useState(false)
+  const [chartData, setChartData] = useState(null)
+  const [tableRows, setTableRows] = useState([])
+  const [hasData,   setHasData]   = useState(false)
+  const [months,    setMonths]    = useState([])
+  const [monthRows, setMonthRows] = useState([])
   const [drillMonth, setDrillMonth] = useState(null)
   const [drillRows,  setDrillRows]  = useState([])
 
@@ -335,23 +336,34 @@ const FeesReportCard = ({ classId }) => {
     const load = async () => {
       try {
         const ms = monthsBetween(fromMonth, toMonth)
-        const allPaymentsArrays = await Promise.all(ms.map(m => paymentService.getByPeriod(m)))
-
-        const totals = allPaymentsArrays.map(payments =>
-          payments.reduce((s, p) => s + (p.amount ?? 0), 0)
+        const perMonth = await Promise.all(ms.map(m => {
+          const [y, mo] = m.split('-').map(Number)
+          return feeService.buildFeesRows(y, mo)
+        }))
+        const scoped = perMonth.map(rows =>
+          classId ? rows.filter(r => r.classId === classId) : rows
         )
 
-        const hasDataNow = totals.some(t => t > 0)
-        const labels = ms.map(fmtMonth)
-        const rows = ms.map((m, i) => ({ month: labels[i], total: fmtVND(totals[i]) }))
+        const paidCounts = scoped.map(rows => countFeeStudents(rows).paid)
+        const debtCounts = scoped.map(rows => countFeeStudents(rows).debt)
 
-        setHasData(hasDataNow)
+        const labels = ms.map(fmtMonth)
+        const rows = ms.map((m, i) => ({
+          month: labels[i],
+          paid: String(paidCounts[i]),
+          debt: String(debtCounts[i]),
+        }))
+
+        setHasData(scoped.some(r => r.length > 0))
         setTableRows(rows)
         setMonths(ms)
-        setAllPayments(allPaymentsArrays)
+        setMonthRows(scoped)
         setChartData({
           labels,
-          datasets: [{ data: totals, backgroundColor: 'rgba(5,150,105,0.7)', borderRadius: 6 }],
+          datasets: [
+            { label: 'Đã đóng',  data: paidCounts, backgroundColor: 'rgba(5,150,105,0.7)',  borderRadius: 6 },
+            { label: 'Chưa đóng', data: debtCounts, backgroundColor: 'rgba(220,38,38,0.7)', borderRadius: 6 },
+          ],
         })
       } catch { /* show empty */ }
       finally { setLoading(false) }
@@ -362,23 +374,22 @@ const FeesReportCard = ({ classId }) => {
   const handleBarClick = (_, elements) => {
     if (!elements.length) return
     const idx = elements[0].index
-    const monthPayments = allPayments[idx] ?? []
-    const rows = monthPayments.map(p => ({
-      studentId: p.studentId,
-      amount: fmtVND(p.amount ?? 0),
-      paidAt: p.paidAt ? fmtDate(p.paidAt) : '—',
-      method: p.method || '—',
-    }))
+    const rows = filterFeeRows(monthRows[idx] ?? [], { status: 'debt' })
+      .map(r => ({ name: r.name, className: r.className, status: 'Chưa đóng' }))
     setDrillRows(rows)
     setDrillMonth(months[idx])
   }
 
-  const excelCols = [{ key: 'month', label: 'Tháng' }, { key: 'total', label: 'Tổng thu' }]
+  const excelCols = [
+    { key: 'month', label: 'Tháng' },
+    { key: 'paid',  label: 'Đã đóng' },
+    { key: 'debt',  label: 'Chưa đóng' },
+  ]
 
   return (
     <>
       <ReportCard
-        title="Tổng thu Học phí"
+        title="Học phí"
         hasData={hasData}
         excelRows={tableRows}
         excelColumns={excelCols}
@@ -395,7 +406,7 @@ const FeesReportCard = ({ classId }) => {
         {loading ? (
           <p className="text-sm text-navy-400 py-4 text-center">Đang tải...</p>
         ) : !hasData ? (
-          <p className="text-sm text-navy-400 py-4 text-center">Chưa có dữ liệu thanh toán</p>
+          <p className="text-sm text-navy-400 py-4 text-center">Chưa có dữ liệu học phí</p>
         ) : (
           <Bar
             data={chartData}
@@ -403,11 +414,7 @@ const FeesReportCard = ({ classId }) => {
               ...BASE_CHART_OPTS,
               plugins: {
                 ...BASE_CHART_OPTS.plugins,
-                tooltip: {
-                  callbacks: {
-                    label: ctx => fmtVND(ctx.parsed.y),
-                  },
-                },
+                legend: { display: true, position: 'bottom', labels: { boxWidth: 12, font: { size: 11 } } },
               },
               onClick: handleBarClick,
             }}
@@ -415,25 +422,25 @@ const FeesReportCard = ({ classId }) => {
         )}
       </ReportCard>
 
-      <Modal open={!!drillMonth} onClose={() => setDrillMonth(null)} title={`Chi tiết học phí — ${drillMonth ? fmtMonth(drillMonth) : ''}`}>
+      <Modal open={!!drillMonth} onClose={() => setDrillMonth(null)} title={`Chưa đóng học phí — ${drillMonth ? fmtMonth(drillMonth) : ''}`}>
         {drillRows.length === 0 ? (
-          <p className="text-sm text-navy-400 py-4 text-center">Không có thanh toán nào trong tháng này</p>
+          <p className="text-sm text-navy-400 py-4 text-center">Không có học sinh nào chưa đóng trong tháng này</p>
         ) : (
           <div className="overflow-auto max-h-96">
             <table className="w-full text-sm">
               <thead>
                 <tr className="text-left border-b border-navy-100">
-                  <th className="py-2 pr-3 font-medium text-navy-600">Ngày đóng</th>
-                  <th className="py-2 pr-3 font-medium text-navy-600">Số tiền</th>
-                  <th className="py-2 font-medium text-navy-600">Phương thức</th>
+                  <th className="py-2 pr-3 font-medium text-navy-600">Học viên</th>
+                  <th className="py-2 pr-3 font-medium text-navy-600">Lớp</th>
+                  <th className="py-2 font-medium text-navy-600">Trạng thái</th>
                 </tr>
               </thead>
               <tbody>
                 {drillRows.map((r, i) => (
                   <tr key={i} className="border-b border-navy-50">
-                    <td className="py-1.5 pr-3 text-navy-700">{r.paidAt}</td>
-                    <td className="py-1.5 pr-3 text-navy-700 font-medium">{r.amount}</td>
-                    <td className="py-1.5 text-navy-500">{r.method}</td>
+                    <td className="py-1.5 pr-3 text-navy-700">{r.name}</td>
+                    <td className="py-1.5 pr-3 text-navy-500">{r.className}</td>
+                    <td className="py-1.5 font-medium text-red-500">{r.status}</td>
                   </tr>
                 ))}
               </tbody>

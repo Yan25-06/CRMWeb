@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { X } from 'lucide-react'
 import { clsx } from 'clsx'
-import { Button, CurrencyInput } from '@/components/ui'
+import { Button } from '@/components/ui'
 import { toast as uiToast } from '@/components/ui'
 import { getInitials } from '@/utils/helpers'
 import { studentService } from '@/services/studentService'
@@ -13,52 +13,7 @@ const STATUS_OPTIONS = [
   { value: 'dropped', label: 'Đã nghỉ' },
 ]
 
-const EMPTY_NEW = { name: '', phone: '', grade: '', email: '', feeType: 'monthly', monthlyFee: '', courseFee: '', note: '' }
-
-const FeeInputs = ({ feeType, setFeeType, monthlyFee, setMonthlyFee, courseFee, setCourseFee }) => (
-  <div className="flex flex-col gap-2">
-    {/* Fee type toggle */}
-    <label className="text-sm font-medium text-navy-700">Loại học phí</label>
-    <div className="flex gap-1 p-1 bg-navy-50 rounded-xl">
-      <button
-        type="button"
-        onClick={() => setFeeType('monthly')}
-        className={clsx(
-          'flex-1 py-1.5 text-xs font-medium rounded-lg transition-all',
-          feeType === 'monthly' ? 'bg-white shadow-sm text-navy-800' : 'text-navy-500 hover:text-navy-700'
-        )}
-      >
-        Theo tháng
-      </button>
-      <button
-        type="button"
-        onClick={() => setFeeType('course')}
-        className={clsx(
-          'flex-1 py-1.5 text-xs font-medium rounded-lg transition-all',
-          feeType === 'course' ? 'bg-white shadow-sm text-navy-800' : 'text-navy-500 hover:text-navy-700'
-        )}
-      >
-        Theo khóa
-      </button>
-    </div>
-
-    {feeType === 'monthly' ? (
-      <CurrencyInput
-        label="Học phí tháng (VNĐ)"
-        value={monthlyFee}
-        onChange={setMonthlyFee}
-        className="text-sm"
-      />
-    ) : (
-      <CurrencyInput
-        label="Học phí cả khóa (VNĐ)"
-        value={courseFee}
-        onChange={setCourseFee}
-        className="text-sm"
-      />
-    )}
-  </div>
-)
+const EMPTY_NEW = { name: '', phone: '', grade: '', email: '', note: '' }
 
 export const EnrollmentModal = ({
   open,
@@ -84,9 +39,6 @@ export const EnrollmentModal = ({
   const [enrollClassId, setEnrollClassId] = useState('')
 
   const [status, setStatus] = useState('active')
-  const [feeType, setFeeType] = useState('monthly')
-  const [monthlyFee, setMonthlyFee] = useState('')
-  const [courseFee, setCourseFee] = useState('')
   const [goal, setGoal] = useState('')
   const [note, setNote] = useState('')
   const [confirmDrop, setConfirmDrop] = useState(false)
@@ -121,15 +73,9 @@ export const EnrollmentModal = ({
       setNewErrors({})
       setGoal('')
       setNote('')
-      setFeeType('monthly')
-      setMonthlyFee('')
-      setCourseFee('')
       setStatus('active')
     } else if (mode === 'edit' && enrollment) {
       setStatus(enrollment.status || 'active')
-      setFeeType(enrollment.feeType || 'monthly')
-      setMonthlyFee(enrollment.monthlyFee != null ? enrollment.monthlyFee : '')
-      setCourseFee(enrollment.courseFee != null ? enrollment.courseFee : '')
       setGoal(enrollment.goal || '')
       setNote(enrollment.note || '')
       setConfirmDrop(false)
@@ -169,9 +115,6 @@ export const EnrollmentModal = ({
             studentId: student.id,
             classId: enrollClassId,
             status: 'active',
-            feeType,
-            monthlyFee: feeType === 'monthly' ? (Number(monthlyFee) || 0) : null,
-            courseFee: feeType === 'course' ? (Number(courseFee) || 0) : null,
             goal,
             note,
             enrolledAt: new Date().toISOString(),
@@ -183,9 +126,6 @@ export const EnrollmentModal = ({
             studentId: selectedStudentId,
             classId,
             status: 'active',
-            feeType,
-            monthlyFee: feeType === 'monthly' ? (Number(monthlyFee) || 0) : null,
-            courseFee: feeType === 'course' ? (Number(courseFee) || 0) : null,
             goal,
             note,
             enrolledAt: new Date().toISOString(),
@@ -200,14 +140,10 @@ export const EnrollmentModal = ({
             email: newForm.email.trim() || null,
           })
           if (classId) {
-            const ft = newForm.feeType || 'monthly'
             await enrollmentService.upsert({
               studentId: created.id,
               classId,
               status: 'active',
-              feeType: ft,
-              monthlyFee: ft === 'monthly' ? (Number(newForm.monthlyFee) || 0) : null,
-              courseFee: ft === 'course' ? (Number(newForm.courseFee) || 0) : null,
               goal,
               note: '',
               enrolledAt: new Date().toISOString(),
@@ -222,9 +158,6 @@ export const EnrollmentModal = ({
         const updated = {
           ...enrollment,
           status,
-          feeType,
-          monthlyFee: feeType === 'monthly' ? (Number(monthlyFee) || 0) : null,
-          courseFee: feeType === 'course' ? (Number(courseFee) || 0) : null,
           goal,
           note,
         }
@@ -329,43 +262,6 @@ export const EnrollmentModal = ({
               <div className="flex flex-col gap-3">
                 <h3 className="text-xs font-semibold text-navy-500 uppercase tracking-wide">Thông tin ghi danh</h3>
 
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium text-navy-700">Loại học phí</label>
-                  <div className="flex gap-1 p-1 bg-navy-50 rounded-xl">
-                    <button
-                      type="button"
-                      onClick={() => setFeeType('monthly')}
-                      className={clsx(
-                        'flex-1 py-1.5 text-xs font-medium rounded-lg transition-all',
-                        feeType === 'monthly' ? 'bg-white shadow-sm text-navy-800' : 'text-navy-500 hover:text-navy-700'
-                      )}
-                    >Theo tháng</button>
-                    <button
-                      type="button"
-                      onClick={() => setFeeType('course')}
-                      className={clsx(
-                        'flex-1 py-1.5 text-xs font-medium rounded-lg transition-all',
-                        feeType === 'course' ? 'bg-white shadow-sm text-navy-800' : 'text-navy-500 hover:text-navy-700'
-                      )}
-                    >Theo khóa</button>
-                  </div>
-                  {feeType === 'monthly' ? (
-                    <CurrencyInput
-                      label="Học phí tháng (VNĐ)"
-                      value={monthlyFee}
-                      onChange={setMonthlyFee}
-                      className="text-sm"
-                    />
-                  ) : (
-                    <CurrencyInput
-                      label="Học phí cả khóa (VNĐ)"
-                      value={courseFee}
-                      onChange={setCourseFee}
-                      className="text-sm"
-                    />
-                  )}
-                </div>
-
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium text-navy-700">Mục tiêu</label>
                   <textarea
@@ -467,13 +363,6 @@ export const EnrollmentModal = ({
                       ))
                     )}
                   </div>
-                  {selectedStudentId && (
-                    <FeeInputs
-                      feeType={feeType} setFeeType={setFeeType}
-                      monthlyFee={monthlyFee} setMonthlyFee={setMonthlyFee}
-                      courseFee={courseFee} setCourseFee={setCourseFee}
-                    />
-                  )}
                 </>
               )}
             </div>
@@ -546,50 +435,6 @@ export const EnrollmentModal = ({
                 />
               </div>
 
-              {/* Fee inputs only when enrolling into a class */}
-              {classId && (
-                <div className="flex flex-col gap-2">
-                  <label className="text-sm font-medium text-navy-700">Loại học phí</label>
-                  <div className="flex gap-1 p-1 bg-navy-50 rounded-xl">
-                    <button
-                      type="button"
-                      onClick={() => setNewForm(f => ({ ...f, feeType: 'monthly' }))}
-                      className={clsx(
-                        'flex-1 py-1.5 text-xs font-medium rounded-lg transition-all',
-                        newForm.feeType !== 'course' ? 'bg-white shadow-sm text-navy-800' : 'text-navy-500 hover:text-navy-700'
-                      )}
-                    >
-                      Theo tháng
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setNewForm(f => ({ ...f, feeType: 'course' }))}
-                      className={clsx(
-                        'flex-1 py-1.5 text-xs font-medium rounded-lg transition-all',
-                        newForm.feeType === 'course' ? 'bg-white shadow-sm text-navy-800' : 'text-navy-500 hover:text-navy-700'
-                      )}
-                    >
-                      Theo khóa
-                    </button>
-                  </div>
-                  {newForm.feeType !== 'course' ? (
-                    <CurrencyInput
-                      label="Học phí tháng (VNĐ)"
-                      value={newForm.monthlyFee}
-                      onChange={val => setNewForm(f => ({ ...f, monthlyFee: val }))}
-                      className="text-sm"
-                    />
-                  ) : (
-                    <CurrencyInput
-                      label="Học phí cả khóa (VNĐ)"
-                      value={newForm.courseFee}
-                      onChange={val => setNewForm(f => ({ ...f, courseFee: val }))}
-                      className="text-sm"
-                    />
-                  )}
-                </div>
-              )}
-
               {classId && <div className="border-t border-navy-100 pt-1" />}
             </div>
           )}
@@ -621,14 +466,6 @@ export const EnrollmentModal = ({
                 ))}
               </select>
             </div>
-          )}
-
-          {mode === 'edit' && (
-            <FeeInputs
-              feeType={feeType} setFeeType={setFeeType}
-              monthlyFee={monthlyFee} setMonthlyFee={setMonthlyFee}
-              courseFee={courseFee} setCourseFee={setCourseFee}
-            />
           )}
 
           {(mode === 'edit' || (mode === 'add' && classId)) && (

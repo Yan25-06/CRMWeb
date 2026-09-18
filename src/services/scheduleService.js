@@ -8,6 +8,7 @@ const fromDB = (row) => row ? {
   endTime: row.end_time,
   room: row.room,
   note: row.note,
+  teacherId: row.teacher_id ?? null,
 } : null
 
 const toDB = (data) => ({
@@ -17,6 +18,7 @@ const toDB = (data) => ({
   end_time: data.endTime,
   room: data.room ?? null,
   note: data.note ?? null,
+  teacher_id: data.teacherId || null,
 })
 
 export const scheduleService = {
@@ -68,7 +70,7 @@ export const scheduleService = {
 
   // Đồng bộ lịch dạy của một lớp theo lịch học có cấu trúc.
   // Chỉ chạy khi đủ dayList + startTime + endTime; dayList rỗng → no-op (không xóa oan).
-  async syncForClass(classId, { dayList, startTime, endTime, room }) {
+  async syncForClass(classId, { dayList, startTime, endTime, room, teacherByDay }) {
     if (!classId || !Array.isArray(dayList) || dayList.length === 0 || !startTime || !endTime) return
     const wanted = new Set(dayList.map(Number))
 
@@ -80,24 +82,23 @@ export const scheduleService = {
 
     const existingByDay = new Map((existing ?? []).map(r => [r.day_of_week, r]))
 
-    // Upsert các thứ được chọn (giữ nguyên note nếu đã có)
     for (const day of wanted) {
       const found = existingByDay.get(day)
+      const patch = { start_time: startTime, end_time: endTime, room: room ?? null }
+      // teacherByDay undefined = caller không quản GV theo ca → giữ nguyên teacher_id cũ.
+      if (teacherByDay !== undefined) patch.teacher_id = teacherByDay?.[day] || null
+
       if (found) {
-        const { error } = await supabase
-          .from('schedule')
-          .update({ start_time: startTime, end_time: endTime, room: room ?? null })
-          .eq('id', found.id)
+        const { error } = await supabase.from('schedule').update(patch).eq('id', found.id)
         if (error) throw new Error(error.message)
       } else {
         const { error } = await supabase
           .from('schedule')
-          .insert({ class_id: classId, day_of_week: day, start_time: startTime, end_time: endTime, room: room ?? null, note: null })
+          .insert({ class_id: classId, day_of_week: day, note: null, ...patch })
         if (error) throw new Error(error.message)
       }
     }
 
-    // Xóa các thứ không còn được chọn
     const toDelete = (existing ?? []).filter(r => !wanted.has(r.day_of_week)).map(r => r.id)
     if (toDelete.length > 0) {
       const { error } = await supabase.from('schedule').delete().in('id', toDelete)

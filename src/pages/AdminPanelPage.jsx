@@ -2,8 +2,10 @@ import { useState, useEffect } from 'react'
 import { useAuth } from '@/hooks/useAuth'
 import { usePermissions } from '@/hooks/usePermissions'
 import { teacherService, classService } from '@/services/classService'
+import { scheduleService } from '@/services/scheduleService'
 import { studentService } from '@/services/studentService'
 import { feeService } from '@/services/feeService'
+import { countFeeStudents } from '@/utils/fees'
 import { ClassModal } from '@/components/classes/ClassModal'
 import { Button, Card, Modal, StatCard, toast, ConfirmModal, CurrencyInput } from '@/components/ui'
 import { Plus, Users, GraduationCap, UserCog, AlertCircle, ChevronRight, ShieldCheck, ShieldOff, Pencil, X, ChevronDown, ChevronUp } from 'lucide-react'
@@ -15,6 +17,7 @@ export function AdminPanelPage() {
   const { canAccessAdmin } = usePermissions()
   const [teachers, setTeachers] = useState([])
   const [classes, setClasses] = useState([])
+  const [scheduleItems, setScheduleItems] = useState([])
   const [loadingTeachers, setLoadingTeachers] = useState(true)
   const [loadingClasses, setLoadingClasses] = useState(true)
   const [showCreateModal, setShowCreateModal] = useState(false)
@@ -34,6 +37,7 @@ export function AdminPanelPage() {
     loadTeachers()
     loadClasses()
     loadStats()
+    loadSchedule()
   }, [])
 
   const loadStats = async () => {
@@ -45,9 +49,7 @@ export function AdminPanelPage() {
         teacherService.getAll(),
         feeService.buildFeesRows(now.getFullYear(), now.getMonth() + 1),
       ])
-      const unpaidCount = new Set(
-        feeRows.filter(r => r.paid < r.expected).map(r => r.studentId)
-      ).size
+      const unpaidCount = countFeeStudents(feeRows).debt
       setStats({
         totalStudents: students.length,
         activeClasses: classList.length,
@@ -83,12 +85,22 @@ export function AdminPanelPage() {
     }
   }
 
+  const loadSchedule = async () => {
+    try {
+      const data = await scheduleService.getAll()
+      setScheduleItems(data)
+    } catch (err) {
+      toast.error('Lỗi tải lịch dạy: ' + err.message)
+    }
+  }
+
   const handleCreateClass = async (formData) => {
     try {
       await classService.create(formData)
       setShowCreateModal(false)
       loadClasses()
       loadStats()
+      loadSchedule()
     } catch (err) {
       toast.error('Lỗi tạo lớp: ' + err.message)
     }
@@ -491,6 +503,7 @@ export function AdminPanelPage() {
         onSave={handleCreateClass}
         isAdmin={true}
         teachers={teachers}
+        scheduleItems={scheduleItems}
       />
 
       <ConfirmModal

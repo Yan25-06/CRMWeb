@@ -95,7 +95,7 @@ const SubstituteDropdown = ({ teachers, cls, value, onChange, noteVal, onNote, o
 }
 
 // ─── ScheduleCard ──────────────────────────────────────────
-export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, canCheckAttendance = false, canMarkAbsent = false, attendanceRecord = null, onToggleAttendance, onAttendanceNote, teachers = [], onSetSubstitute }) => {
+export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, canCheckAttendance = false, canMarkAbsent = false, attendanceRecord = null, onToggleAttendance, onAttendanceNote, teachers = [], onSetSubstitute, slotTeacherName = null }) => {
   const color = getCourseColor(cls?.courseType)
 
   // 3 trạng thái: không có record (hoặc status lạ) = 'pending'; 'present'; 'absent'.
@@ -122,13 +122,13 @@ export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, can
   return (
     <div
       className={clsx(
-        'group relative rounded-xl border p-2.5 cursor-pointer',
-        'transition-all duration-base ease-out-soft hover:shadow-navy hover:-translate-y-0.5',
+        'group relative rounded-xl border p-2.5',
+        onEdit && 'cursor-pointer transition-all duration-base ease-out-soft hover:shadow-navy hover:-translate-y-0.5',
         color.bg, color.border,
         isAbsent && clsx('border-l-4', att.bar),
         dropdownOpen && 'z-10'
       )}
-      onClick={() => onEdit?.(item)}
+      onClick={onEdit ? () => onEdit(item) : undefined}
     >
       {/* Tên lớp — dòng riêng, chữ nổi nhất trên card: đây là thứ mắt quét tìm trong lưới 7 cột */}
       <div className={clsx('text-sm font-bold leading-tight truncate', color.text)} title={cls?.name}>
@@ -143,9 +143,12 @@ export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, can
       )}
 
       {/* Teacher name — only shown in admin "all teachers" view */}
-      {showTeacher && cls?.teacherName && (
-        <div className={clsx('text-xs mb-1 truncate opacity-70', color.text)}>
-          {cls.teacherName}
+      {(slotTeacherName || (showTeacher && cls?.teacherName)) && (
+        <div
+          className={clsx('text-xs mb-1 truncate opacity-70', color.text)}
+          title={slotTeacherName || cls?.teacherName}
+        >
+          {slotTeacherName || cls?.teacherName}
         </div>
       )}
 
