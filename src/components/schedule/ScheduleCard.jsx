@@ -122,13 +122,13 @@ export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, can
   return (
     <div
       className={clsx(
-        'group relative rounded-xl border p-2.5 cursor-pointer',
-        'transition-all duration-base ease-out-soft hover:shadow-navy hover:-translate-y-0.5',
+        'group relative rounded-xl border p-2.5',
+        onEdit && 'cursor-pointer transition-all duration-base ease-out-soft hover:shadow-navy hover:-translate-y-0.5',
         color.bg, color.border,
         isAbsent && clsx('border-l-4', att.bar),
         dropdownOpen && 'z-10'
       )}
-      onClick={() => onEdit?.(item)}
+      onClick={onEdit ? () => onEdit(item) : undefined}
     >
       {/* Tên lớp — dòng riêng, chữ nổi nhất trên card: đây là thứ mắt quét tìm trong lưới 7 cột */}
       <div className={clsx('text-sm font-bold leading-tight truncate', color.text)} title={cls?.name}>

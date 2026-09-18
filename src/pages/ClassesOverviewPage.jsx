@@ -159,7 +159,7 @@ export const ClassesOverviewPage = ({ onSelectClass }) => {
                 <ClassCard
                   cls={cls}
                   studentCount={studentCount}
-                  onEdit={() => openClassModal(cls)}
+                  onEdit={isAdmin ? () => openClassModal(cls) : undefined}
                   onDelete={isAdmin ? () => handleDeleteClass(cls.id) : undefined}
                   showTeacher={isAdmin}
                 />

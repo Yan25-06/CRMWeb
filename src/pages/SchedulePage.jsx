@@ -328,7 +328,7 @@ export const SchedulePage = ({ onNavigate }) => {
           <h1 className="text-2xl font-display font-bold text-navy-900">Giảng dạy</h1>
           <p className="text-sm text-navy-400 mt-0.5">Thời khóa biểu, chấm công và lương giáo viên</p>
         </div>
-        {activeTab === 'schedule' && (
+        {activeTab === 'schedule' && isAdmin && (
           <Button
             variant="primary"
             size="md"
@@ -501,12 +501,18 @@ export const SchedulePage = ({ onNavigate }) => {
                   <Empty
                     icon={<Calendar size={40} />}
                     title={selectedTeacherId ? 'Giáo viên này chưa có lịch dạy' : 'Chưa có lịch dạy nào'}
-                    desc={selectedTeacherId ? 'Thử chọn giáo viên khác hoặc bấm "+ Xếp lịch".' : "Bấm '+ Xếp lịch' để thêm ca dạy đầu tiên vào thời khóa biểu."}
+                    desc={
+                      isAdmin
+                        ? (selectedTeacherId ? 'Thử chọn giáo viên khác hoặc bấm "+ Xếp lịch".' : "Bấm '+ Xếp lịch' để thêm ca dạy đầu tiên vào thời khóa biểu.")
+                        : 'Liên hệ quản trị viên để được xếp lịch dạy.'
+                    }
                     action={
-                      <Button variant="primary" size="sm" onClick={() => openAdd(null)} className="flex items-center gap-1.5">
-                        <Plus size={14} />
-                        Xếp lịch đầu tiên
-                      </Button>
+                      isAdmin && (
+                        <Button variant="primary" size="sm" onClick={() => openAdd(null)} className="flex items-center gap-1.5">
+                          <Plus size={14} />
+                          Xếp lịch đầu tiên
+                        </Button>
+                      )
                     }
                   />
                 </div>
@@ -517,8 +523,8 @@ export const SchedulePage = ({ onNavigate }) => {
                     classes={visibleClasses}
                     studentCounts={studentCounts}
                     showTeacher={showTeacher}
-                    onEdit={openEdit}
-                    onAddDay={openAdd}
+                    onEdit={isAdmin ? openEdit : undefined}
+                    onAddDay={isAdmin ? openAdd : undefined}
                     weekStart={weekStart}
                     canCheckAttendance={canCheckOwnAttendance}
                     canMarkAbsent={canMarkAbsent}

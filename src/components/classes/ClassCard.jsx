@@ -38,6 +38,7 @@ export const ClassCard = ({ cls, studentCount, onEdit, onDelete, showTeacher = f
           </span>
           
           {/* Action Menu */}
+          {(onEdit || onDelete) && (
           <div className="relative" ref={menuRef} onClick={e => e.stopPropagation()}>
             <button
               onClick={() => setMenuOpen(!menuOpen)}
@@ -47,12 +48,14 @@ export const ClassCard = ({ cls, studentCount, onEdit, onDelete, showTeacher = f
             </button>
             {menuOpen && (
               <div className="absolute right-0 top-full mt-1 w-32 bg-white rounded-xl shadow-navy-md border border-navy-100 z-10 py-1 animate-fade-in">
-                <button 
-                  onClick={() => { setMenuOpen(false); onEdit() }}
-                  className="w-full text-left px-3 py-2 text-sm text-navy-700 hover:bg-navy-50 flex items-center gap-2"
-                >
-                  <Edit2 size={14} /> Sửa
-                </button>
+                {onEdit && (
+                  <button
+                    onClick={() => { setMenuOpen(false); onEdit() }}
+                    className="w-full text-left px-3 py-2 text-sm text-navy-700 hover:bg-navy-50 flex items-center gap-2"
+                  >
+                    <Edit2 size={14} /> Sửa
+                  </button>
+                )}
                 {onDelete && (
                   <button
                     onClick={() => { setMenuOpen(false); onDelete() }}
@@ -64,6 +67,7 @@ export const ClassCard = ({ cls, studentCount, onEdit, onDelete, showTeacher = f
               </div>
             )}
           </div>
+          )}
         </div>
 
         <div>

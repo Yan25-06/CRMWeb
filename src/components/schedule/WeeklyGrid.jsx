@@ -68,13 +68,15 @@ export const WeeklyGrid = ({ scheduleItems = [], classes = [], studentCounts = n
                   <span className="ml-1 inline-block w-1.5 h-1.5 bg-navy-600 rounded-full align-middle" />
                 )}
               </span>
-              <button
-                onClick={() => onAddDay?.(day)}
-                className="text-navy-300 hover:text-navy-600 text-xs w-5 h-5 flex items-center justify-center rounded hover:bg-navy-50 transition-colors"
-                title={`Thêm ca ${DAY_NAMES[day]}`}
-              >
-                +
-              </button>
+              {onAddDay && (
+                <button
+                  onClick={() => onAddDay(day)}
+                  className="text-navy-300 hover:text-navy-600 text-xs w-5 h-5 flex items-center justify-center rounded hover:bg-navy-50 transition-colors"
+                  title={`Thêm ca ${DAY_NAMES[day]}`}
+                >
+                  +
+                </button>
+              )}
             </div>
 
             {/* Cards */}
