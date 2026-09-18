@@ -95,7 +95,7 @@ const SubstituteDropdown = ({ teachers, cls, value, onChange, noteVal, onNote, o
 }
 
 // ─── ScheduleCard ──────────────────────────────────────────
-export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, canCheckAttendance = false, canMarkAbsent = false, attendanceRecord = null, onToggleAttendance, onAttendanceNote, teachers = [], onSetSubstitute }) => {
+export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, canCheckAttendance = false, canMarkAbsent = false, attendanceRecord = null, onToggleAttendance, onAttendanceNote, teachers = [], onSetSubstitute, slotTeacherName = null }) => {
   const color = getCourseColor(cls?.courseType)
 
   // 3 trạng thái: không có record (hoặc status lạ) = 'pending'; 'present'; 'absent'.
@@ -143,9 +143,12 @@ export const ScheduleCard = ({ item, cls, studentCount, showTeacher, onEdit, can
       )}
 
       {/* Teacher name — only shown in admin "all teachers" view */}
-      {showTeacher && cls?.teacherName && (
-        <div className={clsx('text-xs mb-1 truncate opacity-70', color.text)}>
-          {cls.teacherName}
+      {(slotTeacherName || (showTeacher && cls?.teacherName)) && (
+        <div
+          className={clsx('text-xs mb-1 truncate opacity-70', color.text)}
+          title={slotTeacherName || cls?.teacherName}
+        >
+          {slotTeacherName || cls?.teacherName}
         </div>
       )}
 

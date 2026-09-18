@@ -127,17 +127,26 @@ export const SchedulePage = ({ onNavigate }) => {
   useEffect(() => { loadSubAssignments() }, [loadSubAssignments])
 
   // Admin filter: narrow classes and schedule by selected teacher
+  // Lớp "của" một GV = lớp họ phụ trách HOẶC lớp họ có ít nhất một ca.
   const visibleClasses = useMemo(() => {
     if (!isAdmin || !selectedTeacherId) return classes
-    return classes.filter(c => c.teacherId === selectedTeacherId)
-  }, [classes, isAdmin, selectedTeacherId])
+    const classIdsFromSlots = new Set(
+      schedule.filter(s => s.teacherId === selectedTeacherId).map(s => s.classId)
+    )
+    return classes.filter(c => c.teacherId === selectedTeacherId || classIdsFromSlots.has(c.id))
+  }, [classes, schedule, isAdmin, selectedTeacherId])
 
   const visibleClassIds = useMemo(() => new Set(visibleClasses.map(c => c.id)), [visibleClasses])
 
+  // Chỉ hiện những ca mà GV đang lọc thực sự dạy.
   const visibleSchedule = useMemo(() => {
     if (!isAdmin || !selectedTeacherId) return schedule
-    return schedule.filter(s => visibleClassIds.has(s.classId))
-  }, [schedule, isAdmin, selectedTeacherId, visibleClassIds])
+    return schedule.filter(s => {
+      if (!visibleClassIds.has(s.classId)) return false
+      const cls = classes.find(c => c.id === s.classId)
+      return (s.teacherId ?? cls?.teacherId) === selectedTeacherId
+    })
+  }, [schedule, classes, isAdmin, selectedTeacherId, visibleClassIds])
 
   // Build student count map (classId → active student count)
   const studentCounts = useMemo(() => {
@@ -155,6 +164,28 @@ export const SchedulePage = ({ onNavigate }) => {
     for (const r of attendance) map.set(`${r.scheduleId}_${r.date}`, r)
     return map
   }, [attendance])
+
+  // Tên GV của từng ca — chỉ hiện khi lớp có từ 2 GV trở lên (tránh nhiễu).
+  const slotTeacherNames = useMemo(() => {
+    const byId = new Map(teachers.map(t => [t.id, t.name || t.email]))
+    const teachersPerClass = new Map()
+    for (const s of schedule) {
+      const cls = classes.find(c => c.id === s.classId)
+      const tid = s.teacherId ?? cls?.teacherId
+      if (!tid) continue
+      if (!teachersPerClass.has(s.classId)) teachersPerClass.set(s.classId, new Set())
+      teachersPerClass.get(s.classId).add(tid)
+    }
+    const map = new Map()
+    for (const s of schedule) {
+      if ((teachersPerClass.get(s.classId)?.size ?? 0) < 2) continue
+      const cls = classes.find(c => c.id === s.classId)
+      const tid = s.teacherId ?? cls?.teacherId
+      const name = byId.get(tid) ?? (tid === cls?.teacherId ? cls?.teacherName : null)
+      if (name) map.set(s.id, name)
+    }
+    return map
+  }, [schedule, classes, teachers])
 
   // Today's items
   const todayDow = new Date().getDay()
@@ -204,15 +235,17 @@ export const SchedulePage = ({ onNavigate }) => {
   // Chấm công: GV chỉ pending↔present; admin pending→present→absent→pending.
   const handleToggleAttendance = useCallback(async (item, date) => {
     const cls = classes.find(c => c.id === item.classId)
-    if (!cls?.teacherId) { toast.error('Không tìm thấy lớp/giáo viên'); return }
+    // Công buổi thuộc về GV của CA đó; ca chưa gán riêng thì thuộc GV phụ trách lớp.
+    const slotTeacherId = item.teacherId ?? cls?.teacherId
+    if (!slotTeacherId) { toast.error('Không tìm thấy lớp/giáo viên'); return }
     const record = attendanceMap.get(`${item.id}_${date}`)
     const cur = record?.status === 'present' ? 'present' : record?.status === 'absent' ? 'absent' : 'pending'
     try {
       if (cur === 'pending') {
-        await teacherAttendanceService.upsert({ scheduleId: item.id, date, teacherId: cls.teacherId, status: 'present', note: record?.note ?? null })
+        await teacherAttendanceService.upsert({ scheduleId: item.id, date, teacherId: slotTeacherId, status: 'present', note: record?.note ?? null })
       } else if (cur === 'present') {
         if (canMarkAbsent) {
-          await teacherAttendanceService.upsert({ scheduleId: item.id, date, teacherId: cls.teacherId, status: 'absent', note: record?.note ?? null, substituteTeacherId: record?.substituteTeacherId ?? null })
+          await teacherAttendanceService.upsert({ scheduleId: item.id, date, teacherId: slotTeacherId, status: 'absent', note: record?.note ?? null, substituteTeacherId: record?.substituteTeacherId ?? null })
         } else {
           // GV thường: present → pending (xóa record), KHÔNG sang absent
           await teacherAttendanceService.remove(item.id, date)
@@ -491,6 +524,7 @@ export const SchedulePage = ({ onNavigate }) => {
                     teachers={teachers}
                     onSetSubstitute={handleSetSubstitute}
                     subAssignments={subAssignments}
+                    slotTeacherNames={slotTeacherNames}
                   />
                 </div>
               )}
