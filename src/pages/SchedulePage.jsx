@@ -181,8 +181,8 @@ export const SchedulePage = ({ onNavigate }) => {
       if ((teachersPerClass.get(s.classId)?.size ?? 0) < 2) continue
       const cls = classes.find(c => c.id === s.classId)
       const tid = s.teacherId ?? cls?.teacherId
-      const name = byId.get(tid) ?? (tid === cls?.teacherId ? cls?.teacherName : null)
-      if (name) map.set(s.id, name)
+      const name = byId.get(tid) ?? (tid === cls?.teacherId ? cls?.teacherName : null) ?? 'Giáo viên'
+      map.set(s.id, name)
     }
     return map
   }, [schedule, classes, teachers])
@@ -263,13 +263,15 @@ export const SchedulePage = ({ onNavigate }) => {
 
   const handleSetAttendanceNote = useCallback(async (item, date, note) => {
     const cls = classes.find(c => c.id === item.classId)
-    if (!cls?.teacherId) return
+    // Công buổi thuộc về GV của CA đó; ca chưa gán riêng thì thuộc GV phụ trách lớp.
+    const slotTeacherId = item.teacherId ?? cls?.teacherId
+    if (!slotTeacherId) return
     const record = attendanceMap.get(`${item.id}_${date}`)
     try {
       await teacherAttendanceService.upsert({
         scheduleId: item.id,
         date,
-        teacherId: cls.teacherId,
+        teacherId: slotTeacherId,
         status: record?.status ?? 'absent',
         note,
         substituteConfirmed: record?.substituteConfirmed ?? false,
@@ -283,13 +285,15 @@ export const SchedulePage = ({ onNavigate }) => {
   // Chọn / bỏ người dạy thay cho một buổi vắng.
   const handleSetSubstitute = useCallback(async (item, date, substituteTeacherId) => {
     const cls = classes.find(c => c.id === item.classId)
-    if (!cls?.teacherId) return
+    // Công buổi thuộc về GV của CA đó; ca chưa gán riêng thì thuộc GV phụ trách lớp.
+    const slotTeacherId = item.teacherId ?? cls?.teacherId
+    if (!slotTeacherId) return
     const record = attendanceMap.get(`${item.id}_${date}`)
     try {
       await teacherAttendanceService.upsert({
         scheduleId: item.id,
         date,
-        teacherId: cls.teacherId,
+        teacherId: slotTeacherId,
         status: record?.status ?? 'absent',
         note: record?.note ?? null,
         substituteTeacherId,
