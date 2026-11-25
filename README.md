@@ -18,7 +18,7 @@ Password: 123456
 
 ## What it does
 
-- **Attendance** — track per-session attendance across multiple classes
+- **Attendance** — track per-session attendance across multiple classes. Default-present model (no record = present); each enrollment has a join date (*Ngày vào lớp*), so a student added mid-course is neither listed in nor counted for sessions before they joined
 - **Tuition fees** — fixed monthly fee set per class; a single paid/unpaid tick per student per class per month (no per-payment amounts or history)
 - **Homework** — assign and track submission status per session
 - **Mock tests** — record IELTS/TOEIC scores by skill, visualize progress over time

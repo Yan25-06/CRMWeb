@@ -12,6 +12,7 @@ import { attendanceService } from '@/services/attendanceService'
 import { studentService } from '@/services/studentService'
 import { enrollmentService } from '@/services/enrollmentService'
 import { getInitials } from '@/utils/helpers'
+import { isSessionApplicable, summarizeAttendance, todayKey } from '@/utils/attendance'
 
 // Update-or-insert one student's attendance cell in a local record array.
 const patchCell = (records, sessionId, studentId, patch) => {
@@ -138,40 +139,55 @@ export const AttendanceTab = ({ classId, scheduleTime }) => {
     persistCell(studentId, { present })
   }
 
+  const enrollByStudent = useMemo(
+    () => new Map(enrollments.map(e => [e.studentId, e])),
+    [enrollments]
+  )
+  const activeSession = sessions.find(s => s.id === activeSessionId) ?? null
+
+  // Học viên áp dụng cho buổi đang xem: bỏ những em vào lớp SAU buổi này (hoặc
+  // đã nghỉ trước buổi này), trừ khi buổi đó đã có bản ghi điểm danh tường minh.
+  const sessionStudents = useMemo(() => {
+    if (!activeSession) return students
+    const recorded = new Set(attendance.map(a => a.studentId))
+    return students.filter(st =>
+      isSessionApplicable(activeSession.date, enrollByStudent.get(st.id), recorded.has(st.id))
+    )
+  }, [students, activeSession, attendance, enrollByStudent])
+  const hiddenCount = students.length - sessionStudents.length
+
   // Per-student attendance rate over past sessions, computed from the class-wide
   // fetch with the active session overridden by the (possibly optimistic) grid.
+  // Mẫu số chỉ gồm các buổi từ ngày học viên vào lớp.
   const attendanceRates = useMemo(() => {
     if (students.length === 0) return {}
-    const today = new Date().toISOString().split('T')[0]
+    const today = todayKey()
     const pastSessions = sessions.filter(s => s.date <= today)
-    if (pastSessions.length === 0) {
-      return Object.fromEntries(students.map(s => [s.id, null]))
-    }
     const sessionIdSet = new Set(pastSessions.map(s => s.id))
-    const presentMap = new Map() // `${sessionId}|${studentId}` -> present
+    const recordMap = new Map() // `${sessionId}|${studentId}` -> record
     classAttendance.forEach(a => {
-      if (sessionIdSet.has(a.sessionId)) presentMap.set(`${a.sessionId}|${a.studentId}`, a.present)
+      if (sessionIdSet.has(a.sessionId)) recordMap.set(`${a.sessionId}|${a.studentId}`, a)
     })
     if (sessionIdSet.has(activeSessionId)) {
-      attendance.forEach(a => presentMap.set(`${activeSessionId}|${a.studentId}`, a.present))
+      attendance.forEach(a => recordMap.set(`${activeSessionId}|${a.studentId}`, a))
     }
     return Object.fromEntries(students.map(student => {
-      let presentCount = 0
-      pastSessions.forEach(s => {
-        // Missing record = có mặt; only an explicit `false` counts as vắng.
-        if (presentMap.get(`${s.id}|${student.id}`) !== false) presentCount++
-      })
-      return [student.id, Math.round((presentCount / pastSessions.length) * 100)]
+      const { rate } = summarizeAttendance(
+        pastSessions,
+        enrollByStudent.get(student.id),
+        sessionId => recordMap.get(`${sessionId}|${student.id}`)
+      )
+      return [student.id, rate === null ? null : Math.round(rate * 100)]
     }))
-  }, [students, sessions, classAttendance, attendance, activeSessionId])
+  }, [students, sessions, classAttendance, attendance, activeSessionId, enrollByStudent])
 
-  const totalActive = enrollments.filter(e => e.status === 'active').length
-  // Mặc định có mặt: chỉ trừ những HS đang hoạt động bị tick "Vắng".
-  const absentCount = students.filter(st => {
-    const enroll = enrollments.find(e => e.studentId === st.id)
-    if (enroll?.status !== 'active') return false
-    return attendance.find(a => a.studentId === st.id)?.present === false
-  }).length
+  // Mặc định có mặt: chỉ trừ những HS đang hoạt động bị tick "Vắng" — tính trên
+  // học viên áp dụng cho buổi này.
+  const activeInSession = sessionStudents.filter(st => enrollByStudent.get(st.id)?.status === 'active')
+  const totalActive = activeInSession.length
+  const absentCount = activeInSession
+    .filter(st => attendance.find(a => a.studentId === st.id)?.present === false)
+    .length
   const presentCount = totalActive - absentCount
 
   if (loading) {
@@ -255,8 +271,15 @@ export const AttendanceTab = ({ classId, scheduleTime }) => {
                 </tr>
               </thead>
               <tbody className="divide-y divide-navy-50">
-                {students.map(student => {
-                  const enroll = enrollments.find(e => e.studentId === student.id)
+                {sessionStudents.length === 0 && (
+                  <tr>
+                    <td colSpan={4} className="px-6 py-10 text-center text-sm text-navy-500">
+                      Chưa có học viên nào trong lớp vào thời điểm buổi học này
+                    </td>
+                  </tr>
+                )}
+                {sessionStudents.map(student => {
+                  const enroll = enrollByStudent.get(student.id)
                   const isPaused = enroll?.status === 'paused'
                   const att = attendance.find(a => a.studentId === student.id)
                   const present = att ? att.present : true  // mặc định có mặt
@@ -320,6 +343,11 @@ export const AttendanceTab = ({ classId, scheduleTime }) => {
               </tbody>
             </table>
           </div>
+          {hiddenCount > 0 && (
+            <p className="px-6 py-3 border-t border-navy-50 text-xs text-navy-500">
+              {hiddenCount} học viên vào lớp sau buổi này (hoặc đã nghỉ trước đó) nên không có trong danh sách điểm danh.
+            </p>
+          )}
         </div>
       )}
 

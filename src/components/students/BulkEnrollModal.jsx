@@ -2,6 +2,8 @@ import { useState, useEffect } from 'react'
 import { Modal, Button, toast } from '@/components/ui'
 import { getInitials } from '@/utils/helpers'
 import { enrollMany } from '@/utils/enrollMany'
+import { dateKeyToISO, todayKey } from '@/utils/attendance'
+import { EnrolledDateField } from '@/components/students/EnrolledDateField'
 
 // Modal ghi danh nhiều học sinh vào 1 lớp (StudentsDirectoryPage).
 // Props:
@@ -13,6 +15,7 @@ export const BulkEnrollModal = ({ open, onClose, students = [], classes = [], on
   const [classId, setClassId] = useState('')
   const [goal, setGoal] = useState('')
   const [note, setNote] = useState('')
+  const [enrolledDate, setEnrolledDate] = useState(todayKey())
   const [saving, setSaving] = useState(false)
 
   useEffect(() => {
@@ -20,6 +23,7 @@ export const BulkEnrollModal = ({ open, onClose, students = [], classes = [], on
       setClassId('')
       setGoal('')
       setNote('')
+      setEnrolledDate(todayKey())
       setSaving(false)
     }
   }, [open])
@@ -33,7 +37,7 @@ export const BulkEnrollModal = ({ open, onClose, students = [], classes = [], on
       const { ok, failed } = await enrollMany(
         students.map(s => s.id),
         classId,
-        { goal, note }
+        { goal, note, enrolledAt: dateKeyToISO(enrolledDate) }
       )
       if (ok > 0) toast.success(`Đã ghi danh ${ok} học sinh vào ${selectedClass?.name}`)
       if (failed.length > 0) toast.error(`${failed.length} học sinh ghi danh thất bại`)
@@ -58,7 +62,7 @@ export const BulkEnrollModal = ({ open, onClose, students = [], classes = [], on
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose} disabled={saving}>Hủy</Button>
-          <Button onClick={handleSubmit} disabled={saving || students.length === 0 || !classId}>
+          <Button onClick={handleSubmit} disabled={saving || students.length === 0 || !classId || !enrolledDate}>
             {saving ? 'Đang ghi danh...' : 'Ghi danh'}
           </Button>
         </div>
@@ -97,6 +101,8 @@ export const BulkEnrollModal = ({ open, onClose, students = [], classes = [], on
 
         <div className="border-t border-navy-100 pt-3 flex flex-col gap-3">
           <p className="text-xs font-semibold text-navy-600 uppercase tracking-wide">Thông tin ghi danh</p>
+
+          <EnrolledDateField value={enrolledDate} onChange={setEnrolledDate} />
 
           <div className="flex flex-col gap-1">
             <label className="text-sm font-medium text-navy-700">Mục tiêu</label>

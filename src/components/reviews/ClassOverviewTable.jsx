@@ -7,12 +7,19 @@ import { enrollmentService } from '@/services/enrollmentService'
 import { studentService } from '@/services/studentService'
 import { attendanceService } from '@/services/attendanceService'
 import { homeworkService } from '@/services/homeworkService'
+import { summarizeAttendance } from '@/utils/attendance'
 
-// Default present: only absent records exist; use sessionCount as denominator
-const calcAttendancePct = (studentId, { sessionCount, records }) => {
-  if (sessionCount === 0) return null
-  const absent = records.filter(r => r.studentId === studentId && r.present === false).length
-  return Math.round(((sessionCount - absent) / sessionCount) * 1000) / 10
+const EMPTY_ATT = { sessions: [], records: [], enrollments: [] }
+
+// Mặc định có mặt; mẫu số = số buổi trong khoảng mà học sinh đã ở trong lớp
+// (từ ngày vào lớp — xem utils/attendance.js), không phải mọi buổi của lớp.
+const calcAttendancePct = (studentId, { sessions, records, enrollments }) => {
+  const enrollment = enrollments.find(e => e.studentId === studentId) ?? null
+  const bySession = new Map(
+    records.filter(r => r.studentId === studentId).map(r => [r.sessionId, r])
+  )
+  const { rate } = summarizeAttendance(sessions, enrollment, id => bySession.get(id))
+  return rate === null ? null : Math.round(rate * 1000) / 10
 }
 
 const calcHomeworkPct = (studentId, hwRecords) => {
@@ -75,7 +82,7 @@ const fmtDateVN = (d) => {
 export const ClassOverviewTable = ({ classId, cls, dateRange, mocksByStudent = new Map() }) => {
   const [allReviews,     setAllReviews]     = useState([])
   const [activeStudents, setActiveStudents] = useState([])
-  const [attData,        setAttData]        = useState({ sessionCount: 0, records: [] })
+  const [attData,        setAttData]        = useState(EMPTY_ATT)
   const [hwRecords,      setHwRecords]      = useState([])
   const [loading,        setLoading]        = useState(false)
 
@@ -93,7 +100,7 @@ export const ClassOverviewTable = ({ classId, cls, dateRange, mocksByStudent = n
   useEffect(() => {
     if (!classId) {
       setAllReviews([])
-      setAttData({ sessionCount: 0, records: [] })
+      setAttData(EMPTY_ATT)
       setHwRecords([])
       return
     }

@@ -2,6 +2,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { CheckCircle2, XCircle, CalendarCheck } from 'lucide-react'
 import { attendanceService } from '@/services/attendanceService'
 import { sessionService } from '@/services/sessionService'
+import { enrollmentService } from '@/services/enrollmentService'
+import { isSessionApplicable } from '@/utils/attendance'
 
 const fmtDate = (d) => {
   const dt = new Date(d)
@@ -13,7 +15,8 @@ const fmtDate = (d) => {
  * Props: studentId, classId, dateRange = { fromDate, toDate }
  *
  * Mặc định có mặt: mỗi buổi trong khoảng tính là "Có mặt" trừ khi có bản ghi
- * present === false. Mẫu số là SỐ BUỔI trong khoảng, không phải số bản ghi.
+ * present === false. Mẫu số là SỐ BUỔI trong khoảng mà học sinh đã ở trong lớp
+ * (từ ngày vào lớp, xem utils/attendance.js), không phải số bản ghi.
  */
 export const AttendancePanel = ({ studentId, classId, dateRange }) => {
   const { fromDate, toDate } = dateRange
@@ -21,6 +24,7 @@ export const AttendancePanel = ({ studentId, classId, dateRange }) => {
   const [sessions, setSessions] = useState([])
   const [records, setRecords] = useState([])
   const [ratePct, setRatePct] = useState(null)
+  const [enrollment, setEnrollment] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -28,27 +32,32 @@ export const AttendancePanel = ({ studentId, classId, dateRange }) => {
       sessionService.getByClass(classId),
       attendanceService.getByRange(studentId, classId, fromDate, toDate),
       attendanceService.getRateByRange(studentId, classId, fromDate, toDate),
+      enrollmentService.getByClass(classId),
     ])
-      .then(([allSessions, recs, rate]) => {
+      .then(([allSessions, recs, rate, enrolls]) => {
         if (cancelled) return
         setSessions(allSessions.filter(s => s.date >= fromDate && s.date <= toDate))
         setRecords(recs)
         setRatePct(rate?.pct ?? null)
+        setEnrollment(enrolls.find(e => e.studentId === studentId) ?? null)
       })
-      .catch(() => { if (!cancelled) { setSessions([]); setRecords([]); setRatePct(null) } })
+      .catch(() => {
+        if (!cancelled) { setSessions([]); setRecords([]); setRatePct(null); setEnrollment(null) }
+      })
     return () => { cancelled = true }
   }, [studentId, classId, fromDate, toDate])
 
   const items = useMemo(() => {
     const absentMap = new Map(records.filter(r => r.present === false).map(r => [r.sessionId, r]))
+    const recordIds = new Set(records.map(r => r.sessionId))
     return sessions
-      .slice()
+      .filter(s => isSessionApplicable(s.date, enrollment, recordIds.has(s.id)))
       .sort((a, b) => b.date.localeCompare(a.date))
       .map(s => {
         const absent = absentMap.get(s.id)
         return { id: s.id, date: s.date, present: !absent, note: absent ? absent.note : '' }
       })
-  }, [sessions, records])
+  }, [sessions, records, enrollment])
 
   const total   = items.length
   const present = items.filter(i => i.present).length

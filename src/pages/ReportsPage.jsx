@@ -11,6 +11,7 @@ import { studentService }        from '@/services/studentService'
 import { enrollmentService }     from '@/services/enrollmentService'
 import { sessionService }        from '@/services/sessionService'
 import { attendanceService }     from '@/services/attendanceService'
+import { isSessionApplicable }   from '@/utils/attendance'
 import { mockTestService }       from '@/services/mockTestService'
 import { mockTestResultService } from '@/services/mockTestResultService'
 import { feeService }            from '@/services/feeService'
@@ -68,6 +69,7 @@ const AttendanceCard = ({ classId }) => {
   const [cachedSessions,    setCachedSessions]    = useState([])
   const [cachedAttendance,  setCachedAttendance]  = useState([])
   const [cachedStudents,    setCachedStudents]    = useState([])
+  const [cachedEnrollMap,   setCachedEnrollMap]   = useState(new Map())
 
   useEffect(() => {
     if (!classId) return
@@ -85,7 +87,10 @@ const AttendanceCard = ({ classId }) => {
         const students = allStudents.filter(s => activeEnrollments.some(e => e.studentId === s.id))
         setCachedSessions(sessions)
         setCachedAttendance(allAttendance)
+        // studentId → enrollment: chỉ tính các buổi từ ngày học sinh vào lớp
+        const enrollMap = new Map(activeEnrollments.map(e => [e.studentId, e]))
         setCachedStudents(students)
+        setCachedEnrollMap(enrollMap)
 
         const labels = ms.map(fmtMonth)
         const attMap = new Map(allAttendance.map(a => [`${a.sessionId}_${a.studentId}`, a]))
@@ -97,6 +102,7 @@ const AttendanceCard = ({ classId }) => {
           students.forEach(s => {
             monthSessions.forEach(ses => {
               const a = attMap.get(`${ses.id}_${s.id}`)
+              if (!isSessionApplicable(ses.date, enrollMap.get(s.id), !!a)) return
               total++
               if (!a || a.present !== false) present++
             })
@@ -129,6 +135,7 @@ const AttendanceCard = ({ classId }) => {
     monthSessions.forEach(ses => {
       cachedStudents.forEach(st => {
         const a = attMap.get(`${ses.id}_${st.id}`)
+        if (!isSessionApplicable(ses.date, cachedEnrollMap.get(st.id), !!a)) return
         rows.push({
           date: fmtDate(ses.date),
           topic: ses.topic || '—',

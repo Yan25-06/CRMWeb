@@ -6,6 +6,8 @@ import { toast as uiToast } from '@/components/ui'
 import { getInitials } from '@/utils/helpers'
 import { studentService } from '@/services/studentService'
 import { enrollmentService } from '@/services/enrollmentService'
+import { dateKeyToISO, toDateKey, todayKey } from '@/utils/attendance'
+import { EnrolledDateField } from '@/components/students/EnrolledDateField'
 
 const STATUS_OPTIONS = [
   { value: 'active', label: 'Đang học' },
@@ -41,6 +43,7 @@ export const EnrollmentModal = ({
   const [status, setStatus] = useState('active')
   const [goal, setGoal] = useState('')
   const [note, setNote] = useState('')
+  const [enrolledDate, setEnrolledDate] = useState(todayKey())
   const [confirmDrop, setConfirmDrop] = useState(false)
   const [pendingStatus, setPendingStatus] = useState(null)
   const [saving, setSaving] = useState(false)
@@ -73,11 +76,13 @@ export const EnrollmentModal = ({
       setNewErrors({})
       setGoal('')
       setNote('')
+      setEnrolledDate(todayKey())
       setStatus('active')
     } else if (mode === 'edit' && enrollment) {
       setStatus(enrollment.status || 'active')
       setGoal(enrollment.goal || '')
       setNote(enrollment.note || '')
+      setEnrolledDate(toDateKey(enrollment.enrolledAt) || todayKey())
       setConfirmDrop(false)
       setPendingStatus(null)
     }
@@ -117,7 +122,7 @@ export const EnrollmentModal = ({
             status: 'active',
             goal,
             note,
-            enrolledAt: new Date().toISOString(),
+            enrolledAt: dateKeyToISO(enrolledDate),
           })
           uiToast.success('Đã ghi danh vào lớp!')
         } else if (addSubMode === 'existing') {
@@ -128,7 +133,7 @@ export const EnrollmentModal = ({
             status: 'active',
             goal,
             note,
-            enrolledAt: new Date().toISOString(),
+            enrolledAt: dateKeyToISO(enrolledDate),
           })
           uiToast.success('Đã thêm học viên vào lớp')
         } else {
@@ -146,7 +151,7 @@ export const EnrollmentModal = ({
               status: 'active',
               goal,
               note: '',
-              enrolledAt: new Date().toISOString(),
+              enrolledAt: dateKeyToISO(enrolledDate),
             })
             uiToast.success(`Đã tạo và thêm "${created.name}" vào lớp`)
           } else {
@@ -160,6 +165,10 @@ export const EnrollmentModal = ({
           status,
           goal,
           note,
+        }
+        // Chỉ ghi lại enrolled_at khi người dùng thực sự đổi ngày (giữ giờ gốc)
+        if (enrolledDate && enrolledDate !== toDateKey(enrollment.enrolledAt)) {
+          updated.enrolledAt = dateKeyToISO(enrolledDate)
         }
         if (status === 'paused' && enrollment.status !== 'paused') {
           updated.pausedAt = now
@@ -192,6 +201,7 @@ export const EnrollmentModal = ({
 
   const submitDisabled =
     saving ||
+    !enrolledDate ||
     (mode === 'add' && (
       (student && !classId)
         ? !enrollClassId
@@ -261,6 +271,8 @@ export const EnrollmentModal = ({
 
               <div className="flex flex-col gap-3">
                 <h3 className="text-xs font-semibold text-navy-500 uppercase tracking-wide">Thông tin ghi danh</h3>
+
+                <EnrolledDateField value={enrolledDate} onChange={setEnrolledDate} />
 
                 <div className="flex flex-col gap-1">
                   <label className="text-sm font-medium text-navy-700">Mục tiêu</label>
@@ -466,6 +478,10 @@ export const EnrollmentModal = ({
                 ))}
               </select>
             </div>
+          )}
+
+          {(mode === 'edit' || (mode === 'add' && classId)) && (
+            <EnrolledDateField value={enrolledDate} onChange={setEnrolledDate} />
           )}
 
           {(mode === 'edit' || (mode === 'add' && classId)) && (

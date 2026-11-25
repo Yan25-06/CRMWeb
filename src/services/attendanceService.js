@@ -1,5 +1,19 @@
 import { supabase } from '@/lib/supabase'
 import { sessionService } from './sessionService'
+import { summarizeAttendance, todayKey } from '@/utils/attendance'
+
+// Ngày vào lớp / nghỉ của 1 học sinh trong 1 lớp — dùng để chỉ tính chuyên cần
+// trên các buổi học sinh thực sự ở trong lớp (xem utils/attendance.js).
+const getEnrollmentDates = async (studentId, classId) => {
+  const { data, error } = await supabase
+    .from('enrollments')
+    .select('enrolled_at, dropped_at')
+    .eq('student_id', studentId)
+    .eq('class_id', classId)
+    .maybeSingle()
+  if (error) throw new Error(error.message)
+  return data ? { enrolledAt: data.enrolled_at, droppedAt: data.dropped_at } : null
+}
 
 const fromDB = (row) => row ? {
   id: row.id,
@@ -90,71 +104,81 @@ export const attendanceService = {
     return fromDB(data)
   },
 
-  // Bulk fetch for overview tables. Returns { sessionCount, records }
-  // where records are only the explicit absent/present entries (default = present).
-  // Callers use sessionCount as denominator: (sessionCount - absentCount) / sessionCount.
+  // Bulk fetch for overview tables. Returns { sessions, records, enrollments }:
+  // sessions [{ id, date }] trong khoảng, records chỉ gồm bản ghi tường minh
+  // (thiếu = có mặt), enrollments [{ studentId, enrolledAt, droppedAt }] để
+  // caller giới hạn mẫu số theo ngày vào lớp qua `summarizeAttendance`.
   async getByClassRange(classId, fromDate, toDate) {
-    const { data: sessions, error: sessErr } = await supabase
-      .from('sessions')
-      .select('id')
-      .eq('class_id', classId)
-      .gte('date', fromDate)
-      .lte('date', toDate)
+    const [{ data: sessions, error: sessErr }, { data: enrolls, error: enrErr }] = await Promise.all([
+      supabase
+        .from('sessions')
+        .select('id, date')
+        .eq('class_id', classId)
+        .gte('date', fromDate)
+        .lte('date', toDate),
+      supabase
+        .from('enrollments')
+        .select('student_id, enrolled_at, dropped_at')
+        .eq('class_id', classId),
+    ])
     if (sessErr) throw new Error(sessErr.message)
-    if (!sessions || sessions.length === 0) return { sessionCount: 0, records: [] }
+    if (enrErr) throw new Error(enrErr.message)
+    const enrollments = (enrolls ?? []).map(e => ({
+      studentId: e.student_id, enrolledAt: e.enrolled_at, droppedAt: e.dropped_at,
+    }))
+    if (!sessions || sessions.length === 0) return { sessions: [], records: [], enrollments }
     const sessionIds = sessions.map(s => s.id)
     const { data, error } = await supabase
       .from('attendance')
-      .select('student_id, present')
+      .select('session_id, student_id, present')
       .in('session_id', sessionIds)
     if (error) throw new Error(error.message)
     return {
-      sessionCount: sessions.length,
-      records: (data ?? []).map(row => ({ studentId: row.student_id, present: row.present })),
+      sessions,
+      records: (data ?? []).map(row => ({
+        sessionId: row.session_id, studentId: row.student_id, present: row.present,
+      })),
+      enrollments,
     }
   },
 
-  // Derived: attendance rate (%) over past sessions of a class. null if none.
+  // Derived: attendance rate (%) over past sessions of a class, chỉ tính các buổi
+  // từ ngày vào lớp. null nếu chưa có buổi nào áp dụng.
   async getRate(studentId, classId) {
-    const d = new Date()
-    const today = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-    const [sessions, records] = await Promise.all([
+    const today = todayKey()
+    const [sessions, records, enrollment] = await Promise.all([
       sessionService.getByClass(classId),
       this.getByStudent(studentId),
+      getEnrollmentDates(studentId, classId),
     ])
     const pastSessions = sessions.filter(s => s.date <= today)
-    if (pastSessions.length === 0) return null
-    const sessionIds = new Set(pastSessions.map(s => s.id))
-    // Mặc định có mặt: chỉ bản ghi present === false mới tính là vắng.
-    const absentCount = records.filter(r => sessionIds.has(r.sessionId) && r.present === false).length
-    return Math.round(((pastSessions.length - absentCount) / pastSessions.length) * 100)
+    const bySession = new Map(records.map(r => [r.sessionId, r]))
+    const { rate } = summarizeAttendance(pastSessions, enrollment, id => bySession.get(id))
+    return rate === null ? null : Math.round(rate * 100)
   },
 
   async getRateByRange(studentId, classId, fromDate, toDate) {
-    const { data: sessions, error: sessErr } = await supabase
-      .from('sessions')
-      .select('id, date')
-      .eq('class_id', classId)
-      .gte('date', fromDate)
-      .lte('date', toDate)
+    const [{ data: sessions, error: sessErr }, enrollment] = await Promise.all([
+      supabase
+        .from('sessions')
+        .select('id, date')
+        .eq('class_id', classId)
+        .gte('date', fromDate)
+        .lte('date', toDate),
+      getEnrollmentDates(studentId, classId),
+    ])
     if (sessErr) throw new Error(sessErr.message)
-    const total = (sessions ?? []).length
-    if (total === 0) return null
-    const sessionIds = sessions.map(s => s.id)
-    const dateById = new Map(sessions.map(s => [s.id, s.date]))
+    if (!sessions || sessions.length === 0) return null
     const { data, error } = await supabase
       .from('attendance')
       .select('session_id, present')
       .eq('student_id', studentId)
-      .in('session_id', sessionIds)
+      .in('session_id', sessions.map(s => s.id))
     if (error) throw new Error(error.message)
-    const absentRows = (data ?? []).filter(r => r.present === false)
-    const absentDates = absentRows
-      .map(r => dateById.get(r.session_id))
-      .filter(Boolean)
-      .sort((a, b) => a.localeCompare(b))
-    const absent = absentRows.length
-    const present = total - absent
-    return { present, total, pct: Math.round((present / total) * 1000) / 10, absentDates }
+    const bySession = new Map((data ?? []).map(r => [r.session_id, r]))
+    const { present, total, rate, absentDates } =
+      summarizeAttendance(sessions, enrollment, id => bySession.get(id))
+    if (total === 0) return null
+    return { present, total, pct: Math.round(rate * 1000) / 10, absentDates }
   },
 }
