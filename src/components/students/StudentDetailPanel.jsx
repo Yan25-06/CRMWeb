@@ -159,7 +159,7 @@ export const StudentDetailPanel = ({ student, enrollment, onEdit, onStatusChange
       mockTestService.getByClass(classId),
       mockTestResultService.getByStudent(studentId, classId),
     ]).then(([rate, sess, attRecs, hwRecs, tests, results]) => {
-      setAttendanceRate(rate ?? 0)
+      setAttendanceRate(rate)
       setSessions(sess)
       setAttendanceRecs(attRecs)
       setHomeworks(hwRecs)

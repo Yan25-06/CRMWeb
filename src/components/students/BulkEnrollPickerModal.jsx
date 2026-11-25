@@ -5,6 +5,8 @@ import { Modal, Button, toast } from '@/components/ui'
 import { getInitials } from '@/utils/helpers'
 import { studentService } from '@/services/studentService'
 import { enrollMany } from '@/utils/enrollMany'
+import { dateKeyToISO, todayKey } from '@/utils/attendance'
+import { EnrolledDateField } from '@/components/students/EnrolledDateField'
 
 // Modal chọn nhiều học sinh để ghi danh vào 1 lớp (ClassDetailPage).
 // Props:
@@ -18,11 +20,13 @@ export const BulkEnrollPickerModal = ({ open, onClose, classId, currentEnrollmen
   const [selectedIds, setSelectedIds] = useState(new Set())
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [enrolledDate, setEnrolledDate] = useState(todayKey())
 
   useEffect(() => {
     if (!open) return
     setSearch('')
     setSelectedIds(new Set())
+    setEnrolledDate(todayKey())
     setSaving(false)
     setLoading(true)
     studentService.getAll()
@@ -59,7 +63,7 @@ export const BulkEnrollPickerModal = ({ open, onClose, classId, currentEnrollmen
       const { ok, failed } = await enrollMany(
         [...selectedIds],
         classId,
-        {}
+        { enrolledAt: dateKeyToISO(enrolledDate) }
       )
       if (ok > 0) toast.success(`Đã thêm ${ok} học viên vào lớp`)
       if (failed.length > 0) toast.error(`${failed.length} học sinh thất bại`)
@@ -80,7 +84,7 @@ export const BulkEnrollPickerModal = ({ open, onClose, classId, currentEnrollmen
       footer={
         <div className="flex justify-end gap-2">
           <Button variant="secondary" onClick={onClose} disabled={saving}>Hủy</Button>
-          <Button onClick={handleSubmit} disabled={saving || selectedIds.size === 0}>
+          <Button onClick={handleSubmit} disabled={saving || selectedIds.size === 0 || !enrolledDate}>
             {saving ? 'Đang ghi danh...' : `Ghi danh ${selectedIds.size} học sinh`}
           </Button>
         </div>
@@ -143,6 +147,8 @@ export const BulkEnrollPickerModal = ({ open, onClose, classId, currentEnrollmen
         {selectedIds.size > 0 && (
           <p className="text-xs font-semibold text-navy-700">Đã chọn {selectedIds.size} học sinh</p>
         )}
+
+        <EnrolledDateField value={enrolledDate} onChange={setEnrolledDate} />
       </div>
     </Modal>
   )

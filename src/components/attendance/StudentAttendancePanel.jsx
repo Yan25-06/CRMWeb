@@ -6,6 +6,7 @@ import { Badge, toast } from '@/components/ui'
 import { sessionService } from '@/services/sessionService'
 import { attendanceService } from '@/services/attendanceService'
 import { enrollmentService } from '@/services/enrollmentService'
+import { isSessionApplicable, toDateKey, todayKey } from '@/utils/attendance'
 
 export const StudentAttendancePanel = ({ student, classId, onClose }) => {
   const [sessions, setSessions] = useState([])
@@ -30,30 +31,32 @@ export const StudentAttendancePanel = ({ student, classId, onClose }) => {
     return () => { cancelled = true }
   }, [student?.id, classId])
 
-  // Get enrollment date so we don't penalize student for sessions before they joined
-  const enrolledDate = enrollment?.enrolledAt ? enrollment.enrolledAt.split('T')[0] : null
+  // Ngày vào lớp (giờ địa phương) — không tính các buổi trước khi học viên vào lớp
+  const enrolledDate = toDateKey(enrollment?.enrolledAt)
 
+  // Lịch sử chỉ gồm các buổi áp dụng cho học viên (từ ngày vào lớp, hoặc buổi đã
+  // có bản ghi tường minh). `no` giữ số thứ tự buổi theo cả lớp.
   const history = useMemo(() => {
-    return sessions.map(session => {
-      const att = attendances.find(a => a.sessionId === session.id)
-      return {
-        session,
-        present: att ? att.present : true,  // mặc định có mặt
-        note: att ? att.note : ''
-      }
-    })
-  }, [sessions, attendances])
+    return sessions
+      .map((session, i) => ({ session, no: sessions.length - i }))
+      .map(({ session, no }) => {
+        const att = attendances.find(a => a.sessionId === session.id)
+        return {
+          session,
+          no,
+          hasRecord: !!att,
+          present: att ? att.present : true,  // mặc định có mặt
+          note: att ? att.note : ''
+        }
+      })
+      .filter(h => isSessionApplicable(h.session.date, enrollment, h.hasRecord))
+  }, [sessions, attendances, enrollment])
 
-  // Only count past sessions from enrollment date onwards
+  // Only count past sessions
   const relevantHistory = useMemo(() => {
-    const d = new Date()
-    const today = `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`
-    return history.filter(h => {
-      const isPast = h.session.date <= today
-      const afterEnroll = !enrolledDate || h.session.date >= enrolledDate
-      return isPast && afterEnroll
-    })
-  }, [history, enrolledDate])
+    const today = todayKey()
+    return history.filter(h => h.session.date <= today)
+  }, [history])
 
   const presentCount = relevantHistory.filter(h => h.present === true).length
   const totalCount = relevantHistory.length
@@ -100,6 +103,9 @@ export const StudentAttendancePanel = ({ student, classId, onClose }) => {
             <div className="text-center">
               <p className="font-semibold text-navy-800">Tỷ lệ chuyên cần: {percent}%</p>
               <p className="text-sm text-navy-500">Đã đi học {presentCount}/{totalCount} buổi</p>
+              {enrolledDate && (
+                <p className="text-xs text-navy-500 mt-0.5">Vào lớp từ {formatDate(enrolledDate)}</p>
+              )}
             </div>
           </div>
 
@@ -124,12 +130,12 @@ export const StudentAttendancePanel = ({ student, classId, onClose }) => {
                       </td>
                     </tr>
                   ) : (
-                    history.map((h, i) => (
+                    history.map(h => (
                       <tr key={h.session.id} className="hover:bg-navy-50/50 transition-colors">
                         <td className="px-4 py-3">
                           <div className="flex flex-col gap-0.5">
                             <span className="font-medium text-navy-800">
-                              Buổi {history.length - i} · {formatDate(h.session.date)}
+                              Buổi {h.no} · {formatDate(h.session.date)}
                             </span>
                             {h.session.topic && (
                               <span className="text-xs text-navy-500 line-clamp-1">

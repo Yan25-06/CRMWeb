@@ -6,6 +6,7 @@ import { sessionService } from '@/services/sessionService'
 import { homeworkService } from '@/services/homeworkService'
 import { enrollmentService } from '@/services/enrollmentService'
 import { AttendanceRingChart } from '@/components/attendance/AttendanceRingChart'
+import { toDateKey, todayKey } from '@/utils/attendance'
 
 export const StudentHomeworkPanel = ({ student, classId, onClose }) => {
   const [sessions, setSessions] = useState([])
@@ -24,7 +25,7 @@ export const StudentHomeworkPanel = ({ student, classId, onClose }) => {
       .then(([classSessions, hws, enrollment]) => {
         setSessions(classSessions)
         setHomeworks(hws)
-        setEnrolledDate(enrollment?.enrolledAt ? enrollment.enrolledAt.split('T')[0] : null)
+        setEnrolledDate(toDateKey(enrollment?.enrolledAt))
       })
       .catch(() => toast.error('Không thể tải dữ liệu bài tập'))
       .finally(() => setLoading(false))
@@ -38,7 +39,7 @@ export const StudentHomeworkPanel = ({ student, classId, onClose }) => {
   }, [sessions, homeworks])
 
   const relevantHistory = useMemo(() => {
-    const today = new Date().toISOString().split('T')[0]
+    const today = todayKey()
     return history.filter(h => {
       const isPast = h.session.date <= today
       const afterEnroll = !enrolledDate || h.session.date >= enrolledDate
